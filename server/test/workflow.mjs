@@ -408,6 +408,15 @@ for (const b of cast) {
     check('the personal link signs the director in', pj.status === 303, 'status ' + pj.status);
     pj = await call('GET', '/theater/projekt');
     check('and opens the project', pj.status === 200, 'status ' + pj.status);
+    cookies = '';
+    pj = await call('GET', ich + '/heft');
+    check('the personal link with /heft leads to the part book', pj.status === 303 &&
+          /\/theater\/mit\/heft$/.test(pj.res.headers.get('location') || ''), 'status ' + pj.status);
+    pj = await call('GET', '/theater/mit/heft');
+    check('and the part book carries the link to itself', pj.status === 200 &&
+          new RegExp('/theater/ich/[a-z0-9]{16}/heft').test(pj.text), 'status ' + pj.status);
+    cookies = '';
+    await call('GET', ich || '/theater/ich/x');
     const me2 = await call('GET', '/theater/mit');
     check('the director sees the project link', /href="\/theater\/projekt"/.test(me2.text));
     cookies = saved;

@@ -887,6 +887,10 @@ export const de = {
   'book.sits':       'sitzt',
   'book.again':      'nochmal',
   'book.none':       'Keine eigenen Passagen im Drehbuch.',
+  'book.link_title': 'Link zu meinem Rollenheft',
+  'book.link_what':  '\u00d6ffnet dieses Heft auf jedem Ger\u00e4t ohne Anmeldung \u2013 zum Speichern am Handy '
+                   + 'oder zum Weiterleiten. Er steht f\u00fcr die Person, der das Heft geh\u00f6rt, und geht nur an sie.',
+  'book.share':      'teilen \u2026',
 
   /* ---------- Kommentare ---------- */
   'kd.new':          'Neuer Kommentar bei Stichwort {nr}',

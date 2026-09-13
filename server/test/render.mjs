@@ -169,7 +169,7 @@ for (const { code } of LANGUAGES) {
         before: ['Enter OBERON.'], lines: [{ who: 'OBERON', text: 'Ill met by moonlight, <proud> Titania.' },
         { direction: 'He turns.' }, { who: 'OBERON', text: 'Tarry.', cont: true }], after: ['Exit.'], cut: false, role: '' },
       { i: 2, nr: null, act: '', chapter: '', cue: null, before: [], lines: [{ who: 'OBERON', text: 'x', cut: true }], after: [], cut: true, role: 'KING' },
-    ], 12),
+    ], 12, 'https://x.example/theater/ich/abc/heft'),
     bookEmpty: () => A.bookPage(project, person, [], 0),
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([

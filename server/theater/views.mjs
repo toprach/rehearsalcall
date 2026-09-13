@@ -1134,7 +1134,7 @@ function memberPage(project, person, m, realSelf) {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words) {
+function bookPage(project, person, passages, words, link = '') {
   const who = person.name || person.b;
   const card = (p) => `<section class="pass${p.cut ? ' cut' : ''}" id="pass-${p.i}" data-i="${p.i}">
       <div class="passhead small muted"><span class="pno">${p.i}</span>
@@ -1168,6 +1168,22 @@ function bookPage(project, person, passages, words) {
     </div>
     <div id="book">${passages.map(card).join('')}</div>
     ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
+    ${link ? `<div class="box small" style="margin-top:1.5rem">
+      <b>${t('book.link_title')}</b>
+      <p class="muted" style="margin:.3rem 0 .6rem">${t('book.link_what')}</p>
+      ${copyLink(link)}
+      <button type="button" class="quiet mini" id="sharelink" hidden>${h(t('book.share'))}</button>
+      <script>
+      (function () {
+        var b = document.getElementById('sharelink');
+        if (!navigator.share) return;
+        b.hidden = false;
+        b.addEventListener('click', function () {
+          navigator.share({ title: ${JSON.stringify(t('book.title'))}, url: ${JSON.stringify(link)} }).catch(function () {});
+        });
+      })();
+      <\/script>
+    </div>` : ''}
     <div class="bookstep" id="bookstep" hidden>
       <button type="button" id="prev" class="quiet">\u25c0</button>
       <span id="pos" class="small"></span>

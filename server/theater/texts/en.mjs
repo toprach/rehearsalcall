@@ -884,6 +884,10 @@ export const en = {
   'book.sits':       'sits',
   'book.again':      'again',
   'book.none':       'No passages of yours in the script.',
+  'book.link_title': 'Link to my part book',
+  'book.link_what':  'Opens this book on any device without signing in \u2013 to save on the phone or '
+                   + 'to send on. It stands for the person whose book this is, so it goes to them alone.',
+  'book.share':      'share \u2026',
 
   /* ---------- comments ---------- */
   'kd.new':          'New comment at cue {nr}',

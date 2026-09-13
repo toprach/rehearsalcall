@@ -559,6 +559,10 @@ export async function handle(request, response, path) {
     setRealSelfCookie(response, null);
     // The personal link is the one way to the director's rights.
     if (hit.person.regie || hit.person.assistenz) setRegieCookie(response, hit.project.id, hit.person.id);
+    /* A page may be named after the token - the part book, say, saved
+       on a phone - and then that is where the link leads. */
+    const target = ['heft', 'zeiten', 'termine', 'kommentare'].includes(parts[2]) ? parts[2] : '';
+    if (target) return redirect(response, '/theater/mit/' + target);
     return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');
   }
 
@@ -891,7 +895,19 @@ export async function handle(request, response, path) {
       if (!project.skript) return html(response,
         A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
       const passages = partBook(project.skript, person.b);
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages)));
+      /* The link to this book signs its owner in. Whoever has switched
+         to somebody else through the dropdown sees it only with the
+         director's rights - otherwise a member could pick up the
+         director's own link, and with it the director's rights. */
+      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const own = !realSelf || realSelf.id === person.id;
+      let link = '';
+      if (own || mayDirect) {
+        // People made by hand before tokens existed get one now.
+        if (!person.token) { person.token = S.randomId(16); await S.write(project); }
+        link = baseOf(request) + '/theater/ich/' + person.token + '/heft';
+      }
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), link));
     }
 
     if (second === 'gesamt') {
