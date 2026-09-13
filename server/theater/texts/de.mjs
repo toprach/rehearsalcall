@@ -957,6 +957,17 @@ export const de = {
                    + 'oder zum Weiterleiten. Er steht f\u00fcr die Person, der das Heft geh\u00f6rt, und geht nur an sie.',
   'book.share':      'teilen \u2026',
 
+  /* ---------- die App am Handy ---------- */
+  'pwa.short':         'Proben',
+  'pwa.install_title': 'Als App aufs Handy',
+  'pwa.install_what':  'Dann liegen Rollenheft und Kalender wie eine App am Startbildschirm, ohne Browserleiste.',
+  'pwa.install':       'Installieren',
+  'pwa.later':         'sp\u00e4ter',
+  'pwa.ios':           'Am iPhone: das Teilen-Symbol in Safari, dann \u201eZum Home-Bildschirm\u201c.',
+  'pwa.offline_t':     'Offline',
+  'pwa.offline':       'Keine Verbindung. Sobald das Netz wieder da ist, geht es weiter.',
+  'pwa.retry':         'Noch einmal versuchen',
+
   /* ---------- Kommentare ---------- */
   'kd.new':          'Neuer Kommentar bei Stichwort {nr}',
   'kd.text':         'Kommentar',

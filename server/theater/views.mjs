@@ -79,6 +79,11 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
     ctx.font && ctx.font !== 'normal' ? ` data-font="${h(ctx.font)}"` : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="/theater/manifest.webmanifest">
+<meta name="theme-color" content="#b3272d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="${h(t('pwa.short'))}">
+<link rel="apple-touch-icon" href="/theater/icon-192.png">
 <title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
 <header class="head${tabbar ? ' member' : ''}"><div class="inner">
   <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
@@ -108,10 +113,13 @@ ${ctx.share ? `<script>
   });
 })();
 <\/script>` : ''}
-<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${ctx.demo
+<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${tabbar ? installBanner() : ''}${ctx.demo
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
       { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${body}</div>
 ${tabbar}
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
+</script>
 <footer class="foot"><div class="inner small muted">
   <a href="/theater/ueber">${h(name)}${ABOUT.version ? ' ' + h(ABOUT.version) : ''}</a>
   · <a href="${h(ABOUT.repository)}" rel="noopener">${t('about.source')}</a>
@@ -1124,6 +1132,45 @@ const memberTabbar = (project, person) => {
       aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
       ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
 };
+
+/* The invitation to put the pages on the phone as an app. Shown on a
+   member's pages while they run in a browser tab, not once installed;
+   "later" keeps it away for two weeks. Chrome and friends can prompt;
+   Safari on the iPhone needs to be told the way. */
+const installBanner = () => `<div class="notice pwa" id="pwabanner" hidden>
+    <b>${t('pwa.install_title')}</b>
+    <p class="small muted" style="margin:.3rem 0 .6rem">${t('pwa.install_what')}</p>
+    <p class="small ios" hidden>${t('pwa.ios')}</p>
+    <button type="button" class="mini" id="pwa-install">${h(t('pwa.install'))}</button>
+    <button type="button" class="quiet mini" id="pwa-later">${h(t('pwa.later'))}</button>
+  </div>
+  <script>
+  (function () {
+    var box = document.getElementById('pwabanner'); if (!box) return;
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    var later = 0; try { later = Number(localStorage.getItem('pwa-later') || 0); } catch (e) {}
+    if (standalone || Date.now() - later < 14 * 86400000) return;
+    var deferred = null;
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; box.hidden = false; });
+    if (ios) box.hidden = false;
+    document.getElementById('pwa-install').addEventListener('click', function () {
+      if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { box.hidden = true; deferred = null; }); }
+      else box.querySelector('.ios').hidden = false;
+    });
+    document.getElementById('pwa-later').addEventListener('click', function () {
+      try { localStorage.setItem('pwa-later', String(Date.now())); } catch (e) {}
+      box.hidden = true;
+    });
+  })();
+  </script>`;
+
+/* Shown by the service worker when the network is gone. */
+const offlinePage = () => page({ title: t('pwa.offline_t'), narrow: true, body: `
+    <p class="eyebrow">${t('app.name')}</p>
+    <h1>${t('pwa.offline_t')}</h1>
+    <p class="muted">${t('pwa.offline')}</p>
+    <p><a class="btn quiet" href="/theater/mit">${t('pwa.retry')}</a></p>` });
 
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
@@ -2272,5 +2319,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
-           settingsPage, playPage };
+           settingsPage, playPage, offlinePage };
 }

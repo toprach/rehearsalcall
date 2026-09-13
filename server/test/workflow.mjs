@@ -464,6 +464,15 @@ for (const b of cast) {
     check('the whole play is readable on the screen', pl.status === 200 && /class="say cmt mine"/.test(pl.text) &&
           /id="play-data"/.test(pl.text), 'status ' + pl.status);
     clean('the play page', pl);
+    const mf = await call('GET', '/theater/manifest.webmanifest');
+    let mj = {}; try { mj = JSON.parse(mf.text); } catch {}
+    check('the app manifest is served', mf.status === 200 && mj.start_url === '/theater/mit' && mj.icons?.length >= 2, 'status ' + mf.status);
+    const sw = await call('GET', '/theater/sw.js');
+    check('the service worker is served', sw.status === 200 && /addEventListener\('fetch'/.test(sw.text), 'status ' + sw.status);
+    const ic = await fetch(BASE + '/theater/icon-192.png');
+    const icb = Buffer.from(await ic.arrayBuffer());
+    check('the icon is a PNG', ic.status === 200 && icb.slice(1, 4).toString('ascii') === 'PNG' && icb.length > 500, 'status ' + ic.status);
+    check('member pages carry the manifest and the install banner', /rel="manifest"/.test(bk.text) && /id="pwabanner"/.test(bk.text));
     const js = await call('GET', '/theater/heft.js');
     check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
   }

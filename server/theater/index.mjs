@@ -34,6 +34,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
+import * as PWA from './pwa.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -486,12 +487,26 @@ export async function handle(request, response, path) {
   }
 
   /* --- the script of the part book: a file, so nothing is escaped --- */
-  if (first === 'heft.js') {
+  if (first === 'heft.js' || first === 'sw.js') {
     await drainBody(request);
-    const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', 'heft.js');
-    response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+    const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', first);
+    response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': first === 'sw.js' ? 'no-cache' : 'public, max-age=3600' });
     return response.end(fs.readFileSync(file));
   }
+
+  /* --- the app: manifest, icons, the page for when the network is gone --- */
+  if (first === 'manifest.webmanifest') {
+    await drainBody(request);
+    response.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' });
+    return response.end(JSON.stringify(PWA.manifest(t_(L, 'app.name'), t_(L, 'pwa.short'), L)));
+  }
+  if (first === 'icon-192.png' || first === 'icon-512.png') {
+    await drainBody(request);
+    response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=604800' });
+    return response.end(PWA.icon(first === 'icon-192.png' ? 192 : 512));
+  }
+  if (first === 'offline') { await drainBody(request); return html(response, A.offlinePage()); }
 
   /* --- about this installation: open to everyone --- */
   if (first === 'ueber') { await drainBody(request); return html(response, A.aboutPage()); }

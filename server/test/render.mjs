@@ -126,6 +126,7 @@ for (const { code } of LANGUAGES) {
     entryDemos: () => A.entryPage(null, [{ key: 'midsummer', title: 'A <Dream>' }]),
     settingsPage: () => A.settingsPage({ language: 'de', theme: 'dunkel', font: 'gross' }, '/theater/mit', null,
       { project, person }),
+    offlinePage: () => A.offlinePage(),
     settingsAnon: () => A.settingsPage({ language: '', theme: 'hell', font: 'normal' }, '/theater', null, null),
     aboutPage: () => A.aboutPage(),
     projectPage: () => A.projectPage(project, { kind: 'good', key: 'r.created', values: { p1: 'X' } }),

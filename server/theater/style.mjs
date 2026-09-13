@@ -66,6 +66,8 @@ export const STYLE = `
   .notice.error { background:#fdecec; border-left:4px solid var(--accent) }
   .notice.good { background:#e9f5ed; border-left:4px solid var(--good) }
   .notice.demo { background:#eef2fb; border-left:4px solid #4a6fd0; font-size:.9rem }
+  .notice.pwa { background:var(--card); border-left:4px solid var(--accent) }
+  .notice.pwa button { margin:0 .3rem 0 0 }
   html[data-theme="dark"] .notice.demo { background:#1d2540 }
   .box.demos p { margin:.4rem 0 .8rem } .box.demos p:last-child { margin-bottom:0 }
   .box.demos .btn { margin:.3rem .3rem 0 0 }
