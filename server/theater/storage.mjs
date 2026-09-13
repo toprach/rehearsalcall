@@ -54,21 +54,12 @@ export function randomId(length = 10) {
 export const hashOf = code =>
   crypto.createHash('sha256').update(String(code).trim().toLowerCase()).digest('hex');
 
-/* Codes one can say out loud: the words can be given over the phone.
-   They are German because the people using them are - the words are
-   content, not code.
-
-   Two words so the code can be read out, and four characters from the
-   alphabet without look-alikes so it cannot be guessed: 12 x 12 x 31^4,
-   around 133 million possibilities. With two digits it would have been
-   12,960 - a machine would have worked through that in a quarter of an
-   hour.                                                               */
-const WORD_A = ['ruhig', 'heiter', 'flink', 'sanft', 'munter', 'klar', 'warm',
-                'frisch', 'leise', 'froh', 'weit', 'hell'];
-const WORD_B = ['probe', 'buehne', 'vorhang', 'kulisse', 'souffleur', 'applaus',
-                'gasse', 'rampe', 'garderobe', 'premiere', 'szene', 'regie'];
-const pick = list => list[crypto.randomInt(list.length)];
-export const newCode = () => `${pick(WORD_A)}-${pick(WORD_B)}-${randomId(4)}`;
+/* An access code: six characters from the alphabet above - letters
+   and digits, nothing that can be misread. 31^6, around 887 million
+   possibilities; with the brake in throttle.mjs that is out of reach
+   of guessing. Codes that were made earlier keep working: only the
+   hash is stored.                                                     */
+export const newCode = () => randomId(6);
 
 const isId = x => /^[a-z0-9]{4,32}$/.test(String(x || ''));
 const isToken = x => /^[a-z0-9]{8,40}$/.test(String(x || ''));

@@ -41,6 +41,21 @@ const project = {
   gruppenlink: 'https://x/theater/gruppe/abc', regielink: 'https://x/theater/projekt?s=abc',
   drucklink: 'https://x/theater/druck/abc',
 };
+project.drehbuch.nr = 2; project.drehbuch.hochgeladen = '2026-09-02T10:00:00Z';
+project.drehbuch.aenderungen = { geaendert: 3, neu: 1, gestrichen: 2, gleich: 100 };
+project.drehbuch.neue_sprecher = ['FAIRY'];
+project.fassungen = [{ nr: 1, quelle: 'dream-v1.md', hochgeladen: '2026-09-01T10:00:00Z',
+  markdown: 'x', sprecherstil: 'dot', bloecke: 190, repliken: 118, aenderungen: null }];
+project.plan.abgleich = { datum: '2026-09-02T10:00:00Z', unsicher: ['P02'], umgebaut: ['P01'] };
+project.plan.proben[1].unsicher = true;
+project.plan.proben[0].szenen[0].umgebaut = true;
+const diff = { equal: 100, changed: 1, added: 1, removed: 1, hunks: [{ items: [
+  { kind: 'changed', old: { nr: 12, who: 'OBERON', text: 'Ill met by moonlight' },
+                     new: { nr: 12, who: 'OBERON', text: 'Ill met by daylight' } },
+  { kind: 'removed', old: { nr: 13, who: 'PUCK', text: 'Gone.' } },
+  { kind: 'added', new: { nr: 13, who: 'TITANIA', text: 'New line <here>' } },
+] }] };
+const byCue = new Map([[12, new Set(['P01'])], [13, new Set(['P01', 'P02'])]]);
 const person = project.personen[0];
 const datesResult = {
   until: new Date('2026-12-01'),
@@ -123,6 +138,9 @@ for (const { code } of LANGUAGES) {
     printPage: () => A.printPage(project, null),
     docsPage: () => A.docsPage(project, 'https://x/theater/druck/abc'),
     errorPage: () => A.errorPage('f.failed_t', 'f.failed', { reason: 'because' }),
+    versionPage: () => A.versionPage(project, project.drehbuch, project.fassungen[0], diff, byCue),
+    versionEmpty: () => A.versionPage(project, project.drehbuch, project.fassungen[0],
+      { equal: 5, changed: 0, added: 0, removed: 0, hunks: [] }, new Map()),
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([
       { id: 'abcd1234', titel: 'One <play>', angelegt: '2026-09-01T10:00:00Z', email: 'a@b.c',

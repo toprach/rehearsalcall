@@ -179,6 +179,70 @@ const planHtml = r.text;
   check('unknown rehearsal gives 404', gone.status === 404, 'status ' + gone.status);
 }
 
+/* ---- 6b. a new version of the script ----
+
+   The plan must survive an upload. A small edit - one speech changed,
+   one cut, one added - keeps every passage; cutting the very first
+   speech of a rehearsal's passage makes that rehearsal unsure; and an
+   older version can be made current again. */
+{
+  const original = fs.readFileSync(SCRIPT, 'utf8');
+  const uploadText = async (text, name) => {
+    const fd = new FormData();
+    fd.append('file', new Blob([text]), name);
+    fd.append('style', 'auto');
+    return call('POST', '/theater/skript', fd);
+  };
+  const target = planIds[0];
+  const idsBefore = planIds.join(',');
+
+  // version 2: change, cut, add - in speeches that are surely not anchors
+  const v2 = original
+    .replace('Four days will quickly steep themselves in night;',
+             'Four days will quickly steep themselves in darkness;')
+    .replace(/\nQUINCE\.\nIs all our company here\?\n/, '\nQUINCE.\nIs all our company here?\nAnd is the weather fair?\n');
+  check('version 2 differs from the original', v2 !== original);
+  r = await uploadText(v2, 'dream-v2.md');
+  check('upload version 2', r.status === 200 && (good(r) || /version_unsure|Fassung/.test(r.text)), say(r));
+  clean('upload page after version 2', r);
+  check('version 2 is listed with its changes', /\/theater\/skript\/fassung\/2/.test(r.text));
+  r = await call('GET', '/theater/plan');
+  const idsAfter = [...new Set([...r.text.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1]))].join(',');
+  check('the plan survived the upload', idsAfter === idsBefore, idsAfter.slice(0, 40));
+  r = await call('GET', '/theater/skript/fassung/2');
+  check('version 2 compared with version 1', r.status === 200 && /class="diff"/.test(r.text)
+        && /class="changed"/.test(r.text), 'status ' + r.status);
+  clean('version page', r);
+  r = await call('GET', '/theater/skript/fassung/9');
+  check('an unknown version gives 404', r.status === 404, 'status ' + r.status);
+
+  // version 3: cut the first speech of the target rehearsal's first passage
+  const pg = await call('GET', '/theater/plan/' + target);
+  const first = /<span class="speaker">([^<]+)<\/span>\s*<span class="words">([^<]+)<\/span>/.exec(pg.text);
+  const who = first ? first[1].replace(/\s*[\u00b7\u2013].*$/, '').trim() : '';
+  const lead = first ? first[2].split(/\s+/).slice(0, 5).join(' ') : '';
+  const at = who && lead ? original.indexOf('\n' + who + '.\n' + lead) : -1;
+  check('found the first speech of ' + target + ' in the file', at >= 0, who + ': ' + lead);
+  if (at >= 0) {
+    const end = original.indexOf('\n\n', at + 1);
+    const v3 = original.slice(0, at) + original.slice(end);
+    r = await uploadText(v3, 'dream-v3.md');
+    check('upload version 3 warns that the plan may not fit', errorNotice(r) &&
+          new RegExp('\\b' + target + '\\b').test(notice(r.text).text), say(r));
+    r = await call('GET', '/theater/plan');
+    check('the rehearsal is marked unsure', /class="unsure"/.test(r.text) &&
+          new RegExp('>' + target + '<').test(r.text));
+    clean('plan page with an unsure rehearsal', r);
+    // back to version 2: the anchors are found again
+    r = await post('/theater/skript', { action: 'zurueck', fassung: '2' });
+    check('version 2 made current again', good(r), say(r));
+    r = await call('GET', '/theater/plan');
+    check('nothing unsure any more', !/class="unsure"/.test(r.text));
+    r = await post('/theater/skript', { action: 'zurueck', fassung: '77' });
+    check('restoring an unknown version is refused', errorNotice(r), say(r));
+  }
+}
+
 /* ---- 7. the company page ---- */
 r = await post('/theater/leute', { action: 'neu', b: 'TESTPERSON', name: 'Test Person' });
 check('add a person to the company', good(r), say(r));
@@ -356,7 +420,7 @@ if (!ADMIN) {
   const code1 = (/id="freshcode">([^<]+)</.exec(r.text) || [])[1];
   const rowStart = r.text.indexOf('<b>Workflow &lt;test&gt;</b>');
   const id = (/<code>([a-z0-9]{8})<\/code>/.exec(r.text.slice(rowStart)) || [])[1];
-  check('the code is shown once', !!code1 && /^[a-z]+-[a-z]+-[a-z0-9]{4}$/.test(code1 || ''), code1);
+  check('the code is shown once', !!code1 && /^[a-z0-9]{6}$/.test(code1 || ''), code1);
   check('the new project is in the list', !!id, id);
   check('the email is offered as a mail link', /href="mailto:regie%40example.org\?subject=/.test(r.text));
   const admin = cookies;

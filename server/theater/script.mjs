@@ -174,6 +174,34 @@ export async function readScript(buffer, filename, opt = {}) {
     inContext(c, 'srcKind = "md"');
     markdown = buffer.toString('utf8');
   }
+  return analyse(c, markdown, opt);
+}
+
+/* The same for markdown that is already there - an older version being
+   made current again. The source name says whether it came out of a
+   Word file, which matters for how table cells are read. */
+export function readMarkdown(markdown, source, opt = {}) {
+  const c = newContext();
+  inContext(c, 'srcKind = ' + JSON.stringify(/\.docx$/i.test(source || '') ? 'docx' : 'md'));
+  return analyse(c, markdown, opt);
+}
+
+/* The speeches of a markdown text, casting-independent: speaker name
+   as it stands in the text, cue number, text. For comparing versions. */
+export function speechesOf(markdown, source, style) {
+  const c = newContext();
+  inContext(c, 'srcKind = ' + JSON.stringify(/\.docx$/i.test(source || '') ? 'docx' : 'md'));
+  applyStyle(c, style);
+  inContext(c, 'cast = []; tokenMap = {};');
+  inContext(c, 'blocks = parseMarkdown(' + JSON.stringify(markdown) + ')');
+  return JSON.parse(inContext(c, `JSON.stringify(blocks.flatMap(b =>
+    b.kind === 'table'
+      ? b.rows.flatMap(r => r.flatMap(cell => cell.flatMap(g => g)))
+      : [b]).filter(b => b.kind === 'speech' || b.kind === 'cont')
+    .map(b => ({ nr: b.cueNr ?? null, who: b.token || '', text: b.text || '', cut: !!b.struck })))`));
+}
+
+function analyse(c, markdown, opt) {
   if (!markdown || markdown.length < 200) throw failure('r.no_readable_text');
 
   /* Which way the speakers are written: as chosen, else as detected.

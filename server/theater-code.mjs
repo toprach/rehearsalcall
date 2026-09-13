@@ -31,8 +31,8 @@ if (fs.existsSync(envFile)) {
 
 const S = await import('./theater/storage.mjs');
 
-/* The codes themselves are made in storage.mjs - the admin page makes
-   them the same way. */
+/* The codes themselves are made in storage.mjs (six letters and digits)
+   - the admin page makes them the same way. */
 const newCode = S.newCode;
 
 const [, , command, ...rest] = process.argv;

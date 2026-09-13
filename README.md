@@ -96,6 +96,15 @@ Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
 Framadate, Nuudel): there, one poll is always one date.
 
+A script is uploaded more than once while rehearsals run. Every version
+is kept, and the page shows what changed from one to the next as a list
+of speeches (changed, new, cut - formatting does not count), printable
+as a change sheet for the company. The rehearsal plan is not thrown
+away: every passage is anchored to the speaker and first words of its
+first and last speech and found again in the new text. Only when an
+anchor is gone does the director get a warning that the plan may no
+longer fit there, with the choice to derive it again.
+
 Besides that road, the server also shows the **passages** of a single
 rehearsal — what is actually spoken there, with the lines the director has to
 read set apart — it lets the plan be **revised by hand**, and it can have an

@@ -37,7 +37,7 @@ export const de = {
                      'WhatsApp-Gruppe. Jede und jeder trägt einmal ein, wann Zeit ' +
                      'ist – das Programm rechnet daraus die Termine.',
   'entry.code':        'Zugangscode',
-  'entry.code_hint':  'z. B. ruhig-probe-42',
+  'entry.code_hint':  'z. B. k7mq2x',
   'entry.continue':      'Weiter',
   'entry.no_access': 'Noch keinen Zugang?',
   'entry.request':   'Schreiben Sie ein Mail an <a href="mailto:{mail}?subject={subject}">{mail}</a> ' +
@@ -717,6 +717,71 @@ export const de = {
   'r.admin_code_new':   'Neuer Zugangscode f\u00fcr {p1}. Der alte gilt nicht mehr.',
   'r.admin_confirm':    'Zum L\u00f6schen den Titel genau so eintippen: {p1}',
   'r.admin_deleted':    '{p1} gel\u00f6scht, mit allem, was dazugeh\u00f6rt.',
+
+  /* ---------- Fassungen des Drehbuchs ---------- */
+  'upl.versions':       'Fassungen',
+  'upl.versions_what':  'Jedes hochgeladene Drehbuch bleibt erhalten. Der Vergleich zeigt die '
+                      + 'Repliken, die ge\u00e4ndert, neu oder gestrichen sind \u2013 Formatierung '
+                      + 'z\u00e4hlt nicht. Der Probenplan wird inhaltlich mitgef\u00fchrt: jede '
+                      + 'Textstelle wird \u00fcber ihre erste und ihre letzte Replik wiedergefunden.',
+  'upl.col_version':    'Fassung',
+  'upl.col_uploaded':   'Hochgeladen',
+  'upl.col_file':       'Datei',
+  'upl.col_speeches':   'Repliken',
+  'upl.col_changes':    '\u00c4nderungen gegen\u00fcber der vorigen',
+  'upl.changes':        '{changed} ge\u00e4ndert, {added} neu, {removed} gestrichen',
+  'upl.first':          'erste Fassung',
+  'upl.current':        'aktuell',
+  'upl.restored_from':  'wiederhergestellt aus Fassung {nr}',
+  'upl.restore':        'wieder aktuell machen',
+  'upl.restore_confirm': 'Fassung {nr} zum aktuellen Drehbuch machen? Der Plan wird mitgef\u00fchrt, '
+                      + 'die jetzt aktuelle Fassung bleibt ebenfalls erhalten.',
+  'upl.new_names':      'Neue Sprechernamen, noch nicht zugeordnet: {names} \u2013 '
+                      + '<a href="/theater/besetzung">jetzt zuordnen</a>.',
+  'upl.plan_unsure':    'Der Probenplan passt m\u00f6glicherweise nicht mehr: bei {ids} wurde Anfang '
+                      + 'oder Ende einer Textstelle im neuen Drehbuch nicht gefunden. Diese Proben '
+                      + 'ansehen oder den <a href="/theater/plan">Plan neu ableiten</a>. Sonst wurde '
+                      + 'nichts ge\u00e4ndert.',
+  'upl.plan_rebuilt':   'Bei {ids} hat sich innerhalb der Textstelle viel ge\u00e4ndert. Die Stellen '
+                      + 'stimmen noch; ansehen lohnt sich.',
+  'ver.title':          'Fassung {nr} gegen\u00fcber Fassung {before}',
+  'ver.files':          '{before} \u2192 {now}',
+  'ver.summary':        '{changed} ge\u00e4ndert, {added} neu, {removed} gestrichen, {equal} unver\u00e4nderte Repliken.',
+  'ver.none':           'Kein Unterschied in den Repliken.',
+  'ver.col_cue':        'Nr.',
+  'ver.col_who':        'Sprecher',
+  'ver.col_old':        'Vorher',
+  'ver.col_new':        'Jetzt',
+  'ver.col_rehearsal':  'Probe',
+  'ver.changed':        'ge\u00e4ndert',
+  'ver.added':          'neu',
+  'ver.removed':        'gestrichen',
+  'ver.back':           '\u2190 Drehbuch',
+  'ver.print':          'F\u00fcrs Ensemble: diese Seite als \u00c4nderungsblatt drucken. Die '
+                      + 'Stichwort-Nummern stehen alt und neu \u2013 gedruckte Rollenhefte tragen '
+                      + 'die alten.',
+  'plan.unsure_notice': 'Nach dem letzten Hochladen des Drehbuchs wurde bei {ids} Anfang oder Ende '
+                      + 'einer Textstelle nicht gefunden. Dort passt der Plan m\u00f6glicherweise '
+                      + 'nicht mehr. Diese Proben ansehen oder den Plan neu ableiten \u2013 das '
+                      + 'verwirft jede Handarbeit und jeden festen Termin.',
+  'plan.unsure_row':    'Anfang oder Ende im neuen Drehbuch nicht gefunden',
+  'plan.rebuilt_row':   'innen viel ge\u00e4ndert \u2013 Textstellen ansehen',
+  'r.no_version':       'Diese Fassung gibt es nicht.',
+  'f.no_version_t':     'Keine solche Fassung',
+  'f.no_version':       'Eine Fassung mit dieser Nummer gibt es nicht, oder es gibt nichts zum Vergleichen.',
+  'r.version_taken':    'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen.',
+  'r.version_kept':     'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
+                      + 'Der Probenplan ist mitgef\u00fchrt; jede Textstelle wurde wiedergefunden.',
+  'r.version_rebuilt':  'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
+                      + 'Bei {rebuilt} hat sich innen viel ge\u00e4ndert \u2013 die Stellen stimmen noch, '
+                      + 'aber ansehen.',
+  'r.version_unsure':   'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
+                      + '<b>Der Probenplan passt m\u00f6glicherweise nicht mehr:</b> bei {unsure} wurde '
+                      + 'Anfang oder Ende einer Textstelle nicht gefunden. Diese Proben ansehen oder '
+                      + 'den Plan neu ableiten; sonst wurde nichts ge\u00e4ndert.',
+  'r.version_new_names': 'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
+                      + '{fresh} neue Sprechernamen \u2013 auf der <a href="/theater/besetzung">Besetzungsseite</a> '
+                      + 'zuordnen; bis dahin gelten sie als eigene Personen.',
 
   /* ---------- wie die Sprecher geschrieben sind ---------- */
   'upl.style':        'Sprecher im Text',

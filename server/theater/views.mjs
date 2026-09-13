@@ -407,7 +407,88 @@ function uploadPage(p, m) {
       <button type="submit">${t('upl.upload')}</button>
       <span class="small muted">${t('upl.replaces')}</span>
     </form>
+    ${versionList(p)}
     <p class="small muted" style="margin-top:2rem">${t('upl.format')}</p>` });
+}
+
+/* ---------------------------------------------------------------------
+   The versions of the script, and what the last upload did to the plan.
+   --------------------------------------------------------------------- */
+const speechCount = (v) => v.repliken ?? (v.sprecher || []).reduce((a, s) => a + (s.n || 0), 0);
+const changesText = (a) => a ? t('upl.changes', { changed: a.geaendert, added: a.neu, removed: a.gestrichen })
+                             : t('upl.first');
+
+function versionNotices(p) {
+  const d = p.drehbuch, g = p.plan?.abgleich;
+  let out = '';
+  if (d?.neue_sprecher?.length)
+    out += `<div class="notice error">${t('upl.new_names', { names: d.neue_sprecher.map(h).join(', ') })}</div>`;
+  if (g?.unsicher?.length)
+    out += `<div class="notice error">${t('upl.plan_unsure', { ids: g.unsicher.map(h).join(', ') })}</div>`;
+  else if (g?.umgebaut?.length)
+    out += `<div class="notice good">${t('upl.plan_rebuilt', { ids: g.umgebaut.map(h).join(', ') })}</div>`;
+  return out;
+}
+
+function versionList(p) {
+  const d = p.drehbuch;
+  if (!d) return '';
+  const older = [...(p.fassungen || [])].sort((a, b) => b.nr - a.nr);
+  const all = [{ ...d, current: true }, ...older];
+  if (all.length < 2) return '';
+  const when = (iso) => iso ? h(L.date(iso, { dateStyle: 'medium', timeStyle: 'short' })) : '\u2014';
+  const row = (v) => `<tr${v.current ? ' class="isfixed"' : ''}>
+      <td><b>${h(String(v.nr || 1))}</b>${v.current ? ` <span class="chip">${t('upl.current')}</span>` : ''}</td>
+      <td class="small">${when(v.hochgeladen)}</td>
+      <td class="small">${h(v.quelle || '')}${v.wiederhergestellt ? `<div class="muted">${
+        t('upl.restored_from', { nr: v.wiederhergestellt })}</div>` : ''}</td>
+      <td class="small">${speechCount(v)}</td>
+      <td class="small">${(v.nr || 1) > 1
+        ? `<a href="/theater/skript/fassung/${v.nr}">${changesText(v.aenderungen)}</a>`
+        : changesText(null)}</td>
+      <td>${v.current ? '' : actionForm('/theater/skript', 'zurueck', { fassung: v.nr },
+        '<button class="quiet mini" type="submit">' + h(t('upl.restore')) + '</button>',
+        { confirm: t('upl.restore_confirm', { nr: v.nr }) })}</td>
+    </tr>`;
+  return `
+    <h2>${t('upl.versions')}</h2>
+    ${versionNotices(p)}
+    <p class="small muted">${t('upl.versions_what')}</p>
+    <table><tr><th>${t('upl.col_version')}</th><th>${t('upl.col_uploaded')}</th>
+      <th>${t('upl.col_file')}</th><th>${t('upl.col_speeches')}</th>
+      <th>${t('upl.col_changes')}</th><th></th></tr>
+      ${all.map(row).join('')}</table>`;
+}
+
+/* One version against the one before it: the speeches that changed,
+   came in or were cut, with cue numbers old and new and the rehearsals
+   they fall into. Printable as the change sheet for the company. */
+function versionPage(p, v, before, diff, byCue) {
+  const cue = (s) => s && s.nr != null ? String(s.nr) : '';
+  const rehearsals = (s) => s && s.nr != null && byCue.has(s.nr)
+    ? [...byCue.get(s.nr)].map(id => `<span class="chip">${h(id)}</span>`).join('') : '';
+  const row = (it) => `<tr class="${it.kind}">
+      <td class="kind small">${t('ver.' + it.kind)}</td>
+      <td class="small">${cue(it.old)}${it.old && it.new && cue(it.old) !== cue(it.new)
+        ? ' \u2192 ' + cue(it.new) : (!it.old ? cue(it.new) : '')}</td>
+      <td><b>${h((it.new || it.old).who)}</b></td>
+      <td>${it.old ? `<del>${h(it.old.text)}</del>` : ''}</td>
+      <td>${it.new ? `<ins>${h(it.new.text)}</ins>` : ''}</td>
+      <td>${rehearsals(it.new || it.old)}</td>
+    </tr>`;
+  const hunks = diff.hunks.map(hk => hk.items.map(row).join('')).join(
+    `<tr class="gap"><td colspan="6"></td></tr>`);
+  return page({ title: t('ver.title', { nr: v.nr, before: before.nr }), nav: navDirector, body: `
+    <p class="eyebrow"><a href="/theater/skript">${t('ver.back')}</a></p>
+    <h1>${t('ver.title', { nr: v.nr, before: before.nr })}</h1>
+    <p class="muted">${t('ver.files', { before: h(before.quelle || ''), now: h(v.quelle || '') })}</p>
+    <p>${t('ver.summary', { changed: diff.changed, added: diff.added, removed: diff.removed,
+                             equal: diff.equal })}</p>
+    ${diff.hunks.length ? `<table class="diff"><tr><th></th><th>${t('ver.col_cue')}</th>
+        <th>${t('ver.col_who')}</th><th>${t('ver.col_old')}</th><th>${t('ver.col_new')}</th>
+        <th>${t('ver.col_rehearsal')}</th></tr>${hunks}</table>`
+      : `<p class="muted">${t('ver.none')}</p>`}
+    <p class="small muted">${t('ver.print')}</p>` });
 }
 
 
@@ -515,9 +596,12 @@ function planPage(p, m) {
     const act = (action, body, confirm) =>
       actionForm('/theater/plan', action, { rehearsal: pr.id }, body, { confirm });
 
-    return `<tr${pr.nachlese ? ' class="gleaning"' : ''}>
+    const rebuilt = (pr.szenen || []).some(s => s.umgebaut);
+    return `<tr class="${pr.unsicher ? 'unsure' : (pr.nachlese ? 'gleaning' : '')}">
       <td><a href="/theater/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
-        ${pr.nachlese ? '<div class="small muted">' + h(t('plan.the_rest')) + '</div>' : ''}</td>
+        ${pr.nachlese ? '<div class="small muted">' + h(t('plan.the_rest')) + '</div>' : ''}
+        ${pr.unsicher ? '<div class="small open">' + h(t('plan.unsure_row')) + '</div>' : ''}
+        ${!pr.unsicher && rebuilt ? '<div class="small muted">' + h(t('plan.rebuilt_row')) + '</div>' : ''}</td>
       <td>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}
         <div class="small muted">${t('plan.scenes_min', {
           scenes: (pr.szenen || []).length,
@@ -551,6 +635,8 @@ function planPage(p, m) {
   return page({ title: t('plan.title'), nav: navDirector, body: `
     <p class="eyebrow">${t('plan.step')}</p><h1>${t('plan.title')}</h1>
     ${notice(m)}
+    ${p.plan?.abgleich?.unsicher?.length ? `<div class="notice error">${
+      t('plan.unsure_notice', { ids: p.plan.abgleich.unsicher.map(h).join(', ') })}</div>` : ''}
     ${!hasStructure ? `<div class="notice error">${t('plan.no_cast')}</div>` : `
     <p class="muted">${t('plan.what')}</p>
     <form method="post" action="/theater/plan"${rehearsals.length
@@ -1424,5 +1510,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage };
+           adminLoginPage, adminPage, versionPage };
 }

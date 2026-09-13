@@ -88,6 +88,17 @@ export const STYLE = `
   table.plan td.actions select, table.plan td.actions input[type=text] {
     padding:.2rem .35rem; font-size:.82rem }
   tr.stuck td { background:rgba(179,39,45,.10) }
+  tr.unsure td { background:rgba(180,116,26,.14) }
+  /* --- one version against the one before --- */
+  table.diff td.kind { white-space:nowrap; text-transform:uppercase; letter-spacing:.05em;
+                       font-weight:700; color:var(--muted) }
+  table.diff tr.changed td.kind { color:#b4741a }
+  table.diff tr.added td.kind { color:var(--good) }
+  table.diff tr.removed td.kind { color:var(--accent) }
+  table.diff del { background:#fdecec; text-decoration:line-through; color:var(--muted) }
+  table.diff ins { background:#e9f5ed; text-decoration:none }
+  table.diff tr.gap td { border:0; height:.8rem; background:transparent }
+  @media print { .head, .foot, .notice { display:none } .frame { padding:0 } }
   form.inline { display:flex; gap:.3rem; margin:0; align-items:center }
   form.inline input[type=text] { padding:.3rem .45rem; font-size:.9rem }
   form.placefield { margin-top:.4rem; max-width:22rem }
@@ -185,6 +196,7 @@ export const STYLE = `
     }
     .notice.foreign { background:#3a2c16; border-left-color:#d59b4a }
     .notice.error { background:#3a1d1f } .notice.good { background:#16301f }
+    table.diff del { background:#3a1d1f } table.diff ins { background:#16301f }
     .box.important { background:var(--card) }
     table.cal td.level1, .dot.level1 { background:#5c5026; border-color:#7a6c39 }
     table.cal td.level2, .dot.level2 { background:#6e4522; border-color:#8d5c33 }

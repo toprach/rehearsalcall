@@ -25,8 +25,9 @@ import * as B from './revise.mjs';
 import { passagesOf } from './passages.mjs';
 import * as HB from './audiobook.mjs';
 import * as Throttle from './throttle.mjs';
-import { readScript, buildStructure, buildCast, mappingProposal,
-         buildDocument } from './script.mjs';
+import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
+         mappingProposal, buildDocument } from './script.mjs';
+import { compareSpeeches, realignPlan, rehearsalsByCue } from './versions.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -244,6 +245,115 @@ function sendFile(response, text, name) {
     'Cache-Control': 'no-store',
   });
   response.end(text);
+}
+
+/* ---------- the script and its versions ----------
+
+   Every uploaded script stays: the one before goes into
+   project.fassungen (markdown only, not the original file), the new
+   one becomes project.drehbuch with the next number. The rehearsal
+   plan is carried along by content anchors (versions.mjs) rather than
+   thrown away.                                                      */
+
+const versionByNumber = (project, nr) => {
+  if (!Number.isInteger(nr) || nr < 1) return null;
+  if (project.drehbuch && (project.drehbuch.nr || 1) === nr) return project.drehbuch;
+  return (project.fassungen || []).find(v => v.nr === nr) || null;
+};
+
+/* Build the structure from the cast, create people for it, and carry
+   the plan over from the structure that was there before. Throws
+   when the tool cannot build it. */
+function rebuildStructure(project, cast, tokenMap) {
+  const d = project.drehbuch;
+  const built = buildStructure(d.markdown, cast, tokenMap, d.quelle, d.sprecherstil);
+  const before = project.skript;
+  project.skript = built.structure;
+  project.skript_ueberblick = summaryOf(built.structure);
+
+  // Create people, keep the ones already there. Do not delete people
+  // the script no longer holds - their availability would go with them.
+  project.personen = project.personen || [];
+  let newlyCreated = 0;
+  for (const x of peopleOf(built.structure)) {
+    const da = project.personen.find(y => y.b === x.b);
+    if (da) { if (!da.name && x.name) da.name = x.name; continue; }
+    project.personen.push({ id: S.randomId(6), b: x.b, name: x.name,
+                            funktion: x.funktion, token: S.randomId(16) });
+    newlyCreated++;
+  }
+  let realigned = null;
+  if (project.plan?.proben?.length) realigned = realignPlan(before, built.structure, project.plan);
+  return { built, newlyCreated, realigned };
+}
+
+/* Take a script in - a fresh upload or an older version made current.
+   Keeps the casting for names it already knows, keeps the plan, and
+   returns the notice for the page. */
+async function takeInScript(project, script) {
+  const previous = project.drehbuch;
+  project.fassungen = project.fassungen || [];
+  let changes = null;
+  if (previous) {
+    const nr = previous.nr || 1;
+    project.fassungen.push({
+      nr, quelle: previous.quelle, hochgeladen: previous.hochgeladen || project.geaendert || null,
+      markdown: previous.markdown, sprecherstil: previous.sprecherstil,
+      bloecke: previous.bloecke, titel: previous.titel,
+      repliken: (previous.sprecher || []).reduce((a, s) => a + (s.n || 0), 0),
+      aenderungen: previous.aenderungen || null,
+    });
+    script.nr = Math.max(nr, ...project.fassungen.map(v => v.nr)) + 1;
+    try {
+      const cmp = compareSpeeches(
+        speechesOf(previous.markdown, previous.quelle, previous.sprecherstil),
+        speechesOf(script.markdown, script.quelle, script.sprecherstil));
+      changes = { geaendert: cmp.changed, neu: cmp.added, gestrichen: cmp.removed, gleich: cmp.equal };
+    } catch (e) { console.error('[Fassung] ' + (e && e.stack || e)); }
+  } else script.nr = 1;
+  script.hochgeladen = new Date().toISOString();
+  script.aenderungen = changes;
+  project.drehbuch = script;
+
+  // The casting: proposals for every name, but a name the director has
+  // already placed keeps its place.
+  const proposal = mappingProposal(script.sprecher);
+  const old = project.zuordnung || {};
+  const fresh = [];
+  for (const t of Object.keys(proposal)) {
+    if (old[t]) proposal[t] = old[t];
+    else if (previous) fresh.push(t);
+  }
+  project.zuordnung = proposal;
+  script.neue_sprecher = fresh;
+
+  if (!previous) {
+    project.skript = null; project.skript_ueberblick = null; project.plan = null;
+    return null;
+  }
+
+  // Rebuild the structure at once, so the plan can be carried over.
+  let realigned = null, unresolved = [];
+  const { cast, tokenMap } = buildCast(project.zuordnung, script.sprecher);
+  if (cast.length) {
+    try {
+      const r = rebuildStructure(project, cast, tokenMap);
+      realigned = r.realigned; unresolved = r.built.unresolved;
+    } catch (e) {
+      console.error('[Struktur] ' + (e && e.stack || e));
+      return { kind: 'error', key: 'r.structure_failed', values: { reason: reasonOf(e) } };
+    }
+  }
+  const values = {
+    nr: script.nr,
+    changed: changes?.geaendert ?? 0, added: changes?.neu ?? 0, removed: changes?.gestrichen ?? 0,
+    fresh: fresh.length, unsure: (realigned?.unsure || []).map(h).join(', '),
+    rebuilt: (realigned?.rebuilt || []).map(h).join(', '),
+  };
+  if (realigned?.unsure?.length) return { kind: 'error', key: 'r.version_unsure', values };
+  if (fresh.length || unresolved.length) return { kind: 'error', key: 'r.version_new_names', values };
+  if (realigned?.rebuilt?.length) return { kind: 'good', key: 'r.version_rebuilt', values };
+  return { kind: 'good', key: project.plan?.proben?.length ? 'r.version_kept' : 'r.version_taken', values };
 }
 
 /* The address visitors see.
@@ -721,15 +831,61 @@ export async function handle(request, response, path) {
   if (first === 'projekt') return html(response, A.projectPage(project, null));
 
   if (first === 'skript') {
+    /* --- one version compared with the one before it --- */
+    if (parts[1] === 'fassung') {
+      await drainBody(request);
+      const nr = Number(parts[2]);
+      const v = versionByNumber(project, nr);
+      const before = versionByNumber(project, nr - 1);
+      if (!v || !before) return html(response, A.errorPage('f.no_version_t', 'f.no_version'), 404);
+      let diff;
+      try {
+        diff = compareSpeeches(
+          speechesOf(before.markdown, before.quelle, before.sprecherstil),
+          speechesOf(v.markdown, v.quelle, v.sprecherstil));
+      } catch (e) {
+        console.error('[Fassung] ' + (e && e.stack || e));
+        return html(response, A.errorPage('f.failed_t', 'f.failed', { reason: reasonOf(e) }), 500);
+      }
+      // Which rehearsals the changed speeches fall into - only for the
+      // current version, whose cue numbers the plan knows.
+      const byCue = v === project.drehbuch ? rehearsalsByCue(project.skript, project.plan) : new Map();
+      return html(response, A.versionPage(project, v, before, diff, byCue));
+    }
+
     if (!post) return html(response, A.uploadPage(project, null));
-    let file, style = 'auto';
+    let file, style = 'auto', fields;
     try {
-      const { files, fields } = await readForm(request, 30_000_000);
-      file = files.find(d => d.name === 'file');
+      ({ files: [file], fields } = await (async () => {
+        const r = await readForm(request, 30_000_000);
+        return { files: [r.files.find(d => d.name === 'file')], fields: r.fields };
+      })());
       style = String(fields.style || 'auto');
     } catch (e) {
       return html(response, A.uploadPage(project, failureNotice(e, 'r.read_failed')));
     }
+
+    /* --- an older version made current again --- */
+    if (String(fields.action || '') === 'zurueck') {
+      const v = versionByNumber(project, Number(fields.fassung));
+      if (!v || v === project.drehbuch)
+        return html(response, A.uploadPage(project, { kind: 'error', key: 'r.no_version' }));
+      let read_;
+      try { read_ = readMarkdown(v.markdown, v.quelle, { style: v.sprecherstil }); }
+      catch (e) {
+        console.error('[Drehbuch] ' + (e && e.stack || e));
+        return html(response, A.uploadPage(project, failureNotice(e, 'r.read_failed')));
+      }
+      const m = await takeInScript(project, {
+        quelle: v.quelle, markdown: v.markdown, sprecherstil: read_.sprecherstil,
+        titel: read_.titel, bloecke: read_.bloecke, sprecher: read_.sprecher,
+        schriften: project.drehbuch?.schriften || null, original: null,
+        wiederhergestellt: v.nr,
+      });
+      await S.write(project);
+      return html(response, A.uploadPage(project, m));
+    }
+
     if (!file || !file.content.length)
       return html(response, A.uploadPage(project, {
         kind: 'error', key: 'r.no_file' }));
@@ -751,7 +907,7 @@ export async function handle(request, response, path) {
       return html(response, A.uploadPage(project, { kind: 'error',
         key: read_.sprecherstil === 'dot' ? 'r.no_speaker_dot' : 'r.no_speaker' }));
 
-    project.drehbuch = {
+    const m = await takeInScript(project, {
       quelle: file.filename, markdown: read_.markdown,
       titel: read_.titel, bloecke: read_.bloecke, sprecher: read_.sprecher,
       // How the speakers are written - every later parse needs to know.
@@ -770,11 +926,13 @@ export async function handle(request, response, path) {
         bytes: file.content.length,
         daten: file.content.toString('base64'),
       },
-    };
-    project.zuordnung = mappingProposal(read_.sprecher);
-    project.skript = null; project.skript_ueberblick = null; project.plan = null;
+    });
     await S.write(project);
-    return redirect(response, '/theater/besetzung');
+    // The first script goes straight on to the casting; a new version
+    // of a known one stays here, where the changes and the plan's state
+    // are shown.
+    if (!project.fassungen?.length) return redirect(response, '/theater/besetzung');
+    return html(response, A.uploadPage(project, m));
   }
 
   if (first === 'besetzung') {
@@ -814,30 +972,14 @@ export async function handle(request, response, path) {
       return html(response, A.castPage(project, { kind: 'error',
         key: 'r.no_person' }));
     }
-    let built;
+    let built, newlyCreated;
     try {
-      built = buildStructure(project.drehbuch.markdown, cast, tokenMap,
-                             project.drehbuch.quelle, project.drehbuch.sprecherstil);
+      ({ built, newlyCreated } = rebuildStructure(project, cast, tokenMap));
     } catch (e) {
       console.error('[Struktur] ' + (e && e.stack || e));
       await S.write(project);
       return html(response, A.castPage(project, failureNotice(e, 'r.structure_failed')));
     }
-    project.skript = built.structure;
-    project.skript_ueberblick = summaryOf(built.structure);
-
-    // Create people, keep the ones already there
-    project.personen = project.personen || [];
-    let newlyCreated = 0;
-    for (const x of peopleOf(built.structure)) {
-      const da = project.personen.find(y => y.b === x.b);
-      if (da) { if (!da.name && x.name) da.name = x.name; continue; }
-      project.personen.push({ id: S.randomId(6), b: x.b, name: x.name,
-                              funktion: x.funktion, token: S.randomId(16) });
-      newlyCreated++;
-    }
-    // Do not delete people the script no longer holds - their
-    // availability would be gone with them.
     await S.write(project);
 
     const unresolved = built.unresolved;

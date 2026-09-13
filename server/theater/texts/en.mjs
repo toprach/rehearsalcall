@@ -40,7 +40,7 @@ export const en = {
                      'threads in the group chat. Everyone enters once when they ' +
                      'are free – the program works out the dates.',
   'entry.code':        'Access code',
-  'entry.code_hint':  'e.g. quiet-rehearsal-42',
+  'entry.code_hint':  'e.g. k7mq2x',
   'entry.continue':      'Continue',
   'entry.no_access': 'No access yet?',
   'entry.request':   'Send an email to <a href="mailto:{mail}?subject={subject}">{mail}</a> ' +
@@ -715,6 +715,70 @@ export const en = {
   'r.admin_code_new':   'New access code for {p1}. The old one no longer works.',
   'r.admin_confirm':    'To delete, type the title exactly as it stands: {p1}',
   'r.admin_deleted':    '{p1} deleted, with everything in it.',
+
+  /* ---------- versions of the script ---------- */
+  'upl.versions':       'Versions',
+  'upl.versions_what':  'Every uploaded script is kept. The comparison shows the speeches '
+                      + 'that changed, came in or were cut \u2013 formatting does not count. '
+                      + 'The rehearsal plan is carried along by content: every passage is '
+                      + 'found again by its first and its last speech.',
+  'upl.col_version':    'Version',
+  'upl.col_uploaded':   'Uploaded',
+  'upl.col_file':       'File',
+  'upl.col_speeches':   'Speeches',
+  'upl.col_changes':    'Changes since the one before',
+  'upl.changes':        '{changed} changed, {added} new, {removed} cut',
+  'upl.first':          'first version',
+  'upl.current':        'current',
+  'upl.restored_from':  'restored from version {nr}',
+  'upl.restore':        'make current again',
+  'upl.restore_confirm': 'Make version {nr} the current script? The plan is carried along, '
+                      + 'and the version that is current now is kept as well.',
+  'upl.new_names':      'New speaker names, not assigned yet: {names} \u2013 '
+                      + '<a href="/theater/besetzung">assign them</a>.',
+  'upl.plan_unsure':    'The rehearsal plan may no longer fit: for {ids} the beginning or the '
+                      + 'end of a passage was not found in the new script. Look at those '
+                      + 'rehearsals, or <a href="/theater/plan">derive the plan again</a>. '
+                      + 'Nothing else was changed.',
+  'upl.plan_rebuilt':   'Much changed inside {ids}. The passages still hold; have a look at them.',
+  'ver.title':          'Version {nr} compared with version {before}',
+  'ver.files':          '{before} \u2192 {now}',
+  'ver.summary':        '{changed} changed, {added} new, {removed} cut, {equal} unchanged speeches.',
+  'ver.none':           'No difference in the speeches.',
+  'ver.col_cue':        'Cue',
+  'ver.col_who':        'Speaker',
+  'ver.col_old':        'Before',
+  'ver.col_new':        'Now',
+  'ver.col_rehearsal':  'Rehearsal',
+  'ver.changed':        'changed',
+  'ver.added':          'new',
+  'ver.removed':        'cut',
+  'ver.back':           '\u2190 Script',
+  'ver.print':          'For the company: print this page as the change sheet. Cue numbers '
+                      + 'are given before and after \u2013 printed part books carry the old ones.',
+  'plan.unsure_notice': 'After the last upload of the script, the beginning or the end of a '
+                      + 'passage was not found for {ids}. The plan may no longer fit there. '
+                      + 'Look at those rehearsals, or derive the plan again \u2013 that throws '
+                      + 'away every change made by hand and every fixed date.',
+  'plan.unsure_row':    'beginning or end not found in the new script',
+  'plan.rebuilt_row':   'much changed inside \u2013 look at the passages',
+  'r.no_version':       'There is no such version.',
+  'f.no_version_t':     'No such version',
+  'f.no_version':       'There is no version with that number, or nothing to compare it with.',
+  'r.version_taken':    'Version {nr} taken in: {changed} changed, {added} new, {removed} cut.',
+  'r.version_kept':     'Version {nr} taken in: {changed} changed, {added} new, {removed} cut. '
+                      + 'The rehearsal plan is carried along; every passage was found again.',
+  'r.version_rebuilt':  'Version {nr} taken in: {changed} changed, {added} new, {removed} cut. '
+                      + 'Much changed inside {rebuilt} \u2013 the passages still hold, but '
+                      + 'look at them.',
+  'r.version_unsure':   'Version {nr} taken in: {changed} changed, {added} new, {removed} cut. '
+                      + '<b>The rehearsal plan may no longer fit:</b> for {unsure} the beginning '
+                      + 'or the end of a passage was not found. Look at those rehearsals or '
+                      + 'derive the plan again; nothing else was changed.',
+  'r.version_new_names': 'Version {nr} taken in: {changed} changed, {added} new, {removed} cut. '
+                      + '{fresh} new speaker name(s) \u2013 assign them on the '
+                      + '<a href="/theater/besetzung">casting page</a>; until then they are '
+                      + 'read as persons of their own.',
 
   /* ---------- how the speakers are written ---------- */
   'upl.style':        'Speakers in the text',
