@@ -34,7 +34,12 @@ commit.
       ../beispiel/shakespeare/a-midsummer-nights-dream.md
 
 Both must be green before a change is pushed. `index.mjs`, `script.mjs`
-and the text catalogues have CRLF line endings; keep them.
+and the text catalogues have CRLF line endings; keep them. Also
+`node test/push.mjs` (the push encryption against the RFC vector, no
+server needed). The workflow test covers the push reminder route only
+when the server was started with `THEATER_PUSH_PUBLIC`/`_PRIVATE` set
+(`node theater-code.mjs push-keys` prints a pair); without them it
+notes the skip and passes.
 
 ## Deploying
 

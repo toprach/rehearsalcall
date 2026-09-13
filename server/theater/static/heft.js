@@ -481,6 +481,84 @@
     else if (act === 'again-session') startSession(session.kind);
   });
 
+  /* ---- the daily reminder: a push subscription of this phone ---- */
+  (function () {
+    var box = document.getElementById('heft-remind'); if (!box || !D.push) return;
+    var stateEl = document.getElementById('remind-state'), note = document.getElementById('remind-note');
+    var toggle = document.getElementById('remind-toggle'), test = document.getElementById('remind-test'), time = document.getElementById('remind-time');
+    var endpoints = D.push.endpoints || [], zeit = D.push.zeit || '19:00';
+    var zone = ''; try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    var supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    var say = function (text) { note.textContent = text || ''; };
+    var rpost = function (fields, cb) {
+      fields.zone = zone;
+      fetch('/theater/mit/erinnerung', { method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() })
+        .then(function (r) { return r.json().catch(function () { return null; }); }).then(cb).catch(function () { cb(null); });
+    };
+    var b64 = function (buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+    var keyBytes = function (s) {
+      var pad = '='.repeat((4 - s.length % 4) % 4), raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+      var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+    };
+    var mine = null;      // this phone's subscription, if any
+    function paint() {
+      var here = mine && endpoints.indexOf(mine.endpoint) >= 0;
+      stateEl.textContent = here ? fmt(T.remind_active, { zeit: zeit }) : T.remind_inactive;
+      toggle.textContent = here ? T.remind_off : T.remind_on;
+      toggle.dataset.on = here ? '1' : '';
+      toggle.hidden = false; test.hidden = !here;
+      if (!here && endpoints.length) say(fmt(T.remind_elsewhere, { zeit: zeit }));
+    }
+    if (!supported) { stateEl.textContent = T.remind_inactive; say(ios && !standalone ? T.remind_ios : T.remind_unsupported); return; }
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
+      .then(function (sub) { mine = sub; paint(); }).catch(function () { paint(); });
+    toggle.addEventListener('click', function () {
+      toggle.disabled = true; say('');
+      if (toggle.dataset.on) {
+        var ep = mine.endpoint;
+        rpost({ action: 'aus', endpoint: ep }, function (res) {
+          toggle.disabled = false;
+          if (!res || !res.ok) return say(T.remind_failed);
+          endpoints = res.endpoints; mine.unsubscribe().catch(function () {}); mine = null; paint();
+        });
+        return;
+      }
+      Notification.requestPermission().then(function (perm) {
+        if (perm !== 'granted') { toggle.disabled = false; return say(T.remind_denied); }
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (sub) {
+            return sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(D.push.key) });
+          });
+        }).then(function (sub) {
+          var j = sub.toJSON();
+          rpost({ action: 'an', endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, zeit: time.value || zeit }, function (res) {
+            toggle.disabled = false;
+            if (!res || !res.ok) return say(T.remind_failed);
+            mine = sub; endpoints = res.endpoints; zeit = res.zeit; paint();
+          });
+        });
+      }).catch(function () { toggle.disabled = false; say(T.remind_failed); });
+    });
+    time.addEventListener('change', function () {
+      if (!time.value) return;
+      rpost({ action: 'zeit', zeit: time.value }, function (res) {
+        if (!res || !res.ok) return say(T.remind_failed);
+        zeit = res.zeit; paint();
+      });
+    });
+    test.addEventListener('click', function () {
+      if (!mine) return;
+      test.disabled = true; say('');
+      rpost({ action: 'probe', endpoint: mine.endpoint }, function (res) {
+        test.disabled = false;
+        say(res && res.ok ? T.remind_sent : T.remind_failed);
+      });
+    });
+  })();
+
   /* ---- start ---- */
   var start = 'lesen';
   try { start = localStorage.getItem('heft-mode') || 'lesen'; } catch (e) {}

@@ -35,6 +35,8 @@ import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
 import * as PWA from './pwa.mjs';
+import * as Push from './push.mjs';
+import * as Reminders from './reminders.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -999,6 +1001,56 @@ export async function handle(request, response, path) {
       return html(response, A.playPage(project, person, blocks, starts, comments));
     }
 
+    /* The daily reminder: the phone's push subscription and the time.
+       JSON in, JSON out; the part-book script talks to it. */
+    if (second === 'erinnerung') {
+      const answer = (obj, status = 200) => {
+        response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(JSON.stringify(obj));
+      };
+      if (!post) { await drainBody(request); return answer({ ok: false, reason: 'method' }, 405); }
+      const { fields } = await readForm(request);
+      if (!Push.enabled()) return answer({ ok: false, reason: 'nokey' }, 404);
+      const action = String(fields.action || '');
+      const endpoint = String(fields.endpoint || '').trim();
+      const localEndpoint = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(endpoint);
+      if (['an', 'aus', 'probe'].includes(action) && !(/^https:\/\/\S+$/.test(endpoint) || localEndpoint))
+        return answer({ ok: false, reason: 'endpoint' }, 400);
+      project.erinnerung = project.erinnerung || {};
+      const entry = project.erinnerung[person.id] || { zeit: '19:00', zone: 'UTC', abos: [] };
+      entry.abos = entry.abos || [];
+      const takeTime = () => {
+        if (fields.zeit != null) { if (!Reminders.validTime(String(fields.zeit))) return false; entry.zeit = String(fields.zeit); }
+        if (fields.zone != null) { const z = String(fields.zone).slice(0, 64); if (!Reminders.validZone(z)) return false; entry.zone = z; }
+        return true;
+      };
+      const status = () => ({ ok: true, zeit: entry.zeit, zone: entry.zone, endpoints: entry.abos.map(a => a.endpoint) });
+      if (action === 'an') {
+        const p256dh = String(fields.p256dh || ''), auth = String(fields.auth || '');
+        if (Push.fromB64u(p256dh).length !== 65 || Push.fromB64u(auth).length !== 16) return answer({ ok: false, reason: 'keys' }, 400);
+        if (!takeTime()) return answer({ ok: false, reason: 'zeit' }, 400);
+        entry.abos = entry.abos.filter(a => a.endpoint !== endpoint).concat([{ endpoint, p256dh, auth, seit: new Date().toISOString() }]).slice(-5);
+        delete entry.zuletzt;
+        project.erinnerung[person.id] = entry;
+      } else if (action === 'aus') {
+        entry.abos = entry.abos.filter(a => a.endpoint !== endpoint);
+        if (entry.abos.length) project.erinnerung[person.id] = entry; else delete project.erinnerung[person.id];
+      } else if (action === 'zeit') {
+        if (!takeTime()) return answer({ ok: false, reason: 'zeit' }, 400);
+        delete entry.zuletzt;
+        project.erinnerung[person.id] = entry;
+      } else if (action === 'probe') {
+        const abo = entry.abos.find(a => a.endpoint === endpoint);
+        if (!abo) return answer({ ok: false, reason: 'noabo' }, 404);
+        const r = await Push.send(Push.keysFromEnv(), abo, Reminders.testMessage(project, person, entry));
+        if (r.gone) { entry.abos = entry.abos.filter(a => a !== abo); await S.write(project); Reminders.refresh(project); }
+        return answer({ ...status(), ok: r.ok, status: r.status, reason: r.ok ? undefined : 'send' }, r.ok ? 200 : 502);
+      } else return answer({ ok: false, reason: 'action' }, 400);
+      await S.write(project);
+      Reminders.refresh(project);
+      return answer(status());
+    }
+
     if (second === 'heft') {
       if (!project.skript) { await drainBody(request); return html(response,
         A.errorPage('f.no_structure_t', 'f.no_structure'), 404); }
@@ -1042,7 +1094,9 @@ export async function handle(request, response, path) {
       const comments = (project.kommentare || []).filter(c => mayAll || c.wer === person.b)
         .map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer, name: nameOf(c.wer), datum: c.datum,
                      frage: !!c.frage, antwort: c.antwort || null, erledigt: !!c.erledigt }));
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today, comments));
+      const keys = Push.keysFromEnv();
+      const remind = keys ? { key: keys.publicKey, ...(project.erinnerung?.[person.id] || {}) } : null;
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today, comments, remind));
     }
 
     if (second === 'gesamt') {

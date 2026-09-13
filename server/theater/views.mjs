@@ -63,6 +63,7 @@ const ICONS = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
   note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -1226,7 +1227,7 @@ function memberPage(project, person, m, realSelf) {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words, state = {}, today = '', comments = []) {
+function bookPage(project, person, passages, words, state = {}, today = '', comments = [], remind = null) {
   const who = person.name || person.b;
   const chunks = passages.flatMap(p => p.chunks);
   const fig = summaryOf(state, chunks, today);
@@ -1273,6 +1274,8 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
     me: person.b,
     locale: L.locale,
     comments,
+    push: remind ? { key: remind.key, zeit: remind.zeit || '19:00', zone: remind.zone || '',
+                     endpoints: (remind.abos || []).map(a => a.endpoint) } : null,
     passages: passages.map(p => ({ i: p.i, chapter: p.chapter, nr: p.nr, ctxBefore: p.ctxBefore, ctxAfter: p.ctxAfter,
       chunks: p.chunks.map(c => ({ key: c.key, cue: c.cue, lines: c.lines, before: c.before, after: c.after,
                                    teil: c.teil, words: c.words })) })),
@@ -1293,6 +1296,9 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       c_done: t('kd.done'), c_failed: t('kd.failed'), c_hint: t('book.dbl_hint'),
       intent_private: t('book.intent_private'), note_icon: icon('note'),
       more_before: t('book.more_before'), more_after: t('book.more_after'),
+      remind_active: t('book.remind_active'), remind_elsewhere: t('book.remind_elsewhere'), remind_inactive: t('book.remind_inactive'),
+      remind_unsupported: t('book.remind_unsupported'), remind_ios: t('book.remind_ios'), remind_denied: t('book.remind_denied'),
+      remind_failed: t('book.remind_failed'), remind_sent: t('book.remind_sent'), remind_on: t('book.remind_on'), remind_off: t('book.remind_off'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -1311,6 +1317,17 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       <button type="button" data-mode="intensiv">${h(t('book.mode_hard'))} <span id="heft-hardcount">${fig.hard ? '(' + fig.hard + ')' : ''}</span></button>
       <button type="button" data-mode="wiederholen">${h(t('book.mode_review'))}</button>
     </div>
+    ${remind ? `<details class="remind" id="heft-remind">
+      <summary>${icon('bell')} ${h(t('book.remind'))} <span class="muted small" id="remind-state"></span></summary>
+      <p class="small muted">${t('book.remind_what')}</p>
+      <div class="row">
+        <div><label for="remind-time">${h(t('book.remind_time'))}</label>
+          <input type="time" id="remind-time" value="${h(remind.zeit || '19:00')}" step="300"></div>
+        <div><button type="button" class="mini" id="remind-toggle" hidden>${h(t('book.remind_on'))}</button>
+          <button type="button" class="quiet mini" id="remind-test" hidden>${h(t('book.remind_test'))}</button></div>
+      </div>
+      <p class="small muted" id="remind-note"></p>
+    </details>` : ''}
     <div id="heft-lesen">
       <p class="small muted">${t('book.read_what')} ${t('book.dbl_hint')}</p>
       <div id="book">${passages.map(card).join('')}</div>

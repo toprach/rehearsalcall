@@ -57,6 +57,17 @@ if (command === 'new' || command === 'neu') {
   console.log('  Send this code to the director. It is not shown again.');
   console.log('  Entry: ' + (process.env.THEATER_BASIS || 'https://joku.tv') + '/theater');
   console.log('');
+} else if (command === 'push-keys') {
+  // The key pair for Web Push (VAPID). Made once, kept in .env; a new
+  // pair silently ends every subscription phones have made so far.
+  const { generateKeys } = await import('./theater/push.mjs');
+  const k = generateKeys();
+  console.log('');
+  console.log('  Put these two lines into .env beside app.js and restart:');
+  console.log('');
+  console.log('  THEATER_PUSH_PUBLIC=' + k.publicKey);
+  console.log('  THEATER_PUSH_PRIVATE=' + k.privateKey);
+  console.log('');
 } else if (command === 'list' || command === 'liste') {
   const all = await S.allProjects();
   if (!all.length) console.log('  No projects yet.');
@@ -122,5 +133,6 @@ if (command === 'new' || command === 'neu') {
   console.log('  node theater-code.mjs code <id>        set a new access code');
   console.log('  node theater-code.mjs clear <id>       delete the availability');
   console.log('  node theater-code.mjs move files|postgresql');
+  console.log('  node theater-code.mjs push-keys        key pair for the push reminders');
 }
 await S.shutDown();

@@ -68,6 +68,7 @@ const isToken = x => /^[a-z0-9]{8,40}$/.test(String(x || ''));
    Back end 1: files
    =================================================================== */
 
+let scratchNo = 0;
 const DIRECTORY = process.env.THEATER_DATEN ||
   path.join(process.env.HOME || process.env.USERPROFILE || '.', 'theater-daten');
 
@@ -112,7 +113,8 @@ const fileStore = {
   async write(project) {
     project.geaendert = new Date().toISOString();
     const target = fileOf(project.id);
-    const scratch = target + '.' + process.pid + '.new';
+    // Two writes at once in one process must not share the scratch name.
+    const scratch = target + '.' + process.pid + '.' + (++scratchNo) + '.new';
     await fs.writeFile(scratch, JSON.stringify(project, null, 1), { mode: 0o600 });
     await fs.rename(scratch, target);
     return project;

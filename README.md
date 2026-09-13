@@ -113,6 +113,15 @@ after ten minutes of practice a round of applause asks whether to go on
 now or tomorrow. Pages are light by default; a switch in the head turns
 them dark.
 
+The part book can also **remind** a member every day at a time of their
+choosing: the phone subscribes to push messages, and the server sends
+the figures of the day (due, new) at that minute on the phone's own
+clock. Web Push is done with nothing but `node:crypto` (RFC 8291 and
+8292); the server needs a key pair in `.env`, made once with
+`node theater-code.mjs push-keys` (`THEATER_PUSH_PUBLIC`,
+`THEATER_PUSH_PRIVATE`). Without it the page does not offer reminders.
+On the iPhone this works once the page is on the home screen as an app.
+
 A script is uploaded more than once while rehearsals run. Every version
 is kept, and the page shows what changed from one to the next as a list
 of speeches (changed, new, cut - formatting does not count), printable

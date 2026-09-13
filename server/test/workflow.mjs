@@ -482,6 +482,68 @@ for (const b of cast) {
     const js = await call('GET', '/theater/heft.js');
     check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
     check('the book offers the review mode', /data-mode="wiederholen"/.test(bk.text) && /id="heft-wiederholen"/.test(bk.text));
+
+    /* ---- 9a. the daily reminder: a fake push service in this process ---- */
+    if (!/id="heft-remind"/.test(bk.text)) {
+      const off = await post('/theater/mit/erinnerung', { action: 'zeit', zeit: '19:00' });
+      check('no push keys on the server: the reminder route says so (skip)', off.status === 404 && /nokey/.test(off.text), 'status ' + off.status);
+    } else {
+      const http = await import('node:http');
+      const crypto = await import('node:crypto');
+      const Push = await import('../theater/push.mjs');
+      const received = [];
+      const fake = http.createServer((rq, rs) => {
+        const parts = []; rq.on('data', c => parts.push(c));
+        rq.on('end', () => { received.push({ headers: rq.headers, body: Buffer.concat(parts), url: rq.url }); rs.writeHead(rq.url.endsWith('/gone') ? 410 : 201); rs.end(); });
+      });
+      await new Promise(res => fake.listen(0, '127.0.0.1', res));
+      const ep = 'http://127.0.0.1:' + fake.address().port + '/push/phone1';
+      const ua = crypto.createECDH('prime256v1'); ua.generateKeys();
+      const p256dh = Push.b64u(ua.getPublicKey()), auth = Push.b64u(crypto.randomBytes(16));
+      const jr = (r) => { try { return JSON.parse(r.text); } catch { return {}; } };
+      let e = await post('/theater/mit/erinnerung', { action: 'an', endpoint: ep, p256dh, auth, zeit: '19:30', zone: 'Europe/Vienna' });
+      check('the phone subscribes with a time', e.status === 200 && jr(e).ok && jr(e).zeit === '19:30' && jr(e).endpoints[0] === ep, e.text.slice(0, 100));
+      e = await post('/theater/mit/erinnerung', { action: 'an', endpoint: ep, p256dh: 'abc', auth, zeit: '19:30' });
+      check('bad keys are refused', e.status === 400 && /keys/.test(e.text), e.text.slice(0, 80));
+      e = await post('/theater/mit/erinnerung', { action: 'zeit', zeit: '25:00' });
+      check('a bad time is refused', e.status === 400 && /zeit/.test(e.text), e.text.slice(0, 80));
+      e = await post('/theater/mit/erinnerung', { action: 'zeit', zeit: '07:15', zone: 'Mars/Olympus' });
+      check('a bad zone is refused', e.status === 400, 'status ' + e.status);
+      e = await post('/theater/mit/erinnerung', { action: 'zeit', zeit: '07:15', zone: 'Europe/Vienna' });
+      check('the time can be changed', e.status === 200 && jr(e).zeit === '07:15', e.text.slice(0, 80));
+      e = await post('/theater/mit/erinnerung', { action: 'probe', endpoint: ep });
+      check('a test message is accepted by the push service', e.status === 200 && jr(e).ok && jr(e).status === 201, e.text.slice(0, 100));
+      const got = received[received.length - 1];
+      check('it arrived with the aes128gcm coding and a vapid token', !!got && got.headers['content-encoding'] === 'aes128gcm'
+            && /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/.test(got.headers.authorization || '') && Number(got.headers.ttl) > 0,
+            JSON.stringify(got && got.headers).slice(0, 160));
+      let plain = {};
+      try { plain = JSON.parse(Push.decrypt(got.body, Push.b64u(ua.getPrivateKey()), auth).toString()); } catch (x) { plain = { error: String(x) }; }
+      check('and the phone can decrypt it: title, body with the time, the book link',
+            typeof plain.title === 'string' && /07:15/.test(plain.body || '') && /^\/theater\/ich\/[a-z0-9]+\/heft$/.test(plain.url || ''), JSON.stringify(plain).slice(0, 160));
+      const bk3 = await call('GET', '/theater/mit/heft');
+      const hd3 = JSON.parse((/<script id="heft-data" type="application\/json">([\s\S]*?)<\/script>/.exec(bk3.text) || [])[1] || '{}');
+      check('the book page carries the subscription and the time', hd3.push && hd3.push.zeit === '07:15' && (hd3.push.endpoints || [])[0] === ep && typeof hd3.push.key === 'string', JSON.stringify(hd3.push));
+      clean('the book page with a reminder', bk3);
+      // the clock: due at 07:15 Vienna time, sent once, not twice
+      const Rem = await import('../theater/reminders.mjs');
+      const entry = { zeit: '07:15', zone: 'Europe/Vienna', abos: [{ endpoint: ep, p256dh, auth }] };
+      const at = new Date('2026-09-14T05:15:10Z').getTime();
+      check('the clock says due at the chosen minute', Rem.dueNow(entry, at) === '2026-09-14');
+      // a dead endpoint is dropped by a test message
+      const dead = ep + '/gone';
+      e = await post('/theater/mit/erinnerung', { action: 'an', endpoint: dead, p256dh, auth });
+      check('a second phone subscribes', e.status === 200 && jr(e).endpoints.length === 2, e.text.slice(0, 100));
+      e = await post('/theater/mit/erinnerung', { action: 'probe', endpoint: dead });
+      check('a push service answering 410 fails the test message', e.status === 502 && jr(e).status === 410, e.text.slice(0, 100));
+      e = await post('/theater/mit/erinnerung', { action: 'probe', endpoint: dead });
+      check('and the dead subscription is gone', e.status === 404 && /noabo/.test(e.text), e.text.slice(0, 80));
+      e = await post('/theater/mit/erinnerung', { action: 'aus', endpoint: ep });
+      check('the phone unsubscribes', e.status === 200 && jr(e).endpoints.length === 0, e.text.slice(0, 80));
+      e = await post('/theater/mit/erinnerung', { action: 'probe', endpoint: ep });
+      check('no test message without a subscription', e.status === 404, 'status ' + e.status);
+      fake.close();
+    }
   }
 }
 

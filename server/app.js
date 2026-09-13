@@ -13,6 +13,7 @@
 import http from 'node:http';
 import { handle, storage } from './theater/index.mjs';
 import * as Demo from './theater/demo.mjs';
+import * as Reminders from './theater/reminders.mjs';
 
 const PORT = Number(process.env.PORT || 3011);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -83,6 +84,9 @@ await storage.setUp();
    meanwhile. */
 Demo.ensureAll();
 setInterval(() => Demo.ensureAll(), 60 * 60 * 1000).unref();
+
+/* The daily learning reminders: a clock that looks once a minute. */
+Reminders.start();
 
 server.listen(PORT, HOST, () => {
   console.log('[' + new Date().toISOString() + '] Rehearsal Planner ready on ' +

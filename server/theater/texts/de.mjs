@@ -967,6 +967,27 @@ export const de = {
   'book.link_what':  '\u00d6ffnet dieses Heft auf jedem Ger\u00e4t ohne Anmeldung \u2013 zum Speichern am Handy '
                    + 'oder zum Weiterleiten. Er steht f\u00fcr die Person, der das Heft geh\u00f6rt, und geht nur an sie.',
   'book.share':      'teilen \u2026',
+  /* die t\u00e4gliche Erinnerung */
+  'book.remind':     'Erinnerung',
+  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Zeit mit dem Stand des Tages.',
+  'book.remind_time': 'Uhrzeit',
+  'book.remind_on':  'Einschalten',
+  'book.remind_off': 'Ausschalten',
+  'book.remind_test': 'Probe schicken',
+  'book.remind_active': 'Erinnerung an, t\u00e4glich um {zeit}.',
+  'book.remind_elsewhere': 'Auf einem anderen Ger\u00e4t eingeschaltet, um {zeit}. Hier zus\u00e4tzlich:',
+  'book.remind_inactive': 'Aus.',
+  'book.remind_unsupported': 'Dieser Browser kann keine Mitteilungen empfangen.',
+  'book.remind_ios': 'Am iPhone geht das erst, wenn die Seite als App am Home-Bildschirm liegt (Teilen \u2192 \u201eZum Home-Bildschirm\u201c).',
+  'book.remind_denied': 'Mitteilungen sind f\u00fcr diese Seite gesperrt \u2013 in den Browser-Einstellungen freigeben.',
+  'book.remind_failed': 'Das hat nicht geklappt. Noch einmal versuchen.',
+  'book.remind_sent': 'Probe unterwegs \u2013 sie sollte gleich auftauchen.',
+  'push.title':      '{title}: Zeit f\u00fcr deinen Text',
+  'push.body':       'Heute f\u00e4llig: {due} \u00b7 neu: {fresh}. Eine kurze Runde reicht.',
+  'push.body_done':  'Alles sitzt \u2013 eine Runde Wiederholen h\u00e4lt es warm.',
+  'push.body_none':  'Noch kein Text im Heft \u2013 schau nach, ob das Drehbuch schon da ist.',
+  'push.test_title': 'Probe-Mitteilung',
+  'push.test_body':  'So sieht die Erinnerung aus. Sie kommt t\u00e4glich um {zeit}.',
 
   /* ---------- die App am Handy ---------- */
   'pwa.short':         'Proben',

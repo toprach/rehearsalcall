@@ -337,6 +337,15 @@ export const STYLE = `
   body.learning .frame { padding-bottom:9rem }
   @media (max-width:700px) { body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem } }
   .figures { margin:.4rem 0 .8rem }
+  .remind { margin:.4rem 0 1.2rem; border:1px solid var(--rule); border-radius:4px; padding:.5rem .9rem; background:var(--card) }
+  .remind summary { cursor:pointer; font-weight:600 }
+  .remind summary svg { width:1em; height:1em; vertical-align:-.15em; margin-right:.2em }
+  .remind .row { align-items:end }
+  .remind .row > div:first-child { flex:1 1 9rem }
+  .remind .row > div:last-child { flex:2 1 12rem }
+  .remind input[type=time] { min-width:8rem }
+  .remind button { margin:0 .3rem 0 0 }
+  .remind label { margin-top:.4rem }
   .figures .steps { display:flex; height:.5rem; margin-top:.4rem; border-radius:3px; overflow:hidden; background:var(--rule) }
   .figures .steps i { display:block; min-width:0 }
   .figures .steps .s0 { background:#c9512f } .figures .steps .s1 { background:#d9962b } .figures .steps .s2 { background:#d7c22b }

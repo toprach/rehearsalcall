@@ -964,6 +964,27 @@ export const en = {
   'book.link_what':  'Opens this book on any device without signing in \u2013 to save on the phone or '
                    + 'to send on. It stands for the person whose book this is, so it goes to them alone.',
   'book.share':      'share \u2026',
+  /* the daily reminder */
+  'book.remind':     'Reminder',
+  'book.remind_what': 'The phone speaks up every day at the chosen time with the figures of the day.',
+  'book.remind_time': 'Time',
+  'book.remind_on':  'Turn on',
+  'book.remind_off': 'Turn off',
+  'book.remind_test': 'Send a test',
+  'book.remind_active': 'Reminder on, daily at {zeit}.',
+  'book.remind_elsewhere': 'Turned on on another device, at {zeit}. Here as well:',
+  'book.remind_inactive': 'Off.',
+  'book.remind_unsupported': 'This browser cannot receive notifications.',
+  'book.remind_ios': 'On the iPhone this works once the page sits on the home screen as an app (Share \u2192 \u201cAdd to Home Screen\u201d).',
+  'book.remind_denied': 'Notifications are blocked for this page \u2013 allow them in the browser settings.',
+  'book.remind_failed': 'That did not work. Try again.',
+  'book.remind_sent': 'Test on its way \u2013 it should show up in a moment.',
+  'push.title':      '{title}: time for your lines',
+  'push.body':       'Due today: {due} \u00b7 new: {fresh}. A short round will do.',
+  'push.body_done':  'Everything sits \u2013 a round of review keeps it warm.',
+  'push.body_none':  'No lines in the book yet \u2013 check whether the script is there.',
+  'push.test_title': 'Test notification',
+  'push.test_body':  'This is what the reminder looks like. It comes daily at {zeit}.',
 
   /* ---------- the app on the phone ---------- */
   'pwa.short':         'Rehearsals',
