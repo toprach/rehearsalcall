@@ -138,7 +138,7 @@ for (const { code } of LANGUAGES) {
       jobState: { ...audiobook.jobState, running: false, error: 'boom' } }, null),
     companyPage: () => A.companyPage(project, null, 'https://x'),
     pickNamePage: () => A.pickNamePage(project, 'tok', { kind: 'error', key: 'r.name_gone' }),
-    memberPage: () => A.memberPage(project, person, null, project.personen[1]),
+    memberPage: () => A.memberPage(project, person, null, project.personen[1], 'https://x.example/theater/ich/abc/heft'),
     switchPage: () => A.switchPage(project, person, project.personen[1], '/theater/druck/t/mit/PUCK', '/theater/mit'),
     backBar: () => A.backBar('tok', 'OBERON', true),
     myDatesPage: () => A.myDatesPage(project, person, datesResult, { kind: 'good', key: 'r.now_fixed', values: { p1: 'P01' } }),

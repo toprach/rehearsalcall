@@ -415,6 +415,9 @@ for (const b of cast) {
     pj = await call('GET', '/theater/mit/heft');
     check('and the part book carries the link to itself', pj.status === 200 &&
           new RegExp('/theater/ich/[a-z0-9]{16}/heft').test(pj.text), 'status ' + pj.status);
+    pj = await call('GET', '/theater/mit');
+    check('so does the member start page', pj.status === 200 &&
+          new RegExp('/theater/ich/[a-z0-9]{16}/heft').test(pj.text), 'status ' + pj.status);
     cookies = '';
     await call('GET', ich || '/theater/ich/x');
     const me2 = await call('GET', '/theater/mit');

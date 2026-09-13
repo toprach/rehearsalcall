@@ -1085,7 +1085,26 @@ const memberTabbar = (project, person) => {
       <span class="ico">${icon}</span><span>${h(label)}</span></a>`).join('')}</nav>`;
 };
 
-function memberPage(project, person, m, realSelf) {
+/* The link that opens somebody's part book on any device. Copy, and
+   share where the browser offers it. */
+const bookLinkBox = (link) => !link ? '' : `<div class="box small" style="margin-top:1.5rem">
+      <b>${t('book.link_title')}</b>
+      <p class="muted" style="margin:.3rem 0 .6rem">${t('book.link_what')}</p>
+      ${copyLink(link)}
+      <button type="button" class="quiet mini sharelink" hidden>${h(t('book.share'))}</button>
+      <script>
+      (function () {
+        var s = document.currentScript, b = s.parentNode.querySelector('.sharelink');
+        if (!navigator.share || !b) return;
+        b.hidden = false;
+        b.addEventListener('click', function () {
+          navigator.share({ title: ${JSON.stringify(t('book.title'))}, url: ${JSON.stringify(link)} }).catch(function () {});
+        });
+      })();
+      <\/script>
+    </div>`;
+
+function memberPage(project, person, m, realSelf, link = '') {
   const v = project.verfuegbar?.[person.id] || {};
   const evenings = Object.keys(v.tage || {}).length;
   const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
@@ -1123,7 +1142,8 @@ function memberPage(project, person, m, realSelf) {
             { url: '/theater/druck/' + h(project.druck_token) + '/probenplan' })}</td></tr>` : ''}
     </table>
     ${project.druck_token ? `<p class="small muted">${t('mem.docs',
-      { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}` });
+      { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}
+    ${bookLinkBox(link)}` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1168,22 +1188,7 @@ function bookPage(project, person, passages, words, link = '') {
     </div>
     <div id="book">${passages.map(card).join('')}</div>
     ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
-    ${link ? `<div class="box small" style="margin-top:1.5rem">
-      <b>${t('book.link_title')}</b>
-      <p class="muted" style="margin:.3rem 0 .6rem">${t('book.link_what')}</p>
-      ${copyLink(link)}
-      <button type="button" class="quiet mini" id="sharelink" hidden>${h(t('book.share'))}</button>
-      <script>
-      (function () {
-        var b = document.getElementById('sharelink');
-        if (!navigator.share) return;
-        b.hidden = false;
-        b.addEventListener('click', function () {
-          navigator.share({ title: ${JSON.stringify(t('book.title'))}, url: ${JSON.stringify(link)} }).catch(function () {});
-        });
-      })();
-      <\/script>
-    </div>` : ''}
+    ${bookLinkBox(link)}
     <div class="bookstep" id="bookstep" hidden>
       <button type="button" id="prev" class="quiet">\u25c0</button>
       <span id="pos" class="small"></span>

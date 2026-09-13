@@ -775,6 +775,18 @@ export async function handle(request, response, path) {
     const realSelf = realSelfValue && realSelfValue.split(':')[0] === project.id
       ? (project.personen || []).find(x => x.id === realSelfValue.split(':')[1]) : null;
 
+    /* The link to somebody's part book signs its owner in. Whoever has
+       switched to somebody else through the dropdown gets it only with
+       the director's rights - otherwise a member could pick up the
+       director's own link, and with it the director's rights. */
+    const bookLinkFor = async () => {
+      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      if (realSelf && realSelf.id !== person.id && !mayDirect) return '';
+      // People made by hand before tokens existed get one now.
+      if (!person.token) { person.token = S.randomId(16); await S.write(project); }
+      return baseOf(request) + '/theater/ich/' + person.token + '/heft';
+    };
+
     if (second === '' && post) {
       const { fields } = await readForm(request);
       if (String(fields.action) !== 'wechseln')
@@ -800,7 +812,7 @@ export async function handle(request, response, path) {
     // exists; if not, make it now.
     if (!project.druck_token) { project.druck_token = S.randomId(18); await S.write(project); }
 
-    if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
+    if (second === '') return html(response, A.memberPage(project, person, null, realSelf, await bookLinkFor()));
 
     /* The passages of one rehearsal, for a member: the same page as
        the director's, with the member's navigation. */
@@ -895,19 +907,7 @@ export async function handle(request, response, path) {
       if (!project.skript) return html(response,
         A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
       const passages = partBook(project.skript, person.b);
-      /* The link to this book signs its owner in. Whoever has switched
-         to somebody else through the dropdown sees it only with the
-         director's rights - otherwise a member could pick up the
-         director's own link, and with it the director's rights. */
-      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
-      const own = !realSelf || realSelf.id === person.id;
-      let link = '';
-      if (own || mayDirect) {
-        // People made by hand before tokens existed get one now.
-        if (!person.token) { person.token = S.randomId(16); await S.write(project); }
-        link = baseOf(request) + '/theater/ich/' + person.token + '/heft';
-      }
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), link));
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), await bookLinkFor()));
     }
 
     if (second === 'gesamt') {
