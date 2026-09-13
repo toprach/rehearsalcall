@@ -13,6 +13,11 @@
    come first, then new ones in the order of the play. The steps and
    the due dates are computed by the server and mirrored here so the
    figures move at once.
+
+   "Review" takes what is learnt already, due or not, in the order of
+   the play. "Back" shows the card before once more, open, without
+   judging it again. After ten minutes of practice a round of applause
+   asks whether to go on now or tomorrow - once a day.
    --------------------------------------------------------------------- */
 (function () {
   var dataEl = document.getElementById('heft-data') || document.getElementById('play-data');
@@ -186,14 +191,32 @@
   }
 
   /* ---- modes ---- */
-  var panels = { lesen: document.getElementById('heft-lesen'), lernen: document.getElementById('heft-lernen'), intensiv: document.getElementById('heft-intensiv') };
+  var panels = { lesen: document.getElementById('heft-lesen'), lernen: document.getElementById('heft-lernen'),
+                 intensiv: document.getElementById('heft-intensiv'), wiederholen: document.getElementById('heft-wiederholen') };
+  var LEARNING = { lernen: 1, intensiv: 1, wiederholen: 1 };
   function mode(name) {
     Object.keys(panels).forEach(function (k) { if (panels[k]) panels[k].hidden = k !== name; });
     [].forEach.call(document.querySelectorAll('.heft-modes button'), function (b) { b.classList.toggle('on', b.dataset.mode === name); });
     try { localStorage.setItem('heft-mode', name); } catch (e) {}
-    if (name === 'lernen' || name === 'intensiv') startSession(name);
-    else dropActsBar();
+    if (LEARNING[name]) { clockStart(); startSession(name); }
+    else { clockStop(); dropActsBar(); }
   }
+
+  /* ---- the clock: minutes of practice, only while the page is seen ---- */
+  var APPLAUSE_AFTER = 10 * 60 * 1000;
+  var clock = { ms: 0, since: null };
+  function clockStart() { if (clock.since == null && !document.hidden) clock.since = Date.now(); }
+  function clockStop() { if (clock.since != null) { clock.ms += Date.now() - clock.since; clock.since = null; } }
+  function clockMs() { return clock.ms + (clock.since != null ? Date.now() - clock.since : 0); }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) clockStop();
+    else if (session && LEARNING[session.kind]) clockStart();
+  });
+  function applauseDue() {
+    if (clockMs() < APPLAUSE_AFTER) return false;
+    try { return localStorage.getItem('heft-applaus') !== today; } catch (e) { return clock.ms < APPLAUSE_AFTER * 2; }
+  }
+  function applauseSeen() { try { localStorage.setItem('heft-applaus', today); } catch (e) {} }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('.heft-modes button'); if (b) mode(b.dataset.mode);
   });
@@ -216,12 +239,15 @@
       var fresh = items.filter(function (c) { return !rec(c.key); });
       queue = due.map(function (c) { return { item: c, fresh: false }; })
         .concat(fresh.map(function (c) { return { item: c, fresh: true }; }));
+    } else if (kind === 'wiederholen') {
+      var learnt = items.filter(function (c) { return !!rec(c.key); });
+      queue = learnt.map(function (c) { return { item: c, fresh: false }; });
     } else {
       var hard = items.filter(function (c) { return failCount(rec(c.key)) >= 2; })
         .sort(function (a, b) { return failRate(rec(b.key)) - failRate(rec(a.key)); });
       queue = hard.map(function (c) { return { item: c, fresh: false }; });
     }
-    session = { kind: kind, queue: queue, batch: [], last: null, done: 0, total: queue.length, hint: 0 };
+    session = { kind: kind, queue: queue, batch: [], last: null, prev: null, done: 0, total: queue.length, hint: 0 };
     next();
   }
   function fill() {
@@ -244,7 +270,10 @@
     fill();
     var panel = panels[session.kind];
     if (!session.batch.length) return finish(panel);
-    var e = pick(); session.last = e; session.hint = 0;
+    if (applauseDue()) return applause(panel);
+    var e = pick();
+    if (session.last && session.last !== e) session.prev = session.last;
+    session.last = e; session.hint = 0;
     render(panel, e, e.fresh && !e.shown);
   }
 
@@ -337,6 +366,9 @@
     document.body.classList.remove('learning');
   }
 
+  var backButton = function () {
+    return session.prev ? '<button type="button" class="quiet back" data-act="zurueck" title="' + esc(T.back_what) + '">' + esc(T.back) + '</button>' : '';
+  };
   function render(panel, e, open) {
     var c = e.item, r = rec(c.key);
     var nr = c.p.nr, ctx = contextOf(c);
@@ -347,12 +379,13 @@
     if (open) {
       html += '<div class="mine">' + ownHtml(c, 0, true) + '</div>' +
         '<p class="small muted">' + esc(T.first_time) + '</p>';
-      bar.innerHTML = '<button type="button" data-act="weiter">' + esc(T.next) + '</button>';
+      bar.innerHTML = backButton() + '<button type="button" data-act="weiter">' + esc(T.next) + '</button>';
     } else {
       html += '<p class="small muted speak">' + esc(T.say_aloud) + '</p>' +
         '<div class="mine hidden-lines" id="heft-own" hidden>' + ownHtml(c, 0, true) + '</div>' +
         '<div class="hinted" id="heft-hint" hidden></div>';
-      bar.innerHTML = '<button type="button" class="quiet" data-act="hinweis">' + esc(T.hint) + '</button>' +
+      bar.innerHTML = backButton() +
+          '<button type="button" class="quiet" data-act="hinweis">' + esc(T.hint) + '</button>' +
           '<button type="button" data-act="anzeigen">' + esc(T.reveal) + '</button>';
     }
     html += c.after.map(function (d) { return '<p class="dir after">' + esc(d) + '</p>'; }).join('') +
@@ -361,6 +394,34 @@
     paintFigures(); paintBadges();
     panel.querySelector('#heft-card').scrollIntoView({ block: 'start' });
     window.scrollBy(0, -8);
+  }
+  /* The card before, open, to read it once more; "next" returns to the
+     card that was on. Nothing is judged here. */
+  function lookBack(panel, e) {
+    var c = e.item, nr = c.p.nr, ctx = contextOf(c);
+    panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' +
+      '<section class="pass learn cmt" id="heft-card"' + (nr != null ? ' data-nr="' + nr + '"' : '') + '>' + head(e) +
+      ctxBeforeHtml(ctx.before) + cueHtml(c) +
+      c.before.map(function (d) { return '<p class="dir">' + esc(d) + '</p>'; }).join('') +
+      '<div class="mine">' + ownHtml(c, 0, false) + '</div>' +
+      '<p class="small muted">' + esc(T.back_what) + '</p>' +
+      c.after.map(function (d) { return '<p class="dir after">' + esc(d) + '</p>'; }).join('') +
+      ctxAfterHtml(ctx.after) + '</section>';
+    actsBar().innerHTML = '<button type="button" data-act="zurueck-ende">' + esc(T.next) + '</button>';
+    paintFigures(); paintBadges();
+    panel.querySelector('#heft-card').scrollIntoView({ block: 'start' });
+    window.scrollBy(0, -8);
+  }
+  function applause(panel) {
+    applauseSeen();
+    dropActsBar();
+    panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' +
+      '<div class="box applause"><p class="clap">\ud83d\udc4f</p><b>' + esc(T.applause_title) + '</b>' +
+      '<p class="small muted">' + esc(fmt(T.applause_text, { n: session.done })) + '</p>' +
+      '<button type="button" data-act="applaus-weiter">' + esc(T.continue_) + '</button>' +
+      '<button type="button" class="quiet" data-act="applaus-morgen">' + esc(T.tomorrow_) + '</button></div>';
+    paintFigures();
+    panel.querySelector('.applause').scrollIntoView({ block: 'start' });
   }
   function reveal(panel, e) {
     var own = panel.querySelector('#heft-own'); own.hidden = false;
@@ -391,12 +452,13 @@
   }
   function finish(panel) {
     dropActsBar();
-    var f = figures();
     var tomorrow = items.filter(function (c) { var r = rec(c.key); return r && r.f <= addDays(today, 1) && r.f > today; }).length;
+    var empty = !session.total && session.kind !== 'lernen';
+    var title = !empty ? T.done_title : session.kind === 'intensiv' ? T.nothing_hard : T.nothing_learnt;
+    var text = !empty ? fmt(T.done_text, { n: session.done, tomorrow: tomorrow })
+      : session.kind === 'intensiv' ? T.nothing_hard_what : T.nothing_learnt_what;
     panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' +
-      '<div class="box"><b>' + esc(session.kind === 'intensiv' && !session.total ? T.nothing_hard : T.done_title) + '</b>' +
-      '<p class="small muted">' + esc(session.kind === 'intensiv' && !session.total ? T.nothing_hard_what
-        : fmt(T.done_text, { n: session.done, tomorrow: tomorrow })) + '</p>' +
+      '<div class="box"><b>' + esc(title) + '</b><p class="small muted">' + esc(text) + '</p>' +
       '<button type="button" class="quiet mini" data-act="again-session">' + esc(T.once_more) + '</button></div>';
     paintFigures();
   }
@@ -412,6 +474,10 @@
     }
     else if (act === 'anzeigen') reveal(panel, e);
     else if (act === 'nochmal' || act === 'hilfe' || act === 'kann') rate(e, act);
+    else if (act === 'zurueck' && session.prev) lookBack(panel, session.prev);
+    else if (act === 'zurueck-ende') { session.hint = 0; render(panel, e, e.fresh && !e.shown); }
+    else if (act === 'applaus-weiter') next();
+    else if (act === 'applaus-morgen') { clockStop(); finish(panel); }
     else if (act === 'again-session') startSession(session.kind);
   });
 

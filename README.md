@@ -107,8 +107,11 @@ Members mostly come on a phone. The four places they go sit in a bar at
 the bottom of the screen, and the part book has a screen edition next to
 the A4 one: passage by passage with its cue, and a **learning mode** that
 hides the own lines until they are revealed, steps to the next passage
-and remembers on the device which passages sit. Pages are light by
-default; a switch in the head turns them dark.
+and remembers which passages sit. A review mode goes through what is
+learnt already, a back button shows the passage before once more, and
+after ten minutes of practice a round of applause asks whether to go on
+now or tomorrow. Pages are light by default; a switch in the head turns
+them dark.
 
 A script is uploaded more than once while rehearsals run. Every version
 is kept, and the page shows what changed from one to the next as a list

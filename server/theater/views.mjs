@@ -1285,6 +1285,9 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       again: t('book.again'), with_help: t('book.with_help'), knew: t('book.knew'),
       done_title: t('book.done_title'), done_text: t('book.done_text'), once_more: t('book.once_more'),
       nothing_hard: t('book.nothing_hard'), nothing_hard_what: t('book.nothing_hard_what'),
+      nothing_learnt: t('book.nothing_learnt'), nothing_learnt_what: t('book.nothing_learnt_what'),
+      back: t('book.back'), back_what: t('book.back_what'), applause_title: t('book.applause_title'),
+      applause_text: t('book.applause_text'), continue_: t('book.continue'), tomorrow_: t('book.tomorrow'),
       c_new: t('kd.new'), c_text: t('kd.text'), c_question: t('kd.question'), c_save: t('kd.save'),
       c_cancel: t('kd.cancel'), c_comments: t('kd.comments'), c_answer: t('kd.answer'), c_del: t('kd.delete'),
       c_done: t('kd.done'), c_failed: t('kd.failed'), c_hint: t('book.dbl_hint'),
@@ -1306,6 +1309,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       <button type="button" data-mode="lesen" class="on">${h(t('book.mode_read'))}</button>
       <button type="button" data-mode="lernen">${h(t('book.mode_learn'))}</button>
       <button type="button" data-mode="intensiv">${h(t('book.mode_hard'))} <span id="heft-hardcount">${fig.hard ? '(' + fig.hard + ')' : ''}</span></button>
+      <button type="button" data-mode="wiederholen">${h(t('book.mode_review'))}</button>
     </div>
     <div id="heft-lesen">
       <p class="small muted">${t('book.read_what')} ${t('book.dbl_hint')}</p>
@@ -1314,6 +1318,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
     </div>
     <div id="heft-lernen" hidden><p class="small muted">${t('book.learn_what')}</p></div>
     <div id="heft-intensiv" hidden><p class="small muted">${t('book.hard_what')}</p></div>
+    <div id="heft-wiederholen" hidden><p class="small muted">${t('book.review_what')}</p></div>
     <script id="heft-data" type="application/json">${json}</script>
     <script src="/theater/heft.js?v=${HEFT_V}"></script>` });
 }

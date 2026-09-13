@@ -330,6 +330,10 @@ export const STYLE = `
   .learnbar .rate-again { background:#c9302c; border-color:#c9302c; color:#fff }
   .learnbar .rate-help { background:#e08a1e; border-color:#e08a1e; color:#fff }
   .learnbar .rate-knew { background:#1d7a3e; border-color:#1d7a3e; color:#fff }
+  .learnbar button.back { flex:0 1 auto; max-width:7rem }
+  .applause { text-align:center }
+  .applause .clap { font-size:3rem; line-height:1.2; margin:0 0 .3rem }
+  .applause button { margin:.6rem .3rem 0 }
   body.learning .frame { padding-bottom:9rem }
   @media (max-width:700px) { body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem } }
   .figures { margin:.4rem 0 .8rem }

@@ -481,6 +481,7 @@ for (const b of cast) {
     check('and its own icon', ai.status === 200 && ai.headers.get('content-type') === 'image/png', 'status ' + ai.status);
     const js = await call('GET', '/theater/heft.js');
     check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
+    check('the book offers the review mode', /data-mode="wiederholen"/.test(bk.text) && /id="heft-wiederholen"/.test(bk.text));
   }
 }
 
