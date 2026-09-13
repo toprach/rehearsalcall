@@ -79,11 +79,11 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
     ctx.font && ctx.font !== 'normal' ? ` data-font="${h(ctx.font)}"` : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<link rel="manifest" href="/theater/manifest.webmanifest">
+<link rel="manifest" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/manifest.webmanifest` : '/theater/manifest.webmanifest'}">
 <meta name="theme-color" content="#b3272d">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="${h(t('pwa.short'))}">
-<link rel="apple-touch-icon" href="/theater/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="${h(ctx.app ? ctx.app.short : t('pwa.short'))}">
+<link rel="apple-touch-icon" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/icon-192.png` : '/theater/icon-192.png'}">
 <title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
 <header class="head${tabbar ? ' member' : ''}"><div class="inner">
   <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
@@ -1137,13 +1137,13 @@ const memberTabbar = (project, person) => {
    member's pages while they run in a browser tab, not once installed;
    "later" keeps it away for two weeks. Chrome and friends can prompt;
    Safari on the iPhone needs to be told the way. */
-const installBanner = () => `<div class="notice pwa" id="pwabanner" hidden>
-    <b>${t('pwa.install_title')}</b>
-    <p class="small muted" style="margin:.3rem 0 .6rem">${t('pwa.install_what')}</p>
-    <p class="small ios" hidden>${t('pwa.ios')}</p>
-    <button type="button" class="mini" id="pwa-install">${h(t('pwa.install'))}</button>
+const installBanner = () => `<div class="pwasheet" id="pwabanner" hidden><div class="inner">
+    <b>${ctx.app ? t('pwa.install_title_play', { title: h(ctx.app.title) }) : t('pwa.install_title')}</b>
+    <p class="small muted">${t('pwa.install_what')}</p>
+    <p class="small how" hidden></p>
+    <button type="button" class="big" id="pwa-install">${h(t('pwa.install'))}</button>
     <button type="button" class="quiet mini" id="pwa-later">${h(t('pwa.later'))}</button>
-  </div>
+  </div></div>
   <script>
   (function () {
     var box = document.getElementById('pwabanner'); if (!box) return;
@@ -1152,11 +1152,13 @@ const installBanner = () => `<div class="notice pwa" id="pwabanner" hidden>
     if (standalone || Date.now() - later < 14 * 86400000) return;
     var deferred = null;
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; box.hidden = false; });
-    if (ios) box.hidden = false;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; });
+    box.hidden = false;
     document.getElementById('pwa-install').addEventListener('click', function () {
-      if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { box.hidden = true; deferred = null; }); }
-      else box.querySelector('.ios').hidden = false;
+      if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { box.hidden = true; deferred = null; }); return; }
+      var how = box.querySelector('.how');
+      how.textContent = ios ? ${JSON.stringify(t('pwa.ios'))} : ${JSON.stringify(t('pwa.android'))};
+      how.hidden = false;
     });
     document.getElementById('pwa-later').addEventListener('click', function () {
       try { localStorage.setItem('pwa-later', String(Date.now())); } catch (e) {}

@@ -66,8 +66,16 @@ export const STYLE = `
   .notice.error { background:#fdecec; border-left:4px solid var(--accent) }
   .notice.good { background:#e9f5ed; border-left:4px solid var(--good) }
   .notice.demo { background:#eef2fb; border-left:4px solid #4a6fd0; font-size:.9rem }
-  .notice.pwa { background:var(--card); border-left:4px solid var(--accent) }
-  .notice.pwa button { margin:0 .3rem 0 0 }
+  /* --- the sheet that asks to install the app: fixed, the whole width --- */
+  .pwasheet { position:fixed; left:0; right:0; bottom:0; z-index:80; background:rgba(0,0,0,.45);
+              display:flex; align-items:flex-end; justify-content:center; top:0 }
+  .pwasheet[hidden] { display:none }
+  .pwasheet .inner { width:100%; max-width:40rem; background:var(--card); color:var(--ink); padding:1.2rem 1.5rem 1.5rem;
+                     border-radius:14px 14px 0 0; box-shadow:0 -8px 30px rgba(0,0,0,.3); text-align:center }
+  .pwasheet .inner p { margin:.4rem 0 .8rem }
+  .pwasheet button.big { display:block; width:100%; margin:0 0 .6rem; padding:.9rem 1rem; font-size:1.1rem; font-weight:700 }
+  .pwasheet button.quiet { margin:0 }
+  .pwasheet .how { background:var(--ground); border-radius:6px; padding:.5rem .7rem }
   html[data-theme="dark"] .notice.demo { background:#1d2540 }
   .box.demos p { margin:.4rem 0 .8rem } .box.demos p:last-child { margin-bottom:0 }
   .box.demos .btn { margin:.3rem .3rem 0 0 }

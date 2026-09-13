@@ -120,7 +120,8 @@ const seams = (html) => {
 let failures = 0;
 for (const { code } of LANGUAGES) {
   const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', demo: code === 'en' ? { until: new Date() } : null,
-                                        share: code === 'de' ? 'https://x.example/theater/ich/abc/heft' : '' });
+                                        share: code === 'de' ? 'https://x.example/theater/ich/abc/heft' : '',
+                                        app: code === 'de' ? { token: 'abc', title: 'A <Dream>', short: 'A <Dream>' } : null });
   const pages = {
     entryPage: () => A.entryPage({ kind: 'error', key: 'r.code_unknown' }),
     entryDemos: () => A.entryPage(null, [{ key: 'midsummer', title: 'A <Dream>' }]),

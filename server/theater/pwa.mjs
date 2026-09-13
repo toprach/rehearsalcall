@@ -10,15 +10,46 @@
 import zlib from 'node:zlib';
 
 const RED = [0xb3, 0x27, 0x2d];
-const GLYPH = [           // a 5x7 bitmap of the letter P
-  '11110',
-  '10001',
-  '10001',
-  '11110',
-  '10000',
-  '10000',
-  '10000',
-];
+/* A 5x7 bitmap font, capitals only: the icon shows the play's initial. */
+const FONT = {
+  A: '01110 10001 10001 11111 10001 10001 10001',
+  B: '11110 10001 10001 11110 10001 10001 11110',
+  C: '01110 10001 10000 10000 10000 10001 01110',
+  D: '11110 10001 10001 10001 10001 10001 11110',
+  E: '11111 10000 10000 11110 10000 10000 11111',
+  F: '11111 10000 10000 11110 10000 10000 10000',
+  G: '01110 10001 10000 10111 10001 10001 01111',
+  H: '10001 10001 10001 11111 10001 10001 10001',
+  I: '01110 00100 00100 00100 00100 00100 01110',
+  J: '00111 00010 00010 00010 00010 10010 01100',
+  K: '10001 10010 10100 11000 10100 10010 10001',
+  L: '10000 10000 10000 10000 10000 10000 11111',
+  M: '10001 11011 10101 10101 10001 10001 10001',
+  N: '10001 10001 11001 10101 10011 10001 10001',
+  O: '01110 10001 10001 10001 10001 10001 01110',
+  P: '11110 10001 10001 11110 10000 10000 10000',
+  Q: '01110 10001 10001 10001 10101 10010 01101',
+  R: '11110 10001 10001 11110 10100 10010 10001',
+  S: '01111 10000 10000 01110 00001 00001 11110',
+  T: '11111 00100 00100 00100 00100 00100 00100',
+  U: '10001 10001 10001 10001 10001 10001 01110',
+  V: '10001 10001 10001 10001 10001 01010 00100',
+  W: '10001 10001 10001 10101 10101 10101 01010',
+  X: '10001 10001 01010 00100 01010 10001 10001',
+  Y: '10001 10001 01010 00100 00100 00100 00100',
+  Z: '11111 00001 00010 00100 01000 10000 11111',
+};
+const glyphOf = (letter) => (FONT[letter] || FONT.P).split(' ');
+
+/* The letter for a title: the first of its first telling word, articles
+   skipped, accents dropped - "Der nackerte Waunsinn" gives N. */
+export function initialOf(title) {
+  const words = String(title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+  const ARTICLES = new Set(['DER', 'DIE', 'DAS', 'EIN', 'EINE', 'THE', 'A', 'AN', 'LE', 'LA', 'LES', 'IL', 'LO', 'EL']);
+  const w = words.find(x => !ARTICLES.has(x)) || words[0] || 'P';
+  return w.charAt(0);
+}
 
 /* CRC-32 as PNG wants it. */
 const TABLE = (() => {
@@ -44,7 +75,8 @@ const chunk = (type, data) => {
 
 /* The icon: a rounded red square, the P in white. "maskable" wants
    the drawing inside the middle 80 %, so the letter stays small. */
-export function iconPng(size) {
+export function iconPng(size, letter = 'P') {
+  const GLYPH = glyphOf(letter);
   const px = Buffer.alloc(size * size * 4);
   const r = Math.round(size * 0.2);                 // corner radius
   const inside = (x, y) => {
@@ -79,24 +111,40 @@ export function iconPng(size) {
 }
 
 const icons = new Map();
-export const icon = (size) => {
-  if (!icons.has(size)) icons.set(size, iconPng(size));
-  return icons.get(size);
+export const icon = (size, letter = 'P') => {
+  const k = letter + size;
+  if (!icons.has(k)) icons.set(k, iconPng(size, letter));
+  return icons.get(k);
 };
 
-export function manifest(name, shortName, lang) {
+/* One manifest for the entry, one per play and person: a different id
+   and start address make a separate app on the phone, so two plays can
+   sit side by side. The start address is the personal link, which
+   signs the person in even when the app has lost its cookies. */
+export function manifest(name, shortName, lang, app = null) {
+  const base = app ? '/theater/app/' + app.token + '/' : '/theater/';
   return {
-    id: '/theater/',
+    id: base,
     name, short_name: shortName, lang,
-    start_url: '/theater/mit',
+    start_url: app ? '/theater/ich/' + app.token + '/mit' : '/theater/mit',
     scope: '/theater/',
     display: 'standalone',
     background_color: '#f6f4f1',
     theme_color: '#b3272d',
     icons: [
-      { src: '/theater/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/theater/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/theater/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: base + 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
+}
+
+/* A short name for the home screen: the title cut at a word, 12 chars. */
+export function shortNameOf(title, fallback) {
+  const t = String(title || '').trim();
+  if (!t) return fallback;
+  if (t.length <= 12) return t;
+  const cut = t.slice(0, 12);
+  const at = cut.lastIndexOf(' ');
+  return (at > 4 ? cut.slice(0, at) : cut).trim();
 }

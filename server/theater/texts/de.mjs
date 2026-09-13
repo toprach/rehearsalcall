@@ -960,10 +960,12 @@ export const de = {
   /* ---------- die App am Handy ---------- */
   'pwa.short':         'Proben',
   'pwa.install_title': 'Als App aufs Handy',
+  'pwa.install_title_play': '\u201e{title}\u201c als App aufs Handy',
   'pwa.install_what':  'Dann liegen Rollenheft und Kalender wie eine App am Startbildschirm, ohne Browserleiste.',
   'pwa.install':       'Installieren',
   'pwa.later':         'sp\u00e4ter',
   'pwa.ios':           'Am iPhone: das Teilen-Symbol in Safari, dann \u201eZum Home-Bildschirm\u201c.',
+  'pwa.android':       'Im Browser-Men\u00fc (\u22ee) \u201eApp installieren\u201c oder \u201eZum Startbildschirm hinzuf\u00fcgen\u201c w\u00e4hlen.',
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'Keine Verbindung. Sobald das Netz wieder da ist, geht es weiter.',
   'pwa.retry':         'Noch einmal versuchen',

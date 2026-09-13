@@ -473,6 +473,12 @@ for (const b of cast) {
     const icb = Buffer.from(await ic.arrayBuffer());
     check('the icon is a PNG', ic.status === 200 && icb.slice(1, 4).toString('ascii') === 'PNG' && icb.length > 500, 'status ' + ic.status);
     check('member pages carry the manifest and the install banner', /rel="manifest"/.test(bk.text) && /id="pwabanner"/.test(bk.text));
+    const am = (/href="(\/theater\/app\/[a-z0-9]+\/manifest\.webmanifest)"/.exec(bk.text) || [])[1];
+    const af = await call('GET', am || '/theater/app/x/manifest.webmanifest');
+    let aj = {}; try { aj = JSON.parse(af.text); } catch {}
+    check('the member page names the app of its play', af.status === 200 && typeof aj.name === 'string' && aj.name.length > 0 && aj.id === am.replace('manifest.webmanifest', '') && /^\/theater\/ich\/[a-z0-9]+\/mit$/.test(aj.start_url || ''), af.text.slice(0, 100));
+    const ai = await fetch(BASE + (am || '').replace('manifest.webmanifest', 'icon-192.png'));
+    check('and its own icon', ai.status === 200 && ai.headers.get('content-type') === 'image/png', 'status ' + ai.status);
     const js = await call('GET', '/theater/heft.js');
     check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
   }

@@ -957,10 +957,12 @@ export const en = {
   /* ---------- the app on the phone ---------- */
   'pwa.short':         'Rehearsals',
   'pwa.install_title': 'Put it on the phone as an app',
+  'pwa.install_title_play': '\u201c{title}\u201d as an app on the phone',
   'pwa.install_what':  'Then the part book and the calendar sit on the home screen like an app, without the browser bar.',
   'pwa.install':       'Install',
   'pwa.later':         'later',
   'pwa.ios':           'On the iPhone: the share symbol in Safari, then \u201cAdd to Home Screen\u201d.',
+  'pwa.android':       'In the browser menu (\u22ee) choose \u201cInstall app\u201d or \u201cAdd to Home screen\u201d.',
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'No connection. As soon as the network is back, it goes on.',
   'pwa.retry':         'Try again',

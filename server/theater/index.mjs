@@ -508,6 +508,25 @@ export async function handle(request, response, path) {
   }
   if (first === 'offline') { await drainBody(request); return html(response, A.offlinePage()); }
 
+  /* --- the app of one play for one person: its manifest and icons --- */
+  if (first === 'app') {
+    await drainBody(request);
+    const hit = await S.findByPersonToken(parts[1] || '');
+    if (!hit) return html(response, A.errorPage('f.link_gone_t', 'f.link_gone'), 404);
+    const what = parts[2] || '';
+    if (what === 'manifest.webmanifest') {
+      projectLanguage(hit.project);
+      response.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' });
+      return response.end(JSON.stringify(PWA.manifest(hit.project.titel,
+        PWA.shortNameOf(hit.project.titel, t_(L, 'pwa.short')), L, { token: hit.person.token })));
+    }
+    if (what === 'icon-192.png' || what === 'icon-512.png') {
+      response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=604800' });
+      return response.end(PWA.icon(what === 'icon-192.png' ? 192 : 512, PWA.initialOf(hit.project.titel)));
+    }
+    return html(response, A.errorPage('f.not_found_t', 'f.not_found'), 404);
+  }
+
   /* --- about this installation: open to everyone --- */
   if (first === 'ueber') { await drainBody(request); return html(response, A.aboutPage()); }
 
@@ -617,8 +636,8 @@ export async function handle(request, response, path) {
     if (hit.person.regie || hit.person.assistenz) setRegieCookie(response, hit.project.id, hit.person.id);
     /* A page may be named after the token - the part book, say, saved
        on a phone - and then that is where the link leads. */
-    const target = ['heft', 'zeiten', 'termine', 'kommentare'].includes(parts[2]) ? parts[2] : '';
-    if (target) return redirect(response, '/theater/mit/' + target);
+    const target = ['heft', 'zeiten', 'termine', 'kommentare', 'mit'].includes(parts[2]) ? parts[2] : '';
+    if (target) return redirect(response, target === 'mit' ? '/theater/mit' : '/theater/mit/' + target);
     return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');
   }
 
@@ -871,6 +890,8 @@ export async function handle(request, response, path) {
     /* The share button in the head carries the link to this person's
        part book on every page of the member area. */
     ctx.share = await bookLinkFor();
+    if (person.token) ctx.app = { token: person.token, title: project.titel,
+                                 short: PWA.shortNameOf(project.titel, t_(L, 'pwa.short')) };
     if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
 
     /* The passages of one rehearsal, for a member: the same page as
