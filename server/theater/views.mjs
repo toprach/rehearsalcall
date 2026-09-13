@@ -2097,7 +2097,7 @@ function docExtras(token, doc, me, comments, canSeeAll) {
         }
         return out + esc(text.slice(i));
       };
-      [].forEach.call(document.querySelectorAll('main .dir'), function (d) {
+      [].forEach.call(document.querySelectorAll('main [data-sem="regieanweisung"], main .dir'), function (d) {
         var walker = document.createTreeWalker(d, NodeFilter.SHOW_TEXT), nodes = [], n;
         while ((n = walker.nextNode())) if (n.nodeValue.indexOf(name) >= 0) nodes.push(n);
         nodes.forEach(function (tn) {
