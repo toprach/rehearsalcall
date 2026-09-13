@@ -96,6 +96,13 @@ Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
 Framadate, Nuudel): there, one poll is always one date.
 
+Members mostly come on a phone. The four places they go sit in a bar at
+the bottom of the screen, and the part book has a screen edition next to
+the A4 one: passage by passage with its cue, and a **learning mode** that
+hides the own lines until they are revealed, steps to the next passage
+and remembers on the device which passages sit. Pages are light by
+default; a switch in the head turns them dark.
+
 A script is uploaded more than once while rehearsals run. Every version
 is kept, and the page shows what changed from one to the next as a list
 of speeches (changed, new, cut - formatting does not count), printable
