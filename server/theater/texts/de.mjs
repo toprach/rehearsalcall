@@ -20,6 +20,7 @@ export const de = {
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',
   'nav.signout':    'Abmelden',
+  'nav.comments':   'Kommentare',
   'nav.project':    'Projekt',
   'nav.calendar_for': 'Kalender f\u00fcr \u2026',
 
@@ -835,6 +836,63 @@ export const de = {
   'r.version_new_names': 'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
                       + '{fresh} neue Sprechernamen \u2013 auf der <a href="/theater/besetzung">Besetzungsseite</a> '
                       + 'zuordnen; bis dahin gelten sie als eigene Personen.',
+
+  /* ---------- Kommentare ---------- */
+  'kd.new':          'Neuer Kommentar bei Stichwort {nr}',
+  'kd.text':         'Kommentar',
+  'kd.question':     'Frage an die Regie',
+  'kd.question_mark': 'Frage an die Regie',
+  'kd.done':         'beantwortet',
+  'kd.save':         'Sichern',
+  'kd.cancel':       'Abbrechen',
+  'kd.close':        'Schlie\u00dfen',
+  'kd.comments':     'Kommentare',
+  'kd.answer':       'Antwort',
+  'kd.delete':       'l\u00f6schen',
+  'kd.signin':       'Zum Kommentieren das Skript \u00fcber den Ensemble-Link oder das eigene '
+                   + 'Rollenheft \u00f6ffnen \u2013 dann tr\u00e4gt der Kommentar Ihren Namen.',
+  'kd.hint':         'Doppelklick auf eine Zeile: Kommentar dazu.',
+  'kd.scenes':       'Szenen dieser Probe',
+  'kd.all_rehearsals': 'Alle Proben',
+  'kd.failed':       'Das lie\u00df sich nicht speichern.',
+  'kd.rehearsal':    'Probe',
+  'kd.scene':        'Szene',
+  'kd.prev_comment': 'voriger Kommentar',
+  'kd.next_comment': 'n\u00e4chster Kommentar',
+  'kd.no_comments':  'keine Kommentare',
+  'cmt.title':       'Kommentare',
+  'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und in den Probenplan '
+                   + 'geschrieben hat. Fragen an die Regie stehen zuerst; eine Antwort geht an die '
+                   + 'Person zur\u00fcck und erscheint neben der Zeile in ihrem Skript.',
+  'cmt.questions':   'Fragen an die Regie',
+  'cmt.no_questions': 'Keine offenen Fragen.',
+  'cmt.all':         'Alle anderen Kommentare',
+  'cmt.none':        'Noch keine Kommentare.',
+  'cmt.question':    'Frage an die Regie',
+  'cmt.done':        'beantwortet',
+  'cmt.done_mark':   'als beantwortet markieren',
+  'cmt.reopen':      'wieder \u00f6ffnen',
+  'cmt.delete':      'l\u00f6schen',
+  'cmt.delete_confirm': 'Diesen Kommentar l\u00f6schen?',
+  'cmt.answer':      'Antwort',
+  'cmt.answer_hint': 'antworten \u2026',
+  'cmt.answer_save': 'antworten',
+  'cmt.director':    'Regie',
+  'cmt.at':          'Stichwort {nr}',
+  'cmt.doc_gesamt':  'Gesamtskript',
+  'cmt.doc_rolle':   'Rollenheft',
+  'cmt.doc_probenplan': 'Probenplan',
+  'mcmt.title':      'Meine Kommentare',
+  'mcmt.what':       'Doppelklick auf eine Zeile im Skript, im Rollenheft oder im Probenplan: '
+                   + 'Kommentar dazu. Mit H\u00e4kchen \u201eFrage an die Regie\u201c erscheint die '
+                   + 'Antwort hier und neben der Zeile.',
+  'mcmt.none':       'Noch keine Kommentare.',
+  'r.comment_gone':  'Diesen Kommentar gibt es nicht.',
+  'r.answer_saved':  'Antwort gespeichert \u2013 die Person sieht sie neben der Zeile.',
+  'r.answer_removed': 'Antwort entfernt.',
+  'r.comment_done':  'Als beantwortet markiert.',
+  'r.comment_reopened': 'Wieder ge\u00f6ffnet.',
+  'r.comment_deleted': 'Kommentar gel\u00f6scht.',
 
   /* ---------- wie die Sprecher geschrieben sind ---------- */
   'upl.style':        'Sprecher im Text',

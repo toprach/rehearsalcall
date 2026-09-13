@@ -17,7 +17,7 @@
 import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
-import { fromHeader, isLanguage } from './texts.mjs';
+import { fromHeader, isLanguage, language } from './texts.mjs';
 import { proposeDates, calendarDays, dayStates, directorsOf } from './dates.mjs';
 import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
@@ -380,6 +380,19 @@ async function takeInScript(project, script) {
   return { kind: 'good', key: project.plan?.proben?.length ? 'r.version_kept' : 'r.version_taken', values };
 }
 
+/* What goes into a document after <body>: the comments this viewer may
+   see. The director (by code or personal link) sees all, everybody
+   else their own. */
+function docExtrasFor(A, project, token, doc, me, ctx) {
+  const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
+  const nameOf = (b) => (project.personen || []).find(x => x.b === b)?.name || b;
+  const visible = (project.kommentare || [])
+    .filter(c => mayAll || (me && c.wer === me.b))
+    .map(c => ({ ...c, name: nameOf(c.wer) }));
+  return A.docExtras(token || '', doc, me, visible, mayAll);
+}
+const t_ = (code, key) => language(code).t(key);
+
 /* The address visitors see.
 
    Behind the Apache proxy the Host header says 127.0.0.1:3011; the
@@ -595,6 +608,46 @@ export async function handle(request, response, path) {
       return redirect(response, goto);
     }
 
+    /* --- a comment on a line, from inside a document ---
+
+       Whoever is signed in as a member of this project comments as
+       themselves; a part book opened from its plain link names the
+       person in the path, and that is taken on trust, as the link is. */
+    if (action === 'kommentar' && post) {
+      const { fields } = await readForm(request);
+      const who = await memberFrom(request);
+      const person = (who && who.project.id === project.id) ? who.person
+        : (project.personen || []).find(x => x.b === String(fields.wer || ''));
+      const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const answer = (obj, status = 200) => {
+        response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(JSON.stringify(obj));
+      };
+      if (!person) return answer({ ok: false, reason: 'who' }, 401);
+      project.kommentare = project.kommentare || [];
+      const act = String(fields.action || '');
+      if (act === 'neu') {
+        const text = String(fields.text || '').trim().slice(0, 2000);
+        const nr = Number(fields.nr);
+        if (!text || !Number.isInteger(nr)) return answer({ ok: false, reason: 'input' }, 400);
+        const c = { id: S.randomId(8), nr, dokument: ['rolle', 'probenplan'].includes(fields.doc) ? fields.doc : 'gesamt',
+                    auszug: String(fields.auszug || '').trim().slice(0, 160), text, wer: person.b,
+                    datum: new Date().toISOString(), frage: fields.frage === '1', antwort: null, erledigt: false };
+        project.kommentare.push(c);
+        await S.write(project);
+        return answer({ ok: true, comment: { ...c, name: person.name || person.b } });
+      }
+      if (act === 'loeschen') {
+        const c = project.kommentare.find(x => x.id === String(fields.id || ''));
+        if (!c) return answer({ ok: false, reason: 'gone' }, 404);
+        if (c.wer !== person.b && !mayAll) return answer({ ok: false, reason: 'not yours' }, 403);
+        project.kommentare = project.kommentare.filter(x => x !== c);
+        await S.write(project);
+        return answer({ ok: true });
+      }
+      return answer({ ok: false, reason: 'action' }, 400);
+    }
+
     if (action === 'original') {
       const o = project.drehbuch?.original;
       if (!o) return html(response,
@@ -653,6 +706,13 @@ export async function handle(request, response, path) {
     if (meins && (project.personen || []).some(x => x.b === meins))
       text = text.replace('<body>',
         '<body>' + A.backBar(token, meins, !!project.plan?.proben?.length));
+    /* Comments: the member signed in, else the person the path names. */
+    {
+      const who = await memberFrom(request);
+      const me = (who && who.project.id === project.id) ? who.person
+        : (project.personen || []).find(x => x.b === meins) || null;
+      text = text.replace('<body>', '<body>' + docExtrasFor(A, project, token, action, me, ctx));
+    }
 
     return response.end(text);
   }
@@ -827,7 +887,14 @@ export async function handle(request, response, path) {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       });
+      text = text.replace('<body>', '<body>' + docExtrasFor(A, project, project.druck_token,
+        second === 'heft' ? 'rolle' : 'gesamt', person, ctx));
       return response.end(text);
+    }
+
+    if (second === 'kommentare') {
+      await drainBody(request);
+      return html(response, A.myCommentsPage(project, person, null));
     }
 
     return html(response, A.errorPage('f.not_found2_t', 'f.not_found2'), 404);
@@ -1353,6 +1420,30 @@ export async function handle(request, response, path) {
   }
 
   if (first === 'drucken') return html(response, A.printPage(project, null));
+
+  /* --- the comments: questions first, then everything --- */
+  if (first === 'kommentare') {
+    if (!post) return html(response, A.commentsPage(project, null));
+    const { fields } = await readForm(request);
+    project.kommentare = project.kommentare || [];
+    const c = project.kommentare.find(x => x.id === String(fields.id || ''));
+    let m;
+    if (!c) m = { kind: 'error', key: 'r.comment_gone' };
+    else if (fields.action === 'antwort') {
+      const text = String(fields.text || '').trim().slice(0, 2000);
+      const by = regie?.person?.name || regie?.person?.b || t_(L, 'cmt.director');
+      c.antwort = text ? { text, wer: by, datum: new Date().toISOString() } : null;
+      m = { kind: 'good', key: text ? 'r.answer_saved' : 'r.answer_removed' };
+    } else if (fields.action === 'erledigt') {
+      c.erledigt = !c.erledigt;
+      m = { kind: 'good', key: c.erledigt ? 'r.comment_done' : 'r.comment_reopened' };
+    } else if (fields.action === 'loeschen') {
+      project.kommentare = project.kommentare.filter(x => x !== c);
+      m = { kind: 'good', key: 'r.comment_deleted' };
+    } else m = { kind: 'error', key: 'r.unknown_action' };
+    if (m.kind === 'good') await S.write(project);
+    return html(response, A.commentsPage(project, m));
+  }
 
   if (first === 'datei') {
     if (!project.drehbuch) return html(response, A.printPage(project, {

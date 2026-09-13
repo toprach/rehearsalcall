@@ -234,6 +234,7 @@ const navDirector = (p) => `<nav>
   <a href="/theater/termine">${t('nav.dates')}</a>
   <a href="/theater/drucken">${t('nav.print')}</a>
   <a href="/theater/hoerbuch">${t('nav.audiobook')}</a>
+  <a href="/theater/kommentare">${t('nav.comments')}</a>
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
     <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('nav.calendar_for'))}">
       <option value="">${h(t('nav.calendar_for'))}</option>
@@ -1026,6 +1027,7 @@ const navMember = (project, person) => {
   <a href="/theater/mit/zeiten">${t('navm.times')}</a>
   <a href="/theater/mit/termine">${t('navm.dates')}</a>
   ${project.druck_token ? `<a href="/theater/druck/${h(project.druck_token)}">${t('navm.scripts')}</a>` : ''}
+  <a href="/theater/mit/kommentare">${t('nav.comments')}</a>
   ${ctx.regieProject === project.id || ctx.directorProject === project.id
     ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
@@ -1594,6 +1596,334 @@ function adminPage(projects, m, fresh, entry) {
     </form>` });
 }
 
+
+/* ---------------------------------------------------------------------
+   Comments in the documents, and the overlays that go with them.
+
+   The tool sets the documents and knows nothing of people. What is
+   added here after <body>: the comments the viewer may see, a script
+   that shows them beside the lines and takes new ones on a double
+   click, and - in the rehearsal plan - a way to jump between the
+   scenes of a rehearsal. Nothing of it prints.
+   --------------------------------------------------------------------- */
+function docExtras(token, doc, me, comments, canSeeAll) {
+  const data = {
+    token, doc, all: !!canSeeAll,
+    me: me ? { b: me.b, name: me.name || me.b } : null,
+    comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
+      name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
+      erledigt: !!c.erledigt })),
+    locale: L.locale,
+    t: {
+      new_: t('kd.new'), text: t('kd.text'), question: t('kd.question'), save: t('kd.save'),
+      cancel: t('kd.cancel'), comments: t('kd.comments'), answer: t('kd.answer'),
+      del: t('kd.delete'), signin: t('kd.signin'), hint: t('kd.hint'), scenes: t('kd.scenes'),
+      rehearsals: t('kd.all_rehearsals'), close: t('kd.close'), question_mark: t('kd.question_mark'),
+      done: t('kd.done'), failed: t('kd.failed'),
+      rehearsal: t('kd.rehearsal'), scene: t('kd.scene'), prev: t('kd.prev_comment'),
+      next: t('kd.next_comment'), none: t('kd.no_comments'),
+    },
+  };
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return `<style>
+  .kmt-badge { display:inline-block; margin-left:.4em; padding:0 .45em; border-radius:1em;
+    border:1px solid #b3272d; color:#b3272d; font:600 11px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    cursor:pointer; vertical-align:middle; user-select:none }
+  .kmt-badge.q { background:#b3272d; color:#fff }
+  .kmt-hint { position:fixed; right:12px; bottom:12px; background:#f6f4f1; border:1px solid #d8d3cc;
+    border-radius:.4rem; padding:.4rem .7rem; font:13px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    color:#6b655c; z-index:40 }
+  .kmt-veil { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.45); z-index:60;
+    display:flex; align-items:center; justify-content:center; padding:1rem }
+  .kmt-box { background:#fff; color:#1c1a18; border-radius:.4rem; padding:1rem 1.2rem; width:100%;
+    max-width:36rem; max-height:88vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,.35);
+    font:15px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif }
+  .kmt-box h3 { margin:0 0 .5rem; font-size:1.05rem }
+  .kmt-box .snip { color:#6b655c; font-style:italic; margin-bottom:.6rem }
+  .kmt-box textarea { width:100%; min-height:5rem; font:inherit; padding:.4rem; box-sizing:border-box }
+  .kmt-box label { display:block; margin:.5rem 0 }
+  .kmt-box button { font:inherit; font-weight:600; padding:.4rem .9rem; border-radius:.3rem; border:1px solid #b3272d;
+    background:#b3272d; color:#fff; cursor:pointer; margin:.6rem .4rem 0 0 }
+  .kmt-box button.q { background:#fff; color:#1c1a18; border-color:#a9a29a }
+  .kmt-item { border-top:1px solid #e6e1da; padding:.5rem 0 }
+  .kmt-item .who { font-size:.85em; color:#6b655c }
+  .kmt-item .q { color:#b3272d; font-weight:600; font-size:.85em }
+  .kmt-item .ans { margin:.3rem 0 0 1rem; padding-left:.6rem; border-left:3px solid #166b34 }
+  .kmt-item .del { float:right; font-size:.8em; color:#b3272d; background:none; border:0; padding:0; margin:0; cursor:pointer }
+  .kmt-nav a { display:block; padding:.25rem 0; color:#b3272d; text-decoration:none }
+  .kmt-nav a.on { font-weight:700 }
+  .kmt-nav .grp { margin-top:.8rem; font-weight:600; color:#6b655c; font-size:.85em; text-transform:uppercase; letter-spacing:.05em }
+  main.plan .szkopf, main.plan p.szende { cursor:pointer }
+  .kmt-bar { position:fixed; top:0; left:0; right:0; z-index:45; display:flex; flex-wrap:wrap; gap:.4rem;
+    align-items:center; padding:.35rem .8rem; background:#f6f4f1; border-bottom:1px solid #d8d3cc;
+    font:13px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#1c1a18 }
+  .kmt-bar select { font:inherit; padding:.15rem .3rem; max-width:14rem }
+  .kmt-bar button { font:inherit; padding:.15rem .6rem; border:1px solid #a9a29a; border-radius:.3rem;
+    background:#fff; color:#1c1a18; cursor:pointer }
+  .kmt-bar .cnt { color:#6b655c }
+  body.kmt-has-bar { padding-top:3.2rem }
+  @media (max-width:700px) {
+    .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc }
+    body.kmt-has-bar { padding-top:0; padding-bottom:4rem }
+    .kmt-hint { bottom:4.2rem }
+  }
+  @media print { .kmt-badge, .kmt-hint, .kmt-veil, .kmt-bar { display:none !important }
+    body.kmt-has-bar { padding:0 } }
+  </style>
+  <script id="kmt-data" type="application/json">${json}</script>
+  <script>
+  // The script sits right after <body>; the document below it is not
+  // parsed yet, so everything waits for the DOM.
+  document.addEventListener('DOMContentLoaded', function () {
+    var D = JSON.parse(document.getElementById('kmt-data').textContent);
+    var T = D.t, byNr = {};
+    D.comments.forEach(function (c) { (byNr[c.nr] = byNr[c.nr] || []).push(c); });
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var when = function (iso) { try { return new Date(iso).toLocaleString(D.locale, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
+    var veil = null;
+    function close() { if (veil) { veil.parentNode.removeChild(veil); veil = null; } }
+    function open(html) {
+      close();
+      veil = document.createElement('div'); veil.className = 'kmt-veil';
+      veil.innerHTML = '<div class="kmt-box">' + html + '</div>';
+      veil.addEventListener('click', function (e) { if (e.target === veil) close(); });
+      document.body.appendChild(veil);
+      return veil.firstChild;
+    }
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+
+    /* ---- anchors on every cue, so a link can point at a line ---- */
+    var paras = [].slice.call(document.querySelectorAll('main p[data-nr]'));
+    paras.forEach(function (p) { if (p.dataset.nr) p.id = 'nr-' + p.dataset.nr; });
+    if (/^#nr-\d+$/.test(location.hash)) { var tgt = document.getElementById(location.hash.slice(1)); if (tgt) tgt.scrollIntoView({ block: 'center' }); }
+
+    /* ---- badges ---- */
+    function badge(nr) {
+      var p = document.getElementById('nr-' + nr); if (!p) return;
+      var old = p.querySelector('.kmt-badge'); if (old) old.parentNode.removeChild(old);
+      var list = byNr[nr] || []; if (!list.length) return;
+      var b = document.createElement('span'); b.className = 'kmt-badge' + (list.some(function (c) { return c.frage && !c.erledigt; }) ? ' q' : '');
+      b.textContent = '\u270e ' + list.length; b.title = T.comments;
+      b.addEventListener('click', function (e) { e.stopPropagation(); showList(nr); });
+      p.appendChild(b);
+    }
+    Object.keys(byNr).forEach(badge);
+
+    function item(c) {
+      return '<div class="kmt-item">' +
+        ((D.all || (D.me && c.wer === D.me.b)) ? '<button class="del" data-id="' + esc(c.id) + '">' + esc(T.del) + '</button>' : '') +
+        '<div class="who">' + esc(c.name) + ' \u00b7 ' + esc(when(c.datum)) +
+        (c.frage ? ' \u00b7 <span class="q">' + esc(T.question_mark) + (c.erledigt ? ' \u2713 ' + esc(T.done) : '') + '</span>' : '') + '</div>' +
+        '<div>' + esc(c.text).replace(/\\n/g, '<br>') + '</div>' +
+        (c.antwort ? '<div class="ans"><div class="who">' + esc(T.answer) + ' \u00b7 ' + esc(c.antwort.wer || '') + ' \u00b7 ' + esc(when(c.antwort.datum)) + '</div>' +
+          esc(c.antwort.text).replace(/\\n/g, '<br>') + '</div>' : '') + '</div>';
+    }
+    function showList(nr) {
+      var list = byNr[nr] || [];
+      var box = open('<h3>' + esc(T.comments) + ' \u2013 ' + nr + '</h3>' + list.map(item).join('') +
+        (D.me ? '<button class="q" id="kmt-add">' + esc(T.new_).replace('{nr}', nr) + '</button>' : '') +
+        '<button class="q" id="kmt-close">' + esc(T.close) + '</button>');
+      box.querySelector('#kmt-close').onclick = close;
+      var add = box.querySelector('#kmt-add'); if (add) add.onclick = function () { showNew(nr); };
+      [].forEach.call(box.querySelectorAll('.del'), function (b) { b.onclick = function () { remove(b.dataset.id, nr); }; });
+    }
+    function post(fields) {
+      var body = Object.keys(fields).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(fields[k]); }).join('&');
+      return fetch('/theater/druck/' + D.token + '/kommentar', { method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body }).then(function (r) { return r.json(); });
+    }
+    function showNew(nr) {
+      var p = document.getElementById('nr-' + nr);
+      var snip = p ? p.textContent.replace(/\s+/g, ' ').trim().slice(0, 140) : '';
+      if (!D.me) { open('<p>' + esc(T.signin) + '</p><button class="q" id="kmt-close">' + esc(T.close) + '</button>').querySelector('#kmt-close').onclick = close; return; }
+      var box = open('<h3>' + esc(T.new_).replace('{nr}', nr) + '</h3><div class="snip">' + esc(snip) + '</div>' +
+        '<textarea id="kmt-text"></textarea>' +
+        '<label><input type="checkbox" id="kmt-q"> ' + esc(T.question) + '</label>' +
+        '<button id="kmt-save">' + esc(T.save) + '</button><button class="q" id="kmt-cancel">' + esc(T.cancel) + '</button>');
+      box.querySelector('#kmt-cancel').onclick = close;
+      box.querySelector('#kmt-text').focus();
+      box.querySelector('#kmt-save').onclick = function () {
+        var text = box.querySelector('#kmt-text').value.trim(); if (!text) return;
+        post({ action: 'neu', doc: D.doc, nr: nr, auszug: snip, text: text, frage: box.querySelector('#kmt-q').checked ? '1' : '', wer: D.me.b })
+          .then(function (r) { if (!r.ok) { alert(T.failed); return; } (byNr[nr] = byNr[nr] || []).push(r.comment); badge(nr); showList(nr); })
+          .catch(function () { alert(T.failed); });
+      };
+    }
+    function remove(id, nr) {
+      post({ action: 'loeschen', id: id, wer: D.me ? D.me.b : '' }).then(function (r) {
+        if (!r.ok) { alert(T.failed); return; }
+        byNr[nr] = (byNr[nr] || []).filter(function (c) { return c.id !== id; }); badge(nr); showList(nr);
+      });
+    }
+    /* double click on a line: comment on it (or on the last cue before it) */
+    document.addEventListener('dblclick', function (e) {
+      var p = e.target.closest ? e.target.closest('main p, main td p') : null;
+      if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return;
+      var nr = p.dataset.nr;
+      if (!nr) { var q = p; while (q && !nr) { q = q.previousElementSibling; if (q && q.dataset && q.dataset.nr) nr = q.dataset.nr; } }
+      if (!nr) return;
+      var sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges();
+      showNew(nr);
+    });
+    if (D.me) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = T.hint; document.body.appendChild(h); }
+
+    /* ---- the rehearsal plan: jump between the scenes of a rehearsal ---- */
+    var scenes = [];
+    if (D.doc === 'probenplan') {
+      var heads = [].slice.call(document.querySelectorAll('main .szkopf'));
+      scenes = heads.map(function (el, i) {
+        var probe = (el.querySelector('.szn') ? el.querySelector('.szn').firstChild.textContent : '').trim();
+        var sz = (el.querySelector('.szp') ? el.querySelector('.szp').textContent : '').trim();
+        el.id = 'szk-' + i;
+        return { i: i, probe: probe, scene: sz, who: (el.querySelector('.szwer') || {}).textContent || '', where: (el.querySelector('.szwo') || {}).textContent || '' };
+      });
+      var nav = function (cur) {
+        var same = scenes.filter(function (s) { return s.probe === cur.probe; });
+        var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
+        var box = open('<h3>' + esc(cur.probe) + ' \u2013 ' + esc(cur.who) + '</h3><div class="kmt-nav">' +
+          '<div class="grp">' + esc(T.scenes) + '</div>' +
+          same.map(function (s) { return '<a href="#szk-' + s.i + '"' + (s.i === cur.i ? ' class="on"' : '') + '>' + esc(s.scene) + ' \u00b7 ' + esc(s.where) + '</a>'; }).join('') +
+          '<div class="grp">' + esc(T.rehearsals) + '</div>' +
+          probes.map(function (pn) { var first = scenes.filter(function (s) { return s.probe === pn; })[0];
+            return '<a href="#szk-' + first.i + '"' + (pn === cur.probe ? ' class="on"' : '') + '>' + esc(pn) + ' \u00b7 ' + esc(first.who) + '</a>'; }).join('') +
+          '</div><button class="q" id="kmt-close">' + esc(T.close) + '</button>');
+        box.querySelector('#kmt-close').onclick = close;
+        [].forEach.call(box.querySelectorAll('a'), function (a) { a.onclick = function () { close(); }; });
+      };
+      heads.forEach(function (el, i) { el.addEventListener('click', function () { nav(scenes[i]); }); });
+      [].forEach.call(document.querySelectorAll('main p.szende'), function (el) {
+        el.addEventListener('click', function () {
+          var m = /Ende (Probe \d+), Szene (\d+)/.exec(el.textContent) || [];
+          var cur = scenes.filter(function (s) { return s.probe === m[1] && s.scene === 'Szene ' + m[2]; })[0] || scenes.filter(function (s) { return s.probe === m[1]; })[0];
+          if (cur) nav(cur);
+        });
+      });
+    }
+
+    /* ---- the fixed bar: rehearsals and scenes, previous and next comment.
+       Top of the screen on a desk, bottom on a phone; never printed. ---- */
+    var bar = document.createElement('div'); bar.className = 'kmt-bar';
+    var inner = '';
+    if (scenes.length) {
+      var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
+      inner += '<label>' + esc(T.rehearsal) + ' <select id="kmt-probe">' +
+        probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></label>' +
+        '<label>' + esc(T.scene) + ' <select id="kmt-scene"></select></label>';
+    }
+    inner += '<button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
+             '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button>' +
+             '<span class="cnt" id="kmt-cnt"></span>';
+    bar.innerHTML = inner;
+    document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
+    var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
+    if (scenes.length) {
+      var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
+      var fill = function () {
+        var same = scenes.filter(function (s) { return s.probe === selP.value; });
+        selS.innerHTML = same.map(function (s) { return '<option value="' + s.i + '">' + esc(s.scene) + '</option>'; }).join('');
+      };
+      fill();
+      selP.onchange = function () { fill(); jump(document.getElementById('szk-' + selS.value)); };
+      selS.onchange = function () { jump(document.getElementById('szk-' + selS.value)); };
+      var syncing = false;
+      window.addEventListener('scroll', function () {
+        if (syncing) return; syncing = true;
+        setTimeout(function () {
+          syncing = false;
+          var cur = null;
+          scenes.forEach(function (s) { var el = document.getElementById('szk-' + s.i); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s; });
+          if (cur && (selP.value !== cur.probe || String(selS.value) !== String(cur.i))) { selP.value = cur.probe; fill(); selS.value = String(cur.i); }
+        }, 150);
+      });
+    }
+    var count = function () {
+      var n = document.querySelectorAll('.kmt-badge').length;
+      bar.querySelector('#kmt-cnt').textContent = n ? '\u270e ' + n : T.none;
+    };
+    count();
+    var step = function (dir) {
+      var list = [].slice.call(document.querySelectorAll('.kmt-badge'));
+      var mid = window.innerHeight * 0.4;
+      var pick = null;
+      list.forEach(function (el) {
+        var top = el.getBoundingClientRect().top;
+        if (dir > 0 && top > mid + 30 && !pick) pick = el;
+        if (dir < 0 && top < mid - 30) pick = el;
+      });
+      if (pick) { var p = pick.closest('p') || pick; p.scrollIntoView({ block: 'center' }); }
+    };
+    bar.querySelector('#kmt-prev').onclick = function () { step(-1); };
+    bar.querySelector('#kmt-next').onclick = function () { step(1); };
+    var oldBadge = badge;
+    badge = function (nr) { oldBadge(nr); count(); };
+  });
+  </script>`;
+}
+
+/* ---------- the comments page for the director ---------- */
+const docName = (d) => t(d === 'rolle' ? 'cmt.doc_rolle' : d === 'probenplan' ? 'cmt.doc_probenplan' : 'cmt.doc_gesamt');
+const commentLink = (p, c) => p.druck_token
+  ? `/theater/druck/${h(p.druck_token)}/gesamt?ich=${encodeURIComponent(c.wer)}#nr-${encodeURIComponent(c.nr)}` : '#';
+
+function commentsPage(p, m) {
+  const all = [...(p.kommentare || [])].sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
+  const nameOf = (b) => (p.personen || []).find(x => x.b === b)?.name || b;
+  const item = (c) => `<div class="box cmt${c.frage && !c.erledigt ? ' important' : ''}">
+      <div class="small muted">${h(nameOf(c.wer))} \u00b7 ${h(L.date(c.datum, { dateStyle: 'medium', timeStyle: 'short' }))}
+        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(p, c)}" target="_blank" rel="noopener">${
+        t('cmt.at', { nr: h(String(c.nr)) })}</a>
+        ${c.frage ? `\u00b7 <span class="open">${t('cmt.question')}</span>` : ''}
+        ${c.erledigt ? `\u00b7 <span style="color:var(--good)">${t('cmt.done')}</span>` : ''}</div>
+      ${c.auszug ? `<div class="small muted"><i>${h(c.auszug)}</i></div>` : ''}
+      <p style="margin:.4rem 0">${h(c.text).replace(/\n/g, '<br>')}</p>
+      ${c.antwort ? `<div class="answer"><div class="small muted">${t('cmt.answer')} \u00b7 ${h(c.antwort.wer || '')} \u00b7 ${
+        h(L.date(c.antwort.datum, { dateStyle: 'medium', timeStyle: 'short' }))}</div>${h(c.antwort.text).replace(/\n/g, '<br>')}</div>` : ''}
+      ${actionForm('/theater/kommentare', 'antwort', { id: c.id },
+        `<input type="text" name="text" value="${h(c.antwort?.text || '')}" placeholder="${h(t('cmt.answer_hint'))}">
+         <button class="quiet mini" type="submit">${h(t('cmt.answer_save'))}</button>`)}
+      <div style="margin-top:.3rem">
+        ${actionForm('/theater/kommentare', 'erledigt', { id: c.id },
+          '<button class="quiet mini" type="submit">' + h(t(c.erledigt ? 'cmt.reopen' : 'cmt.done_mark')) + '</button>')}
+        ${actionForm('/theater/kommentare', 'loeschen', { id: c.id },
+          '<button class="quiet mini" type="submit">' + h(t('cmt.delete')) + '</button>',
+          { confirm: t('cmt.delete_confirm') })}
+      </div>
+    </div>`;
+  const questions = all.filter(c => c.frage && !c.erledigt);
+  const rest = all.filter(c => !(c.frage && !c.erledigt));
+  return page({ title: t('cmt.title'), nav: navDirector(p), body: `
+    <p class="eyebrow">${h(p.titel)}</p><h1>${t('cmt.title')}</h1>
+    ${notice(m)}
+    <p class="muted">${t('cmt.what')}</p>
+    <h2>${t('cmt.questions')} (${questions.length})</h2>
+    ${questions.length ? questions.map(item).join('') : `<p class="small muted">${t('cmt.no_questions')}</p>`}
+    <h2>${t('cmt.all')} (${rest.length})</h2>
+    ${rest.length ? rest.map(item).join('') : `<p class="small muted">${t('cmt.none')}</p>`}` });
+}
+
+/* ---------- a member's own comments, with the director's answers ---------- */
+function myCommentsPage(project, person, m) {
+  const mine = [...(project.kommentare || [])].filter(c => c.wer === person.b)
+    .sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
+  const item = (c) => `<div class="box cmt">
+      <div class="small muted">${h(L.date(c.datum, { dateStyle: 'medium', timeStyle: 'short' }))}
+        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(project, c)}" target="_blank" rel="noopener">${
+        t('cmt.at', { nr: h(String(c.nr)) })}</a>
+        ${c.frage ? `\u00b7 <span class="open">${t('cmt.question')}</span>` : ''}
+        ${c.erledigt ? `\u00b7 <span style="color:var(--good)">${t('cmt.done')}</span>` : ''}</div>
+      ${c.auszug ? `<div class="small muted"><i>${h(c.auszug)}</i></div>` : ''}
+      <p style="margin:.4rem 0">${h(c.text).replace(/\n/g, '<br>')}</p>
+      ${c.antwort ? `<div class="answer"><div class="small muted">${t('cmt.answer')} \u00b7 ${h(c.antwort.wer || '')} \u00b7 ${
+        h(L.date(c.antwort.datum, { dateStyle: 'medium', timeStyle: 'short' }))}</div>${h(c.antwort.text).replace(/\n/g, '<br>')}</div>` : ''}
+    </div>`;
+  return page({ title: t('mcmt.title'), nav: navMember(project, person), narrow: true, body: `
+    <p class="eyebrow">${h(project.titel)}</p><h1>${t('mcmt.title')}</h1>
+    ${notice(m)}
+    <p class="muted">${t('mcmt.what')}</p>
+    ${mine.length ? mine.map(item).join('') : `<p class="small muted">${t('mcmt.none')}</p>`}` });
+}
+
 /* The error page is given keys, not sentences - it is called from
    everywhere, including places that know no language. */
 const errorPage = (titelSchluessel, textSchluessel, werte) => page({
@@ -1606,5 +1936,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage, versionPage };
+           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage };
 }

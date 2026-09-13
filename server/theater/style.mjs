@@ -167,6 +167,9 @@ export const STYLE = `
                  font-size:.82rem; margin:0 .2rem; white-space:nowrap }
   label.inline input { margin:0 }
   .acts { display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin:.2rem 0 .6rem }
+  .box.cmt { padding:.8rem 1rem; margin:.6rem 0 }
+  .box.cmt .answer { margin:.4rem 0 .2rem .8rem; padding-left:.7rem; border-left:3px solid var(--good) }
+  .box.cmt form.inline input[type=text] { max-width:28rem }
   .acts label.inline { font-size:.9rem }
   .chip.muted { opacity:.6; font-weight:500 }
   .tabs a { margin-right:1.2rem; text-decoration:none; padding-bottom:.15rem }

@@ -110,6 +110,7 @@ const audiobook = {
 
 const seams = (html) => {
   const found = [];
+  html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/g, '');   // scripts and their data are not text
   for (const m of html.matchAll(/\[[a-z]+\.[a-z0-9_]+\]/g)) found.push(m[0]);
   for (const m of html.replace(/<script>[\s\S]*?<\/script>/g, '').matchAll(/\{[a-z]+\}/g)) found.push(m[0]);
   if (/>\s*undefined\s*</.test(html) || /\bNaN\b/.test(html)) found.push('undefined/NaN');
@@ -150,6 +151,18 @@ for (const { code } of LANGUAGES) {
     versionPage: () => A.versionPage(project, project.drehbuch, project.fassungen[0], diff, byCue),
     versionEmpty: () => A.versionPage(project, project.drehbuch, project.fassungen[0],
       { equal: 5, changed: 0, added: 0, removed: 0, hunks: [] }, new Map()),
+    commentsPage: () => A.commentsPage({ ...project, kommentare: [
+      { id: 'c1', nr: 12, dokument: 'rolle', auszug: 'Ill met <by> moonlight', text: 'Where do I stand?', wer: 'PUCK',
+        datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false },
+      { id: 'c2', nr: 13, dokument: 'gesamt', auszug: '', text: 'ok', wer: 'OBERON', datum: '2026-09-02T10:00:00Z',
+        frage: true, antwort: { text: 'Left.', wer: 'Regie', datum: '2026-09-03T10:00:00Z' }, erledigt: true },
+    ] }, { kind: 'good', key: 'r.answer_saved' }),
+    commentsEmpty: () => A.commentsPage(project, null),
+    myCommentsPage: () => A.myCommentsPage({ ...project, kommentare: [
+      { id: 'c1', nr: 12, dokument: 'probenplan', auszug: 'x', text: 'y', wer: 'OBERON', datum: '2026-09-01T10:00:00Z',
+        frage: true, antwort: { text: 'Left.', wer: 'Regie', datum: '2026-09-03T10:00:00Z' }, erledigt: true } ] }, person, null),
+    docExtras: () => '<html>' + A.docExtras('tok', 'probenplan', person, [
+      { id: 'c1', nr: 12, text: 'a <b>', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false }], true) + '</html>',
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([
       { id: 'abcd1234', titel: 'One <play>', angelegt: '2026-09-01T10:00:00Z', email: 'a@b.c',

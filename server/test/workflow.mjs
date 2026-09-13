@@ -75,6 +75,7 @@ const say = (r) => notice(r.text) ? notice(r.text).kind + ': ' + notice(r.text).
    over, no "undefined" in the text. */
 const seams = (html) => {
   const found = [];
+  html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/g, '');   // scripts and their data are not text
   for (const m of html.matchAll(/\[[a-z]+\.[a-z0-9_]+\]/g)) found.push(m[0]);
   for (const m of html.replace(/<script>[\s\S]*?<\/script>/g, '').matchAll(/\{[a-z]+\}/g))
     found.push(m[0]);
@@ -422,6 +423,57 @@ for (const b of cast) {
     const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
   }
+}
+
+/* ---- 9b. comments: a member writes one, the director answers ---- */
+{
+  // Still signed in as the last cast member (cast[1], through the part book).
+  const b = cast[cast.length - 1];
+  const bk = await call('GET', printBase + '/rolle/' + encodeURIComponent(b));
+  check('the part book carries the comment script', /id="kmt-data"/.test(bk.text));
+  const nr = (/data-nr="(\d+)"/.exec(bk.text) || [])[1] || '1';
+  let c = await call('POST', printBase + '/kommentar',
+    new URLSearchParams({ action: 'neu', doc: 'rolle', nr, auszug: 'a line', text: 'Where do I <stand>?', frage: '1', wer: b }).toString(),
+    { 'content-type': 'application/x-www-form-urlencoded' });
+  let j = {}; try { j = JSON.parse(c.text); } catch {}
+  check('a member writes a question', c.status === 200 && j.ok && j.comment?.wer === b, c.text.slice(0, 80));
+  const id = j.comment?.id;
+  const bk2 = await call('GET', printBase + '/rolle/' + encodeURIComponent(b));
+  check('the comment comes back with the part book', bk2.text.includes('Where do I \\u003cstand>?') || bk2.text.includes('Where do I <stand>?'));
+  const own = await call('GET', '/theater/mit/kommentare');
+  check('my comments page lists it', own.status === 200 && /Where do I &lt;stand&gt;\?/.test(own.text));
+  clean('my comments page', own);
+  // Somebody else's part book does not show it.
+  cookies = '';
+  await call('GET', printBase + '/mit/' + encodeURIComponent(cast[0]) + '?goto=zeiten');
+  const other = await call('GET', printBase + '/rolle/' + encodeURIComponent(cast[0]));
+  check('another member does not see it', !/Where do I/.test(other.text));
+  // The director sees it, answers, marks it done.
+  cookies = director;
+  let d = await call('GET', '/theater/kommentare');
+  check('the director sees the question', d.status === 200 && /Where do I &lt;stand&gt;\?/.test(d.text));
+  clean('comments page', d);
+  d = await post('/theater/kommentare', { action: 'antwort', id, text: 'Stage left.' });
+  check('the director answers', good(d) && /Stage left\./.test(d.text), say(d));
+  d = await post('/theater/kommentare', { action: 'erledigt', id });
+  check('and marks it answered', good(d), say(d));
+  d = await post('/theater/kommentare', { action: 'antwort', id: 'nope', text: 'x' });
+  check('an unknown comment is refused', errorNotice(d), say(d));
+  // The member sees the answer.
+  cookies = '';
+  await call('GET', printBase + '/mit/' + encodeURIComponent(b) + '?goto=zeiten');
+  const own2 = await call('GET', '/theater/mit/kommentare');
+  check('the member sees the answer', /Stage left\./.test(own2.text));
+  const bk3 = await call('GET', printBase + '/rolle/' + encodeURIComponent(b));
+  check('and the answer travels with the part book', /Stage left\./.test(bk3.text));
+  c = await call('POST', printBase + '/kommentar', new URLSearchParams({ action: 'loeschen', id, wer: b }).toString(),
+    { 'content-type': 'application/x-www-form-urlencoded' });
+  check('the member deletes their comment', /"ok":true/.test(c.text), c.text.slice(0, 60));
+  const pl = await call('GET', printBase + '/probenplan');
+  check('the rehearsal plan carries the scene navigation', /szk-|kmt-data/.test(pl.text));
+  // Back to being the last cast member, as the next step expects.
+  cookies = '';
+  await call('GET', printBase + '/mit/' + encodeURIComponent(b) + '?goto=zeiten');
 }
 
 /* ---- 10. dates: proposed, fixed from the company, place, released ---- */

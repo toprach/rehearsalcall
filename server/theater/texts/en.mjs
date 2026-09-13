@@ -23,6 +23,7 @@ export const en = {
   'nav.print':     'Print',
   'nav.audiobook':    'Audiobook',
   'nav.signout':    'Sign out',
+  'nav.comments':   'Comments',
   'nav.project':    'Project',
   'nav.calendar_for': 'calendar for \u2026',
 
@@ -833,6 +834,63 @@ export const en = {
                       + '{fresh} new speaker name(s) \u2013 assign them on the '
                       + '<a href="/theater/besetzung">casting page</a>; until then they are '
                       + 'read as persons of their own.',
+
+  /* ---------- comments ---------- */
+  'kd.new':          'New comment at cue {nr}',
+  'kd.text':         'Comment',
+  'kd.question':     'Question to the director',
+  'kd.question_mark': 'question to the director',
+  'kd.done':         'answered',
+  'kd.save':         'Save',
+  'kd.cancel':       'Cancel',
+  'kd.close':        'Close',
+  'kd.comments':     'Comments',
+  'kd.answer':       'Answer',
+  'kd.delete':       'delete',
+  'kd.signin':       'To comment, open the script through your company link or your part book '
+                   + '\u2013 then the comment carries your name.',
+  'kd.hint':         'Double-click a line to comment on it.',
+  'kd.scenes':       'Scenes of this rehearsal',
+  'kd.all_rehearsals': 'All rehearsals',
+  'kd.failed':       'That could not be saved.',
+  'kd.rehearsal':    'Rehearsal',
+  'kd.scene':        'Scene',
+  'kd.prev_comment': 'previous comment',
+  'kd.next_comment': 'next comment',
+  'kd.no_comments':  'no comments',
+  'cmt.title':       'Comments',
+  'cmt.what':        'What the company wrote into the script, the part books and the rehearsal '
+                   + 'plan. Questions to the director come first; an answer goes back to the person '
+                   + 'and appears beside the line in their script.',
+  'cmt.questions':   'Questions to the director',
+  'cmt.no_questions': 'No open questions.',
+  'cmt.all':         'All other comments',
+  'cmt.none':        'No comments yet.',
+  'cmt.question':    'question to the director',
+  'cmt.done':        'answered',
+  'cmt.done_mark':   'mark as answered',
+  'cmt.reopen':      'reopen',
+  'cmt.delete':      'delete',
+  'cmt.delete_confirm': 'Delete this comment?',
+  'cmt.answer':      'Answer',
+  'cmt.answer_hint': 'answer \u2026',
+  'cmt.answer_save': 'answer',
+  'cmt.director':    'Director',
+  'cmt.at':          'cue {nr}',
+  'cmt.doc_gesamt':  'full script',
+  'cmt.doc_rolle':   'part book',
+  'cmt.doc_probenplan': 'rehearsal plan',
+  'mcmt.title':      'My comments',
+  'mcmt.what':       'Double-click a line in the script, your part book or the rehearsal plan to '
+                   + 'comment on it. Tick \u201cquestion to the director\u201d and the answer '
+                   + 'appears here and beside the line.',
+  'mcmt.none':       'No comments yet.',
+  'r.comment_gone':  'There is no such comment.',
+  'r.answer_saved':  'Answer saved \u2013 the person sees it beside the line.',
+  'r.answer_removed': 'Answer removed.',
+  'r.comment_done':  'Marked as answered.',
+  'r.comment_reopened': 'Reopened.',
+  'r.comment_deleted': 'Comment deleted.',
 
   /* ---------- how the speakers are written ---------- */
   'upl.style':        'Speakers in the text',
