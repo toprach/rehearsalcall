@@ -1,0 +1,89 @@
+# ---------------------------------------------------------------------
+# Running the rehearsal planner.
+#
+#   docker compose up -d
+#
+# Two things you have to supply:
+#
+#   theater-md.html   the parsing tool. It is not in the repository; put
+#                     it beside this file. Without it the application
+#                     runs but cannot read a script.
+#
+#   .env              at least THEATER_GEHEIMNIS. See .env.example.
+#
+# Storage is one file per project in a named volume. That is the default
+# and needs nothing else. For PostgreSQL:
+#
+#   docker compose --profile postgres up -d
+#
+# with PGUSER set in .env - that variable is what switches the
+# application over.
+# ---------------------------------------------------------------------
+
+services:
+  theater:
+    build:
+      context: .
+      args:
+        # The default image carries no dependencies at all - storage is
+        # files. Set WITH_POSTGRES=true in .env to have the pg driver
+        # built in; you need that only together with the profile below.
+        WITH_POSTGRES: ${WITH_POSTGRES:-false}
+    image: rehearsalcall:1.1
+    restart: unless-stopped
+    ports:
+      # Loopback only: a reverse proxy in front terminates TLS. Change to
+      # "3011:3011" to expose it directly.
+      - "127.0.0.1:3011:3011"
+    volumes:
+      - theater-data:/data
+      # The parsing tool, read-only - the application never writes to it.
+      - ./theater-md.html:/app/theater/werkzeug/theater-md.html:ro
+    environment:
+      # The address visitors see. Behind a proxy this cannot be worked
+      # out from the request, and the personal links would carry
+      # 127.0.0.1 instead.
+      THEATER_BASIS: ${THEATER_BASIS:-http://localhost:3011}
+      # Signs the session cookies. Without it, a restart signs everybody
+      # out: a fresh random secret invalidates every cookie.
+      THEATER_GEHEIMNIS: ${THEATER_GEHEIMNIS:?set THEATER_GEHEIMNIS in .env}
+      # Whom the entry page names for an access code. Optional.
+      THEATER_KONTAKT: ${THEATER_KONTAKT-}
+      # The key for /theater/admin. Optional; without it the page is off.
+      THEATER_ADMIN: ${THEATER_ADMIN-}
+      # Empty means files. Set PGUSER and PostgreSQL is used instead.
+      PGHOST: ${PGHOST-postgres}
+      PGUSER: ${PGUSER-}
+      PGPASSWORD: ${PGPASSWORD-}
+      PGDATABASE: ${PGDATABASE-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        # Without the postgres profile the service is not there at all -
+        # then this dependency is simply dropped instead of failing.
+        required: false
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      # No ":?" here, however tempting: compose interpolates the whole
+      # file, profiles or not, so a required variable would break the
+      # ordinary start as well. An empty password makes postgres itself
+      # refuse to start, with a message that says so - and only when the
+      # profile is actually used.
+      POSTGRES_USER: ${PGUSER:-theater}
+      POSTGRES_PASSWORD: ${PGPASSWORD-}
+      POSTGRES_DB: ${PGDATABASE:-${PGUSER:-theater}}
+    volumes:
+      - theater-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  theater-data:
+  theater-db:

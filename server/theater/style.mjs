@@ -1,0 +1,195 @@
+/* ---------------------------------------------------------------------
+   How it looks.
+
+   Every colour is a custom property at the top - once for light, once
+   for dark. That is not tidiness but self-defence: while the colours
+   still stood beside the components, the specificity rule bit twice.
+   input[type=text] is more specific than input, and table.cal td is more
+   specific than td.level3 - both times fields came out unreadable, and
+   both times it could not be seen, only reasoned out.
+   --------------------------------------------------------------------- */
+
+export const STYLE = `
+  :root {
+    --ground:#fbfaf8; --card:#fff; --ink:#1c1a18; --muted:#5f5950;
+    --rule:#e6e1da; --accent:#b3272d; --good:#166b34;
+    --field:#fff; --field-ink:#1c1a18; --field-edge:#a9a29a;
+    --chip:#eceae5; --chip-ink:#2a2622;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--ground); color:var(--ink);
+         font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+         -webkit-font-smoothing:antialiased }
+  .frame { max-width:60rem; margin:0 auto; padding:2.5rem 1.5rem 5rem }
+  .foot { border-top:1px solid var(--rule); margin-top:2rem }
+  .foot .inner { max-width:60rem; margin:0 auto; padding:1rem 1.5rem 2rem }
+  .foot a { color:var(--muted); text-decoration:none }
+  .foot a:hover { color:var(--accent) }
+  .narrow { max-width:38rem }
+  a { color:var(--accent) }
+  h1 { font-size:1.75rem; letter-spacing:-.02em; margin:0 0 .3rem }
+  h2 { font-size:1.1rem; margin:2.5rem 0 .8rem }
+  .eyebrow { text-transform:uppercase; letter-spacing:.2em; font-size:.72rem;
+             font-weight:700; color:var(--accent); margin:0 0 .5rem }
+  .muted { color:var(--muted) }
+  p { margin:0 0 1rem }
+  .box { background:var(--card); border:1px solid var(--rule); border-radius:4px;
+         padding:1.2rem 1.4rem; margin:1.2rem 0 }
+  .box.important { border-left:4px solid var(--accent) }
+  label { display:block; font-weight:600; font-size:.9rem; margin:1rem 0 .3rem }
+  input[type=text], input[type=date], input[type=time], input[type=number],
+  input[type=search], input[type=password], select, textarea {
+    width:100%; padding:.55rem .7rem; border:1px solid var(--field-edge);
+    border-radius:3px; font:inherit;
+    background:var(--field); color:var(--field-ink) }
+  input::placeholder, textarea::placeholder { color:var(--muted); opacity:1 }
+  input:focus, select:focus, textarea:focus {
+    border-color:var(--accent); outline:2px solid rgba(179,39,45,.25); outline-offset:0 }
+  textarea { min-height:10rem; font-family:ui-monospace,Consolas,monospace; font-size:.85rem }
+  button, .btn { display:inline-block; background:var(--accent); color:#fff; border:0;
+    border-radius:3px; padding:.65rem 1.3rem; font:inherit; font-weight:700;
+    cursor:pointer; text-decoration:none; margin-top:1.2rem }
+  button.quiet, .btn.quiet { background:var(--card); color:var(--ink);
+    border:1.5px solid var(--field-edge); font-weight:600 }
+  table { border-collapse:collapse; width:100%; margin:.6rem 0 }
+  th,td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--rule);
+          vertical-align:top }
+  th { font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted) }
+  .notice { padding:.8rem 1.1rem; border-radius:3px; margin:1rem 0; font-size:.93rem }
+  .notice.error { background:#fdecec; border-left:4px solid var(--accent) }
+  .notice.good { background:#e9f5ed; border-left:4px solid var(--good) }
+  .row { display:flex; gap:.6rem; align-items:end; flex-wrap:wrap }
+  .row > * { flex:1; min-width:7rem }
+  .row label { margin-top:0 }
+  .small { font-size:.86rem }
+  .head { border-bottom:1px solid var(--rule); background:var(--card) }
+  .head .inner { max-width:60rem; margin:0 auto; padding:.8rem 1.5rem; display:flex;
+                 gap:1.2rem; align-items:baseline; flex-wrap:wrap }
+  .head a.brand { font-weight:800; letter-spacing:.18em; font-size:.85rem;
+                  text-decoration:none; color:var(--ink); flex:0 0 auto;
+                  white-space:nowrap }
+  /* The nav is what gives way when the line is full: it may shrink and
+     wrap its links, while brand and language picker keep their places.
+     Without min-width:0 a flex item refuses to go below its content
+     width, and the picker was pushed onto a second line instead; with
+     a basis of 0 it is never the item that wraps as a whole. */
+  .head nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:.35rem 1.1rem;
+              justify-content:flex-end; flex:1 1 0; min-width:0 }
+  .head nav a { font-size:.88rem; text-decoration:none; color:var(--muted) }
+  .chip { display:inline-block; background:var(--chip);
+          color:var(--chip-ink); border-radius:3px;
+          padding:.1rem .45rem; font-size:.82rem; font-weight:600; margin-right:.3rem }
+  .date { font-weight:700 }
+  .date.fixed { color:var(--good) }
+  tr.isfixed td { background:rgba(29,122,62,.07) }
+  tr.gleaning td { background:rgba(179,39,45,.06) }
+  table.plan td.actions { width:21rem }
+  table.plan td.actions form.inline { margin-bottom:.25rem }
+  table.plan td.actions select, table.plan td.actions input[type=text] {
+    padding:.2rem .35rem; font-size:.82rem }
+  tr.stuck td { background:rgba(179,39,45,.10) }
+  form.inline { display:flex; gap:.3rem; margin:0; align-items:center }
+  form.inline input[type=text] { padding:.3rem .45rem; font-size:.9rem }
+  form.placefield { margin-top:.4rem; max-width:22rem }
+  button.mini, .btn.mini { margin:0; padding:.3rem .7rem; font-size:.82rem }
+  form.choice { margin:0 }
+  .calhead { display:flex; align-items:center; gap:.8rem; margin:1.5rem 0 .6rem }
+  .calhead b { font-size:1.05rem }
+  .calhead .small { margin-left:auto }
+  .legend { display:flex; flex-wrap:wrap; gap:.3rem 1rem; align-items:center;
+            color:var(--muted); margin-bottom:.6rem }
+  .dot { display:inline-block; width:.8rem; height:.8rem; border-radius:2px;
+         vertical-align:-1px; margin-right:.15rem; border:1px solid var(--rule) }
+  table.cal { width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed }
+  table.cal th { text-align:center; font-size:.72rem; padding:0 0 .2rem }
+  table.cal td { height:3.4rem; vertical-align:top; padding:.25rem .3rem;
+                 border:1px solid var(--rule); border-radius:4px;
+                 background:var(--card); cursor:pointer; text-align:left }
+  table.cal td.empty { background:transparent; border-color:transparent; cursor:default }
+  table.cal td .num { font-size:.85rem; font-weight:600; color:var(--muted) }
+  table.cal td .time { display:block; font-size:.7rem; margin-top:.15rem;
+                       color:var(--ink); font-weight:600 }
+  /* The more of the people from one of my rehearsals can make that day,
+     the stronger the cell. Pale tones would not be told apart in a
+     calendar - here clarity matters more than delicacy.
+
+     The rule "table.cal td" carries the class .cal and is therefore more
+     specific than "td.level3" - the cells would otherwise stay white.
+     Hence table.cal in front here as well. */
+  table.cal td.level1, .dot.level1 { background:#fbe6a8; border-color:#e0c274 }
+  table.cal td.level2, .dot.level2 { background:#f7c890; border-color:#d9a35f }
+  table.cal td.level3, .dot.level3 { background:#a8dfbb; border-color:#75bc90 }
+  table.cal td.me { outline:3px solid var(--accent); outline-offset:-3px }
+  .dot.me { background:transparent; border:2px solid var(--accent) }
+  td.fixed { box-shadow:inset 0 -4px 0 var(--good) }
+  table.cal td:hover { border-color:var(--accent) }
+  .copyable { display:inline-flex; gap:.5rem; align-items:center; flex-wrap:wrap }
+  .copyable code { user-select:all }
+  button.wide { width:100%; text-align:left; margin:.25rem 0; padding:.6rem .8rem }
+  .open { color:var(--accent); font-weight:600 }
+  code { background:var(--chip); color:var(--chip-ink);
+         padding:.12rem .4rem; border-radius:2px; font-size:.88em }
+
+  /* You are working for somebody else. That has to be seen without
+     looking for it - otherwise times go into the wrong calendar. */
+  .notice.foreign { background:#fdf3e3; border-left:4px solid #b4741a;
+                    display:flex; flex-wrap:wrap; gap:.6rem; align-items:center }
+  .notice.foreign form { margin:0 }
+
+  /* --- the language picker in the head --- */
+  .langpick { display:flex; align-items:center; flex:0 0 auto; order:1;
+              margin:0 0 0 .8rem }
+  .langpick select { padding:.15rem .3rem; font-size:.82rem; margin:0;
+                     background:var(--field); color:var(--field-ink);
+                     border:1px solid var(--field-edge); border-radius:.25rem }
+
+  /* --- audiobook --- */
+  .bar { height:.5rem; background:var(--chip); border-radius:.25rem;
+         overflow:hidden; margin:.5rem 0 }
+  .bar i { display:block; height:100%; background:var(--accent);
+           transition:width .4s }
+  table.voices td { padding:.3rem .5rem; vertical-align:middle }
+  table.voices select { min-width:16rem }
+  .keyfield { font-family:ui-monospace,Consolas,monospace }
+
+  /* --- the passages of one rehearsal --- */
+  .line { border-left:3px solid var(--rule); padding:.15rem 0 .15rem .9rem;
+          margin:.1rem 0 }
+  .line.own { border-left-color:var(--accent) }
+  .line .speaker { font-weight:700; font-size:.82rem; letter-spacing:.04em;
+                   color:var(--muted) }
+  .line.own .speaker { color:var(--accent) }
+  .line.chorus .speaker { color:var(--good) }
+  .line .words { display:block }
+  .line.readout .words { color:var(--muted) }
+  .line.cut .words { text-decoration:line-through; opacity:.5 }
+  .direction { color:var(--muted); font-style:italic; margin:.5rem 0 .5rem .9rem }
+  .scenehead { display:flex; flex-wrap:wrap; gap:.6rem; align-items:baseline;
+               margin:1.8rem 0 .6rem; padding-bottom:.3rem;
+               border-bottom:1px solid var(--rule) }
+  .scenehead h3 { margin:0; font-size:1.05rem }
+  table.twocol { width:100%; border-collapse:collapse; margin:.6rem 0 }
+  table.twocol td { width:50%; vertical-align:top; padding:.3rem .7rem;
+                    border:1px solid var(--rule) }
+  table.twocol th { font-size:.78rem; color:var(--muted); text-align:left;
+                    padding:.2rem .7rem; font-weight:600 }
+  @media (max-width:640px) {
+    table.twocol td { display:block; width:auto }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#15151a; --card:#1e1e25; --ink:#eceae5; --muted:#aaa49a;
+      --rule:#33333d; --accent:#ef6b70; --good:#5ec27f;
+      --field:#23232c; --field-ink:#f2f0eb; --field-edge:#4e4e5a;
+      --chip:#2e2e38; --chip-ink:#eceae5;
+    }
+    .notice.foreign { background:#3a2c16; border-left-color:#d59b4a }
+    .notice.error { background:#3a1d1f } .notice.good { background:#16301f }
+    .box.important { background:var(--card) }
+    table.cal td.level1, .dot.level1 { background:#5c5026; border-color:#7a6c39 }
+    table.cal td.level2, .dot.level2 { background:#6e4522; border-color:#8d5c33 }
+    table.cal td.level3, .dot.level3 { background:#255c39; border-color:#39794f }
+    button.quiet, .btn.quiet { background:var(--card); border-color:var(--field-edge);
+                               color:var(--ink) }
+  }
+`;

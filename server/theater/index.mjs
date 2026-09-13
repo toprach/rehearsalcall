@@ -1,0 +1,1145 @@
+/* ---------------------------------------------------------------------
+   The router of the rehearsal planner.
+
+   Two ways in:
+     director  by access code, good for one project
+     company   by a personal link, without a code
+
+   This is not access control in the strict sense: whoever has the link
+   gets in. For a rehearsal plan that is enough, and the page says so.
+
+   URL paths stay in German. They are in circulation - a printed part
+   book carries /theater/druck/<token>/rolle/NAME - and renaming them
+   would break every link already handed out. The same goes for the field
+   names inside a stored record; see storage.mjs.
+   --------------------------------------------------------------------- */
+
+import crypto from 'node:crypto';
+import * as S from './storage.mjs';
+import { views, h } from './views.mjs';
+import { fromHeader, isLanguage } from './texts.mjs';
+import { proposeDates, calendarDays, dayStates } from './dates.mjs';
+import { derivePlan, peopleOf, summaryOf } from './plan.mjs';
+import { readForm } from './formdata.mjs';
+import * as B from './revise.mjs';
+import { passagesOf } from './passages.mjs';
+import * as HB from './audiobook.mjs';
+import * as Throttle from './throttle.mjs';
+import { readScript, buildStructure, buildCast, mappingProposal,
+         buildDocument } from './script.mjs';
+
+const MEMBER = 'mitglied';
+
+const SECRET = process.env.THEATER_GEHEIMNIS || crypto.randomBytes(32).toString('hex');
+const COOKIE = 'probenplanung';
+
+/* ---------- Kekse (signiert, damit niemand fremde Projekte oeffnet) ---------- */
+
+function seal(value) {
+  return crypto.createHmac('sha256', SECRET).update(value).digest('base64url').slice(0, 32);
+}
+function setCookie(response, projectId) {
+  const value = projectId + '.' + seal(projectId);
+  response.setHeader('Set-Cookie',
+    `${COOKIE}=${value}; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}; Secure`);
+}
+function clearCookie(response) {
+  response.setHeader('Set-Cookie', `${COOKIE}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
+}
+/* Who one REALLY is, while working for somebody else.
+
+   Without this there would be no way back: the first cookie only says
+   who is being entered for. This second one is set at the first switch
+   and cleared as soon as one is back at oneself.                    */
+const REALSELF = 'theater_ich';
+/* The administrator's session - see the admin branch below. */
+const ADMIN_COOKIE = 'theater_admin';
+
+function setRealSelfCookie(response, value) {
+  addCookie(response, value === null
+    ? `${REALSELF}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`
+    : `${REALSELF}=${value}.${seal(value)}; Path=/theater; HttpOnly; SameSite=Lax; ` +
+      `Max-Age=${60 * 60 * 24 * 180}`);
+}
+
+/* Several cookies in one answer.
+
+   setHeader would overwrite the previous one - but switching sets two,
+   and one of them would be lost.                                    */
+function addCookie(response, zeile) {
+  const da = response.getHeader('Set-Cookie');
+  response.setHeader('Set-Cookie',
+    da ? (Array.isArray(da) ? [...da, zeile] : [da, zeile]) : zeile);
+}
+
+function setMemberCookie(response, projectId, personId) {
+  const value = projectId + ':' + personId;
+  response.setHeader('Set-Cookie',
+    `${MEMBER}=${value}.${seal(value)}; Path=/theater; HttpOnly; SameSite=Lax; ` +
+    `Max-Age=${60 * 60 * 24 * 180}; Secure`);
+}
+/* A cookie without a seal.
+
+   The choice of language is a preference, not a permission - there is
+   nothing to forge. It is checked against the list of languages we have
+   anyway, and a seal here would be ritual without purpose.          */
+function plainCookie(request, name) {
+  for (const teil of (request.headers.cookie || '').split(';')) {
+    const [k, ...rest] = teil.trim().split('=');
+    if (k === name) return rest.join('=');
+  }
+  return null;
+}
+
+function sealedCookie(request, name) {
+  for (const teil of (request.headers.cookie || '').split(';')) {
+    const [k, ...rest] = teil.trim().split('=');
+    if (k !== name) continue;
+    const value = rest.join('=');
+    const dot = value.lastIndexOf('.');
+    if (dot < 1) return null;
+    const payload = value.slice(0, dot), sig = value.slice(dot + 1);
+    const want = seal(payload);
+    if (sig.length === want.length &&
+        crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return payload;
+  }
+  return null;
+}
+async function memberFrom(request) {
+  const value = sealedCookie(request, MEMBER);
+  if (!value) return null;
+  const [projectId, personId] = value.split(':');
+  const project = await S.read(projectId);
+  if (!project) return null;
+  const person = (project.personen || []).find(x => x.id === personId);
+  return person ? { project, person } : null;
+}
+
+function projectIdFromCookie(request) {
+  const raw = request.headers.cookie || '';
+  for (const teil of raw.split(';')) {
+    const [k, ...rest] = teil.trim().split('=');
+    if (k !== COOKIE) continue;
+    const value = rest.join('=');
+    const dot = value.lastIndexOf('.');
+    if (dot < 1) return null;
+    const id = value.slice(0, dot), sig = value.slice(dot + 1);
+    const want = seal(id);
+    if (sig.length === want.length &&
+        crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return id;
+  }
+  return null;
+}
+
+/* ---------- Formulare ---------- */
+
+async function form(request, grenze = 2_000_000) {
+  const chunks = [];
+  let scope = 0;
+  for await (const s of request) {
+    scope += s.length;
+    if (scope > grenze) throw new Error('Zu viele Daten.');
+    chunks.push(s);
+  }
+  const text = Buffer.concat(chunks).toString('utf8');
+  const out = {};
+  for (const [k, v] of new URLSearchParams(text)) out[k] = v;
+  return out;
+}
+
+const html = (response, text, status = 200) => {
+  response.writeHead(status, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'Referrer-Policy': 'same-origin',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  response.end(text);
+};
+const redirect = (response, target) => {
+  response.writeHead(303, { Location: target, 'Cache-Control': 'no-store' });
+  response.end();
+};
+
+/* Throw the request body away, but read it to the end.
+
+   Somebody uploading a large file while signed out would otherwise get
+   the refusal in the middle of sending. The browser is not finished,
+   Apache resets the HTTP/2 stream, and instead of a message anyone can
+   understand the browser shows ERR_HTTP2_PROTOCOL_ERROR.            */
+/* Serve one audio track.
+
+   With range requests, because otherwise there is no seeking in the
+   browser: without a 206 the player loads the whole file before it jumps
+   anywhere - at 60 MB that is plain to feel.                        */
+async function serveAudio(response, project, name, request) {
+  const raw = await S.getBlob(project.id, name);
+  if (!raw) { response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+              return response.end('Diese Tonspur gibt es nicht.'); }
+
+  const head = {
+    'Content-Type': 'audio/mpeg',
+    'Cache-Control': 'no-store',
+    'Accept-Ranges': 'bytes',
+    'Content-Disposition': 'inline; filename="' + name + '"',
+  };
+  const area = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range || '');
+  if (!area) {
+    response.writeHead(200, { ...head, 'Content-Length': raw.length });
+    return response.end(raw);
+  }
+  const from = area[1] ? Number(area[1]) : 0;
+  const to = area[2] ? Math.min(Number(area[2]), raw.length - 1) : raw.length - 1;
+  if (from >= raw.length || to < from) {
+    response.writeHead(416, { 'Content-Range': 'bytes */' + raw.length });
+    return response.end();
+  }
+  response.writeHead(206, { ...head,
+    'Content-Range': `bytes ${from}-${to}/${raw.length}`,
+    'Content-Length': to - from + 1 });
+  return response.end(raw.subarray(from, to + 1));
+}
+
+/* Why something failed, as a message.
+
+   Errors from our own modules carry a key and are said in the visitor's
+   language; anything else - a bug, a surprise from a library - shows its
+   own wording, which is at least honest. */
+const failureNotice = (e, fallbackKey) => e && e.key
+  ? { kind: 'error', key: e.key, values: e.values }
+  : { kind: 'error', key: fallbackKey, values: { reason: (e && e.message) || String(e) } };
+
+/* The same, as a value to put into a sentence. */
+const reasonOf = (e) => e && e.key ? { key: e.key, values: e.values }
+                                   : ((e && e.message) || String(e));
+
+/* After saving availability. */
+const timesSaved = (n) => n
+  ? { kind: 'good', key: n === 1 ? 'r.times_saved_1' : 'r.times_saved', values: { n } }
+  : { kind: 'error', key: 'r.times_saved_none' };
+
+/* After entering or clearing the place of a fixed date. The place comes
+   from a visitor, so it is escaped here - the catalogue puts values in
+   as they are. */
+const placeNotice = (id, place) => place
+  ? { kind: 'good', key: 'r.place_set', values: { id: h(id), place: h(place) } }
+  : { kind: 'good', key: 'r.place_cleared', values: { id: h(id) } };
+
+async function drainBody(request) {
+  if (request.method !== 'POST' || request.readableEnded) return;
+  try { for await (const _ of request) { /* wegwerfen */ } } catch { /* egal */ }
+}
+
+const time = s => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(s || '')) ? s : null;
+const date = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
+
+/* Eine fertig gesetzte Datei zum Herunterladen schicken. */
+function sendFile(response, text, name) {
+  const clean = name.replace(/[^\w \u00c0-\u024f.\u2013-]/g, '_');
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="' +
+      clean.replace(/[^\x20-\x7e]/g, '_') + '"; filename*=UTF-8\'\'' +
+      encodeURIComponent(clean),
+    'Cache-Control': 'no-store',
+  });
+  response.end(text);
+}
+
+/* The address visitors see.
+
+   Behind the Apache proxy the Host header says 127.0.0.1:3011; the
+   links handed out need the outside address, so THEATER_BASIS wins. */
+const baseOf = (request) => process.env.THEATER_BASIS ||
+  ('https://' + (request.headers['x-forwarded-host'] || request.headers.host || 'joku.tv'));
+
+/* ---------- Wegweiser ---------- */
+
+export async function handle(request, response, path) {
+  const parts = path.replace(/^\/theater\/?/, '').replace(/\/$/, '').split('/');
+  const first = parts[0] || '';
+  const post = request.method === 'POST';
+
+  /* Language: what the visitor chose last, otherwise what their browser
+     sends. The views hang on it, so bind it once here - then every call
+     below stays exactly as it was.                                  */
+  const chosen = plainCookie(request, 'sprache');
+  const L = isLanguage(chosen) ? chosen
+          : fromHeader(request.headers['accept-language']);
+  const A = views(L, path);
+
+  /* --- Sprache umschalten: geht ohne Zugang --- */
+  if (first === 'sprache' && post) {
+    const { fields } = await readForm(request);
+    const fresh = String(fields.language || '');
+    if (isLanguage(fresh))
+      response.setHeader('Set-Cookie', 'sprache=' + fresh +
+        '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
+    // Only our own paths, so the picker cannot send anyone away.
+    const back = String(fields.back || '/theater');
+    return redirect(response, /^\/theater(\/|$)/.test(back) ? back : '/theater');
+  }
+
+  /* --- about this installation: open to everyone --- */
+  if (first === 'ueber') { await drainBody(request); return html(response, A.aboutPage()); }
+
+  /* --- administration: projects, access codes, deletion ---
+
+     Guarded by THEATER_ADMIN, a key given at installation. Without it
+     the page does not exist. Guessing is braked the same way as for
+     the access codes.                                                 */
+  if (first === 'admin') {
+    const adminKey = String(process.env.THEATER_ADMIN || '').trim();
+    if (!adminKey) { await drainBody(request); return html(response,
+      A.errorPage('f.no_admin_t', 'f.no_admin'), 404); }
+    const second = parts[1] || '';
+    if (second === 'abmelden') {
+      await drainBody(request);
+      addCookie(response, `${ADMIN_COOKIE}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
+      return redirect(response, '/theater/admin');
+    }
+    if (sealedCookie(request, ADMIN_COOKIE) !== 'admin') {
+      if (!post) return html(response, A.adminLoginPage(null));
+      const origin = Throttle.origin(request) + '#admin';
+      const allowance = Throttle.mayTry(origin);
+      if (!allowance.allowed) {
+        await drainBody(request);
+        const min = Math.ceil(allowance.waitSeconds / 60);
+        return html(response, A.adminLoginPage({ kind: 'error',
+          key: 'r.throttled', values: { p1: min, p2: min === 1 ? '' : 'n' } }), 429);
+      }
+      const { fields } = await readForm(request);
+      const given = crypto.createHash('sha256').update(String(fields.key || '')).digest();
+      const want = crypto.createHash('sha256').update(adminKey).digest();
+      if (!crypto.timingSafeEqual(given, want)) {
+        const n = Throttle.failedAttempt(origin);
+        console.log('[Admin] Fehlversuch ' + n + ' from ' + origin);
+        return html(response, A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }), 401);
+      }
+      Throttle.succeeded(origin);
+      addCookie(response, `${ADMIN_COOKIE}=admin.${seal('admin')}; Path=/theater; HttpOnly; ` +
+        `SameSite=Lax; Max-Age=${60 * 60 * 8}; Secure`);
+      return redirect(response, '/theater/admin');
+    }
+
+    const entry = baseOf(request) + '/theater';
+    const overview = async () => (await S.allProjects()).map(p => ({
+      id: p.id, titel: p.titel, angelegt: p.angelegt, email: p.regie_email || '',
+      people: (p.personen || []).length,
+      rehearsals: p.plan?.proben?.length || 0,
+      withEntry: Object.values(p.verfuegbar || {})
+        .filter(v => Object.keys(v.tage || {}).length || (v.wochentage || []).length).length,
+    }));
+    if (!post) return html(response, A.adminPage(await overview(), null, null, entry));
+
+    const { fields } = await readForm(request);
+    const action = String(fields.action || '');
+    let m = null, fresh = null;
+    if (action === 'neu') {
+      const title = String(fields.titel || '').trim().slice(0, 120);
+      const email = String(fields.email || '').trim().slice(0, 200);
+      if (!title) m = { kind: 'error', key: 'r.admin_no_title' };
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        m = { kind: 'error', key: 'r.admin_no_email' };
+      else {
+        const code = S.newCode();
+        const p = await S.newProject(title, code, email);
+        fresh = { id: p.id, titel: p.titel, email, code };
+        m = { kind: 'good', key: 'r.admin_created', values: { p1: h(p.titel) } };
+      }
+    } else if (action === 'code') {
+      const p = await S.read(String(fields.id || ''));
+      if (!p) m = { kind: 'error', key: 'r.admin_gone' };
+      else {
+        const code = S.newCode();
+        p.code_streuwert = S.hashOf(code);
+        await S.write(p);
+        fresh = { id: p.id, titel: p.titel, email: p.regie_email || '', code };
+        m = { kind: 'good', key: 'r.admin_code_new', values: { p1: h(p.titel) } };
+      }
+    } else if (action === 'loeschen') {
+      const p = await S.read(String(fields.id || ''));
+      if (!p) m = { kind: 'error', key: 'r.admin_gone' };
+      else if (String(fields.bestaetigung || '').trim() !== String(p.titel).trim())
+        m = { kind: 'error', key: 'r.admin_confirm', values: { p1: h(p.titel) } };
+      else {
+        await S.deleteProject(p.id);
+        HB.cancelJob(p.id);
+        m = { kind: 'good', key: 'r.admin_deleted', values: { p1: h(p.titel) } };
+      }
+    } else m = { kind: 'error', key: 'r.unknown_action' };
+    return html(response, A.adminPage(await overview(), m, fresh, entry));
+  }
+
+  /* --- personal link: needs no code ---
+
+     The older way in, one link per person. It is kept so that links
+     already handed out go on working; it signs the person in exactly as
+     the part book does and continues in the member area. The calendar
+     used to be served here directly, with a form posting to the member
+     area - where nobody was signed in yet, so nothing could be saved. */
+  if (first === 'ich') {
+    await drainBody(request);
+    const hit = await S.findByPersonToken(parts[1]);
+    if (!hit) return html(response, A.errorPage('f.link_gone_t', 'f.link_gone'), 404);
+    setMemberCookie(response, hit.project.id, hit.person.id);
+    setRealSelfCookie(response, null);
+    return redirect(response, '/theater/mit/zeiten');
+  }
+
+  /* --- printable documents behind a fixed address ---
+
+     Not as a download but to look at in the browser: printing and saving
+     as PDF happen there, and the same link delivers the current state at
+     any time. It needs no access code - whoever has it may read the
+     play; that is the point.                                        */
+  if (first === 'druck') {
+    const token = String(parts[1] || '');
+    const project = await S.findByPrintToken(token);
+    if (!project) { await drainBody(request); return html(response,
+      A.errorPage('f.link_gone2_t', 'f.link_gone2'), 404); }
+    const action = parts[2] || '';
+
+    // 'base' is only built further down, for the director's pages;
+    // here we take the address from the request itself.
+    const here = 'https://' + (request.headers['x-forwarded-host'] ||
+                               request.headers.host || 'joku.tv');
+    const myBase = (process.env.THEATER_BASIS || here) + '/theater/druck/' + token;
+    if (!action) return html(response, A.docsPage(project, myBase));
+
+    /* From the part book back into the application.
+
+       The print link belongs to the whole project, not to one person -
+       which person is meant stands in the path. Whoever has it may enter
+       times in the company; that is a decision, not an oversight, and
+       the switch says so.                                           */
+    if (action === 'mit') {
+      const b = decodeURIComponent(parts[3] || '');
+      const person = (project.personen || []).find(x => x.b === b);
+      if (!person) { await drainBody(request); return html(response,
+        A.errorPage('f.person_gone_t', 'f.person_gone'), 404); }
+
+      /* The link carries its destination as a query; the confirmation
+         sends it back by POST. Only our own paths are allowed - anything
+         else would be an open redirect.                              */
+      const ownPathsOnly = (x) => /^\/theater\/mit(\/(zeiten|termine))?$/.test(x || '')
+        ? x : '/theater/mit';
+      let goto;
+      if (post) {
+        const { fields } = await readForm(request);
+        goto = ownPathsOnly(String(fields.goto || ''));
+      } else {
+        const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+        goto = query.get('goto') === 'termine' ? '/theater/mit/termine'
+              : query.get('goto') === 'zeiten'  ? '/theater/mit/zeiten'
+              : '/theater/mit';
+      }
+
+      /* If somebody else is signed in, ask once - but only on the click.
+         The POST IS the answer to that question.                     */
+      const current = await memberFrom(request);
+      if (!post && current && current.person.id !== person.id)
+        return html(response, A.switchPage(project, current.person, person,
+          '/theater/druck/' + encodeURIComponent(token) + '/mit/' +
+          encodeURIComponent(b), goto));
+
+      setMemberCookie(response, project.id, person.id);
+      // Whoever arrives through a part book IS that person - no switch.
+      setRealSelfCookie(response, null);
+      return redirect(response, goto);
+    }
+
+    if (action === 'original') {
+      const o = project.drehbuch?.original;
+      if (!o) return html(response,
+        A.errorPage('f.no_original_t', 'f.no_original'), 404);
+      const raw = Buffer.from(o.daten, 'base64');
+      const clean = String(o.name).replace(/[^\w \u00c0-\u024f.-]/g, '_');
+      response.writeHead(200, {
+        'Content-Type': o.mime,
+        'Content-Length': raw.length,
+        'Content-Disposition': 'attachment; filename="' +
+          clean.replace(/[^\x20-\x7e]/g, '_') + '"; filename*=UTF-8\'\'' +
+          encodeURIComponent(o.name),
+        'Cache-Control': 'no-store',
+      });
+      return response.end(raw);
+    }
+
+    if (!project.drehbuch) return html(response,
+      A.errorPage('f.no_script_t', 'f.no_script'), 404);
+    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+    /* Whose booklet is this? For a part book it stands in the path, for
+       the full script in the query - and there it also marks that
+       person's own text, the way the tool does through cast[].ich. */
+    let text, meins = null;
+    try {
+      if (action === 'rolle') {
+        const person = decodeURIComponent(parts[3] || '');
+        const n = new URLSearchParams((request.url || '').split('?')[1] || '').get('kontext');
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
+                            { person, context: n == null ? 1 : n });
+        meins = person;
+      } else if (action === 'probenplan') {
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'probenplan', { plan: project.plan });
+      } else if (action === 'gesamt') {
+        const f = new URLSearchParams((request.url || '').split('?')[1] || '');
+        const whose = f.get('ich') || '';
+        if (cast.some(x => x.b === whose)) meins = whose;
+        const ownCast = cast.map(x => x.b === whose ? { ...x, ich: true } : x);
+        text = buildDocument(project.drehbuch, ownCast, tokenMap, 'gesamt');
+      } else {
+        return html(response, A.errorPage('f.not_found_t', 'f.not_found'), 404);
+      }
+    } catch (e) {
+      console.error('[Dokument] ' + (e && e.stack || e));
+      return html(response, A.errorPage('f.failed_t', 'f.failed', { reason: reasonOf(e) }), 500);
+    }
+    response.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    /* The bar back into the application, right after <body>.
+
+       Not in the tool but here: the tool builds documents and knows
+       nothing of sessions. When printing it disappears.             */
+    if (meins && (project.personen || []).some(x => x.b === meins))
+      text = text.replace('<body>',
+        '<body>' + A.backBar(token, meins, !!project.plan?.proben?.length));
+
+    return response.end(text);
+  }
+
+  /* --- Gruppenlink: Namen waehlen --- */
+  if (first === 'gruppe') {
+    const token = String(parts[1] || '');
+    const project = await S.findByGroupToken(token);
+    if (!project) { await drainBody(request); return html(response,
+      A.errorPage('f.link_gone3_t', 'f.link_gone3'), 404); }
+    if (!post) return html(response, A.pickNamePage(project, token, null));
+    const { fields } = await readForm(request);
+    const person = (project.personen || []).find(x => x.id === String(fields.person || ''));
+    if (!person) return html(response, A.pickNamePage(project, token, {
+      kind: 'error', key: 'r.name_gone' }));
+    setMemberCookie(response, project.id, person.id);
+    return redirect(response, '/theater/mit');
+  }
+
+  /* --- Bereich eines Ensemble-Mitglieds --- */
+  if (first === 'mit') {
+    const second = parts[1] || '';
+    if (second === 'abmelden') {
+      response.setHeader('Set-Cookie', `${MEMBER}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
+      return redirect(response, '/theater');
+    }
+    const who = await memberFrom(request);
+    if (!who) { await drainBody(request); return html(response,
+      A.errorPage('f.not_signed_in_t', 'f.not_signed_in'), 401); }
+    const { project, person } = who;
+
+    /* Who is being worked for, and who is one really? */
+    const realSelfValue = sealedCookie(request, REALSELF);
+    const realSelf = realSelfValue && realSelfValue.split(':')[0] === project.id
+      ? (project.personen || []).find(x => x.id === realSelfValue.split(':')[1]) : null;
+
+    if (second === '' && post) {
+      const { fields } = await readForm(request);
+      if (String(fields.action) !== 'wechseln')
+        return html(response, A.memberPage(project, person, {
+          kind: 'error', key: 'r.unknown_action' }, realSelf));
+
+      const target = (project.personen || []).find(x => x.id === String(fields.person || ''));
+      if (!target) return html(response, A.memberPage(project, person, {
+        kind: 'error', key: 'r.person_gone' }, realSelf));
+      if (target.id === person.id) return html(response, A.memberPage(project, person, {
+        kind: 'error', key: 'r.thats_you' }, realSelf));
+
+      setMemberCookie(response, project.id, target.id);
+      if (realSelf && target.id === realSelf.id) setRealSelfCookie(response, null);
+      else if (!realSelf) setRealSelfCookie(response, project.id + ':' + person.id);
+      // Otherwise the second cookie stays as it is: one goes on working
+      // for somebody else, only now for a third person.
+      return redirect(response, '/theater/mit');
+    }
+
+    if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
+
+    if (second === 'zeiten') {
+      const days = calendarDays(project);
+      const states = () => dayStates(project, person, days);
+      if (!post) return html(response, A.myTimesPage(project, person, null, days, states()));
+      const { fields } = await readForm(request, 4_000_000);
+      const entered = {};
+      for (const t of days) {
+        if (fields['t_' + t.iso] !== '1') continue;
+        const from = time(fields['v_' + t.iso]) || '19:00';
+        const to = time(fields['b_' + t.iso]) || '22:00';
+        if (to <= from) continue;
+        entered[t.iso] = { von: from, bis: to };
+      }
+      project.verfuegbar = project.verfuegbar || {};
+      project.verfuegbar[person.id] = { tage: entered, stand: new Date().toISOString() };
+      await S.write(project);
+      const n = Object.keys(entered).length;
+      return html(response, A.myTimesPage(project, person, timesSaved(n), days, states()));
+    }
+
+    if (second === 'termine') {
+      if (!post) return html(response, A.myDatesPage(project, person, proposeDates(project), null));
+      const { fields } = await readForm(request);
+      const rehearsal = String(fields.rehearsal || '');
+      const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
+      if (!mine || !mine.gruppe.includes(person.b))
+        return html(response, A.myDatesPage(project, person, proposeDates(project), {
+          kind: 'error', key: 'r.not_yours' }));
+      const old = (project.termine || []).find(t => t.probe_id === rehearsal);
+      let m = null;
+
+      if (fields.action === 'place') {
+        // Only the place changes, the date stays
+        if (!old) m = { kind: 'error', key: 'r.no_date' };
+        else {
+          old.ort = String(fields.place || '').trim().slice(0, 120);
+          m = placeNotice(rehearsal, old.ort);
+        }
+        await S.write(project);
+        return html(response, A.myDatesPage(project, person, proposeDates(project), m));
+      }
+
+      project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
+      if (fields.action === 'halten' && date(fields.iso)) {
+        project.termine.push({
+          probe_id: rehearsal, iso: fields.iso,
+          von: time(fields.from) || '', bis: time(fields.to) || '',
+          gruppe: mine.gruppe, bestaetigt: true, ort: old?.ort || '',
+          gehalten: new Date().toISOString(), von_wem: person.b,
+        });
+        m = { kind: 'good', key: 'r.now_fixed', values: { p1: h(rehearsal) } };
+      } else if (fields.action === 'loesen') {
+        m = { kind: 'good', key: 'r.released', values: { p1: h(rehearsal) } };
+      }
+      await S.write(project);
+      return html(response, A.myDatesPage(project, person, proposeDates(project), m));
+    }
+
+    if (second === 'heft' || second === 'gesamt') {
+      if (!project.drehbuch) return html(response,
+        A.errorPage('f.no_script2_t', 'f.no_script2'), 404);
+      const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+      let text;
+      try {
+        text = (second === 'heft')
+          ? buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
+                         { person: person.b, context: 1 })
+          : buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
+      } catch (e) {
+        console.error('[Dokument] ' + (e && e.stack || e));
+        return html(response, A.errorPage('f.failed2_t', 'f.failed2', { reason: reasonOf(e) }), 500);
+      }
+      // Show it in the browser rather than save it - printing happens
+      // there, and the same link later delivers the newer state.
+      response.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return response.end(text);
+    }
+
+    return html(response, A.errorPage('f.not_found2_t', 'f.not_found2'), 404);
+  }
+
+  /* --- Einstieg --- */
+  if (first === '' && !post) {
+    const id = projectIdFromCookie(request);
+    if (id && await S.read(id)) return redirect(response, '/theater/projekt');
+    return html(response, A.entryPage(null));
+  }
+
+  if (first === 'zugang' && post) {
+    const origin = Throttle.origin(request);
+    const allowance = Throttle.mayTry(origin);
+    if (!allowance.allowed) {
+      await drainBody(request);
+      const min = Math.ceil(allowance.waitSeconds / 60);
+      return html(response, A.entryPage({ kind: 'error',
+        key: 'r.throttled', values: { p1: min, p2: min === 1 ? '' : 'n' } }), 429);
+    }
+    const f = await form(request);
+    const project = await S.findByCode(f.code || '');
+    if (!project) {
+      const n = Throttle.failedAttempt(origin);
+      console.log('[Zugang] Fehlversuch ' + n + ' from ' + origin);
+      return html(response, A.entryPage({
+        kind: 'error', key: 'r.code_unknown' }), 401);
+    }
+    Throttle.succeeded(origin);
+    setCookie(response, project.id);
+    return redirect(response, '/theater/projekt');
+  }
+
+  if (first === 'abmelden') { clearCookie(response); return redirect(response, '/theater'); }
+
+  /* --- from here on, only with an access code or the director's key ---
+
+     The key hangs on the address as ?s=... With it the director can pass
+     their link on - to an assistant, say - and switch between several
+     projects themselves.                                            */
+  const queryPart = new URLSearchParams((request.url || '').split('?')[1] || '');
+  const key = queryPart.get('s');
+  let project = null;
+  if (key) {
+    project = await S.findByDirectorToken(key);
+    if (project) setCookie(response, project.id);
+  }
+  if (!project) {
+    const projectId = projectIdFromCookie(request);
+    project = projectId ? await S.read(projectId) : null;
+  }
+  if (!project) {
+    await drainBody(request);
+    return html(response, A.entryPage({ kind: 'error',
+      key: 'r.expired' }), 401);
+  }
+
+  const base = baseOf(request);
+
+  // Create the links when needed and make them available for display
+  let newLinks = false;
+  if (!project.gruppen_token && (project.personen || []).length) {
+    project.gruppen_token = S.randomId(18); newLinks = true;
+  }
+  if (!project.regie_token) { project.regie_token = S.randomId(20); newLinks = true; }
+  if (!project.druck_token) { project.druck_token = S.randomId(18); newLinks = true; }
+  if (newLinks) await S.write(project);
+  project.gruppenlink = project.gruppen_token
+    ? base + '/theater/gruppe/' + project.gruppen_token : '';
+  project.regielink = base + '/theater/projekt?s=' + project.regie_token;
+  project.drucklink = base + '/theater/druck/' + project.druck_token;
+
+  if (first === 'projekt') return html(response, A.projectPage(project, null));
+
+  if (first === 'skript') {
+    if (!post) return html(response, A.uploadPage(project, null));
+    let file, style = 'auto';
+    try {
+      const { files, fields } = await readForm(request, 30_000_000);
+      file = files.find(d => d.name === 'file');
+      style = String(fields.style || 'auto');
+    } catch (e) {
+      return html(response, A.uploadPage(project, failureNotice(e, 'r.read_failed')));
+    }
+    if (!file || !file.content.length)
+      return html(response, A.uploadPage(project, {
+        kind: 'error', key: 'r.no_file' }));
+    if (!/\.(docx|md|markdown|txt)$/i.test(file.filename))
+      return html(response, A.uploadPage(project, { kind: 'error',
+        key: 'r.bad_extension' }));
+
+    /* How the speakers are written is detected from the text; when that
+       is not conclusive the director picks it on the page and uploads
+       once more. */
+    let read_;
+    try { read_ = await readScript(file.content, file.filename, { style }); }
+    catch (e) {
+      if (e && e.key !== 'r.style_unknown')
+        console.error('[Drehbuch] ' + (e && e.stack || e));
+      return html(response, A.uploadPage(project, failureNotice(e, 'r.read_failed')));
+    }
+    if (!read_.sprecher.length)
+      return html(response, A.uploadPage(project, { kind: 'error',
+        key: read_.sprecherstil === 'dot' ? 'r.no_speaker_dot' : 'r.no_speaker' }));
+
+    project.drehbuch = {
+      quelle: file.filename, markdown: read_.markdown,
+      titel: read_.titel, bloecke: read_.bloecke, sprecher: read_.sprecher,
+      // How the speakers are written - every later parse needs to know.
+      sprecherstil: read_.sprecherstil,
+      // The font embedded in the template belongs with it - only with
+      // it do the lines break in print as they do in the original.
+      schriften: read_.schriften || null,
+      // Keep the original - whoever passes the play on, or wants to
+      // work on it elsewhere, should not have to hunt for their own file.
+      // As Base64, so it fits into the same record.
+      original: {
+        name: file.filename,
+        mime: /\.docx$/i.test(file.filename)
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'text/markdown; charset=utf-8',
+        bytes: file.content.length,
+        daten: file.content.toString('base64'),
+      },
+    };
+    project.zuordnung = mappingProposal(read_.sprecher);
+    project.skript = null; project.skript_ueberblick = null; project.plan = null;
+    await S.write(project);
+    return redirect(response, '/theater/besetzung');
+  }
+
+  if (first === 'besetzung') {
+    if (!project.drehbuch) return html(response, A.castPage(project, null));
+    if (!post) {
+      // While showing it, check at once what stays stuck with the current mapping
+      let stuck = [];
+      if (project.zuordnung) {
+        try {
+          const b = buildCast(project.zuordnung, project.drehbuch.sprecher);
+          if (b.cast.length)
+            stuck = buildStructure(project.drehbuch.markdown, b.cast, b.tokenMap,
+                                  project.drehbuch.quelle,
+                                  project.drehbuch.sprecherstil).unresolved;
+        } catch { /* then without the hint */ }
+      }
+      return html(response, A.castPage(project, null, stuck));
+    }
+
+    const { fields } = await readForm(request);
+    const z = {};
+    for (const s2 of project.drehbuch.sprecher) {
+      const t = s2.token;
+      const art = String(fields['art_' + t] || 'person');
+      const e = { art };
+      const target = String(fields['ziel_' + t] || '').trim();
+      if (target && (art === 'rolle' || art === 'alias')) e.ziel = target;
+      const name = String(fields['name_' + t] || '').trim().slice(0, 80);
+      if (name) e.name = name;
+      z[t] = e;
+    }
+    project.zuordnung = z;
+
+    const { cast, tokenMap } = buildCast(z, project.drehbuch.sprecher);
+    if (!cast.length) {
+      await S.write(project);
+      return html(response, A.castPage(project, { kind: 'error',
+        key: 'r.no_person' }));
+    }
+    let built;
+    try {
+      built = buildStructure(project.drehbuch.markdown, cast, tokenMap,
+                             project.drehbuch.quelle, project.drehbuch.sprecherstil);
+    } catch (e) {
+      console.error('[Struktur] ' + (e && e.stack || e));
+      await S.write(project);
+      return html(response, A.castPage(project, failureNotice(e, 'r.structure_failed')));
+    }
+    project.skript = built.structure;
+    project.skript_ueberblick = summaryOf(built.structure);
+
+    // Create people, keep the ones already there
+    project.personen = project.personen || [];
+    let newlyCreated = 0;
+    for (const x of peopleOf(built.structure)) {
+      const da = project.personen.find(y => y.b === x.b);
+      if (da) { if (!da.name && x.name) da.name = x.name; continue; }
+      project.personen.push({ id: S.randomId(6), b: x.b, name: x.name,
+                              funktion: x.funktion, token: S.randomId(16) });
+      newlyCreated++;
+    }
+    // Do not delete people the script no longer holds - their
+    // availability would be gone with them.
+    await S.write(project);
+
+    const unresolved = built.unresolved;
+    return html(response, A.castPage(project, unresolved.length ? null : {
+      kind: 'good',
+      key: newlyCreated ? 'r.taken_over_new' : 'r.taken_over',
+      values: { p1: project.skript_ueberblick.repliken, p2: cast.length,
+               p3: newlyCreated },
+    }, unresolved));
+  }
+
+  /* --- the audiobook: for the director only ---
+
+     It spends credit in the director's account, so only the director may
+     set it going. The finished sound can be passed on afterwards through
+     the print link - listening costs nothing more.                  */
+  if (first === 'hoerbuch') {
+    if (!project.skript) { await drainBody(request); return html(response,
+      A.errorPage('f.no_structure_t', 'f.no_structure'), 404); }
+
+    // Asking for the state: numbers only, so the page does not flicker.
+    if (parts[1] === 'stand') {
+      await drainBody(request);
+      const st = HB.jobStateOf(project.id);
+      response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8',
+                               'Cache-Control': 'no-store' });
+      return response.end(JSON.stringify(st ? {
+        running: st.running, done: st.done, total: st.total,
+        lastLine: st.lastLine || '', bytes: st.bytes, error: st.error,
+      } : null));
+    }
+
+    // Die fertige Tonspur ausliefern.
+    if (parts[1] === 'datei') {
+      await drainBody(request);
+      return await serveAudio(response, project, parts[2] || '', request);
+    }
+
+    const show = async (m) => {
+      let voices = [];
+      if (project.hoerbuch?.schluessel) {
+        try { voices = await HB.fetchVoices(project.hoerbuch.schluessel); }
+        catch (e) { m = m || { kind: 'error',
+          key: e.key, values: e.values, text: e.message }; }
+      }
+      return html(response, A.audiobookPage(project, {
+        voices,
+        people: HB.speakingPeople(project.skript),
+        jobState: HB.jobStateOf(project.id),
+        rehearsals: project.plan?.proben || [],
+        models: HB.MODELS,
+        acts: HB.actsOf(project.skript),
+      }, m));
+    };
+
+    if (!post) return await show(null);
+
+    const { fields } = await readForm(request);
+    const action = String(fields.action || '');
+    project.hoerbuch = project.hoerbuch || {};
+    let m = null;
+
+    if (action === 'schluessel') {
+      const k = String(fields.schluessel || '').trim();
+      if (!k) m = { kind: 'error', key: 'r.no_key_entered' };
+      else {
+        // Check first, then store - a wrong key would otherwise only
+        // have shown only when generating, hours later.
+        try {
+          await HB.fetchVoices(k);
+          project.hoerbuch.schluessel = k;
+          await S.write(project);
+          m = { kind: 'good', key: 'r.key_stored' };
+        } catch (e) { m = { kind: 'error',
+          key: e.key, values: e.values, text: e.message }; }
+      }
+    } else if (action === 'schluessel_weg') {
+      delete project.hoerbuch.schluessel;
+      await S.write(project);
+      m = { kind: 'good', key: 'r.key_removed' };
+    } else if (action === 'voices') {
+      const chosen = {};
+      for (const [k, v] of Object.entries(fields))
+        if (k.startsWith('stimme_') && v) chosen[k.slice(7)] = String(v);
+      project.hoerbuch.stimmen = chosen;
+      if (fields.modell) project.hoerbuch.modell = String(fields.modell);
+      await S.write(project);
+      const n = Object.keys(chosen).length;
+      m = { kind: 'good', key: 'r.voices_saved', values: { p1: n } };
+    } else if (action === 'abbrechen') {
+      m = HB.cancelJob(project.id);
+    } else if (action === 'erzeugen') {
+      const raw = String(fields.umfang || 'alles');
+      const scope = raw.startsWith('rehearsal:') ? { kind: 'rehearsal', rehearsal: raw.slice(10) }
+                   : raw.startsWith('akt:')   ? { kind: 'act', act: Number(raw.slice(4)) }
+                   : { kind: 'all' };
+      m = HB.startJob(project, scope);
+    } else {
+      m = { kind: 'error', key: 'r.unknown_action2' };
+    }
+    return await show(m);
+  }
+
+  if (first === 'plan') {
+    /* --- the passages of one rehearsal ---
+
+       The plan names only the cast and the minutes. Whether the cut is
+       any good is decided by the text - so it is one click away.     */
+    if (parts[1]) {
+      await drainBody(request);
+      const id = decodeURIComponent(parts[1]);
+      if (!project.skript || !project.plan) return html(response,
+        A.errorPage('f.no_plan_t', 'f.no_plan'), 404);
+      let d;
+      try { d = passagesOf(project.skript, project.plan, id); }
+      catch (e) {
+        console.error('[Passagen] ' + (e && e.stack || e));
+        return html(response, A.errorPage('f.failed3_t', 'f.failed3', { reason: reasonOf(e) }), 500);
+      }
+      if (!d) return html(response, A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404);
+      return html(response, A.passagesPage(project, d, null));
+    }
+    if (!post) return html(response, A.planPage(project, null));
+    if (!project.skript) return html(response, A.planPage(project, {
+      kind: 'error', key: 'r.without_cast' }));
+    const { fields } = await readForm(request);
+    const action = String(fields.action || 'ableiten');
+
+    /* --- from Hand nachbessern --- */
+    if (action !== 'ableiten') {
+      if (!project.plan?.proben?.length) return html(response, A.planPage(project, {
+        kind: 'error', key: 'r.no_plan_to_revise' }));
+      const rehearsal = String(fields.rehearsal || '');
+      let m = null;
+      if (action === 'streichen')      m = B.dropRehearsal(project, rehearsal);
+      else if (action === 'zusammen')  m = fields.others
+        ? B.mergeRehearsals(project, rehearsal, String(fields.others))
+        : { kind: 'error', key: 'r.merge_with_what' };
+      else if (action === 'dazu')      m = fields.person
+        ? B.changeCast(project, rehearsal, String(fields.person), true)
+        : { kind: 'error', key: 'r.add_whom' };
+      else if (action === 'weg')       m = fields.person
+        ? B.changeCast(project, rehearsal, String(fields.person), false)
+        : { kind: 'error', key: 'r.remove_whom' };
+      else if (action === 'notiz')     m = B.setNote(project, rehearsal, fields.notiz);
+      else m = { kind: 'error', key: 'r.unknown_action3' };
+
+      if (m.kind === 'good') await S.write(project);
+      return html(response, A.planPage(project, m));
+    }
+
+    /* --- fresh ableiten --- */
+    const substitution = Math.min(40, Math.max(0, Number(fields.substitution ?? 20))) / 100;
+    const maxGroup = Math.min(7, Math.max(2, Number(fields.maxgruppe ?? 5)));
+    project.einstellungen = project.einstellungen || {};
+    if (date(fields.until)) project.einstellungen.bis = fields.until;
+    let plan;
+    try { plan = derivePlan(project.skript, { substitution, maxGroup }); }
+    catch (e) {
+      console.error('[Ableitung] ' + (e && e.stack || e));
+      return html(response, A.planPage(project, { kind: 'error',
+        key: 'r.derive_failed', values: { reason: reasonOf(e) } }));
+    }
+    if (!plan.proben.length) return html(response, A.planPage(project, {
+      kind: 'error', key: 'r.no_rehearsal_found' }));
+    project.plan = plan;
+    // Fixed dates no longer match the new rehearsal identifiers
+    const before = (project.termine || []).length;
+    project.termine = [];
+    await S.write(project);
+    return html(response, A.planPage(project, { kind: 'good',
+      key: before ? 'r.derived_released' : 'r.derived',
+      values: { p1: plan.proben.length,
+               p2: { share: plan.abdeckung },
+               p3: before } }));
+  }
+
+  if (first === 'leute') {
+    if (!post) return html(response, A.companyPage(project, null, base));
+    const { fields } = await readForm(request);
+    // Action values stay German, like the URL paths; 'neu' is the default
+    // and what the form sends.
+    const action = String(fields.action || 'neu');
+    project.personen = project.personen || [];
+    let m;
+
+    /* Short names come from a form once, so they go through h() before
+       they land in a notice - the catalogue puts values in as they are. */
+    if (action === 'loeschen') {
+      const x = project.personen.find(y => y.id === String(fields.id || ''));
+      if (!x) m = { kind: 'error', key: 'r.person_gone2' };
+      else {
+        project.personen = project.personen.filter(y => y !== x);
+        if (project.verfuegbar) delete project.verfuegbar[x.id];
+        m = { kind: 'good', key: 'r.removed', values: { p1: h(x.b) } };
+      }
+    } else if (action === 'aendern') {
+      const x = project.personen.find(y => y.id === String(fields.id || ''));
+      if (!x) m = { kind: 'error', key: 'r.person_gone3' };
+      else {
+        x.name = String(fields.name || '').trim().slice(0, 80);
+        m = { kind: 'good', key: 'r.name_saved', values: { p1: h(x.b) } };
+      }
+    } else if (action === 'neuerlink') {
+      project.gruppen_token = S.randomId(18);
+      m = { kind: 'good', key: 'r.link_new' };
+    } else if (action === 'neuerregielink') {
+      project.regie_token = S.randomId(20);
+      m = { kind: 'good', key: 'r.director_link_new' };
+    } else {
+      const b = String(fields.b || '').trim().toUpperCase().slice(0, 30);
+      if (!b) m = { kind: 'error', key: 'r.without_short' };
+      else if (project.personen.some(x => x.b === b))
+        m = { kind: 'error', key: 'r.already_exists', values: { p1: h(b) } };
+      else {
+        project.personen.push({ id: S.randomId(6), b,
+          name: String(fields.name || '').trim().slice(0, 80), token: S.randomId(16) });
+        m = { kind: 'good', key: 'r.created', values: { p1: h(b) } };
+      }
+    }
+    await S.write(project);
+    project.gruppenlink = base + '/theater/gruppe/' + (project.gruppen_token || '');
+    project.regielink = base + '/theater/projekt?s=' + (project.regie_token || '');
+    return html(response, A.companyPage(project, m, base));
+  }
+
+  if (first === 'drucken') return html(response, A.printPage(project, null));
+
+  if (first === 'datei') {
+    if (!project.drehbuch) return html(response, A.printPage(project, {
+      kind: 'error', key: 'r.no_script_stored' }));
+    const action = parts[1] || 'gesamt';
+    const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+    const shortName = (project.drehbuch.quelle || 'drehbuch').replace(/\.[^.]+$/, '');
+
+    let text, name;
+    try {
+      if (action === 'rolle') {
+        const person = String(query.get('person') || '');
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
+                            { person, context: query.get('kontext') ?? 1 });
+        name = `${shortName} – Rollenheft ${person}.html`;
+      } else if (action === 'probenplan') {
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'probenplan',
+                            { plan: project.plan });
+        name = `${shortName} – Probenplan.html`;
+      } else {
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
+        name = `${shortName} – Gesamtskript.html`;
+      }
+    } catch (e) {
+      console.error('[Dokument] ' + (e && e.stack || e));
+      return html(response, A.printPage(project, { kind: 'error',
+        key: 'r.typeset_failed', values: { reason: reasonOf(e) } }));
+    }
+
+    return sendFile(response, text, name);
+  }
+
+  if (first === 'termine') {
+    if (!post) return html(response, A.datesPage(project, proposeDates(project), null));
+    const { fields } = await readForm(request);
+    const rehearsal = String(fields.rehearsal || '');
+    const before = (project.termine || []).find(t => t.probe_id === rehearsal);
+    let m = null;
+
+    if (fields.action === 'place') {
+      if (!before) m = { kind: 'error', key: 'r.no_date2' };
+      else {
+        before.ort = String(fields.place || '').trim().slice(0, 120);
+        m = placeNotice(rehearsal, before.ort);
+      }
+      await S.write(project);
+      return html(response, A.datesPage(project, proposeDates(project), m));
+    }
+
+    /* Only a rehearsal the plan knows can be fixed - the identifier comes
+       from a form and would otherwise go into the notice as it is. */
+    const pr = (project.plan?.proben || []).find(x => x.id === rehearsal);
+    if (!pr) {
+      await drainBody(request);
+      return html(response, A.datesPage(project, proposeDates(project),
+        { kind: 'error', key: 'msg.rehearsal_gone' }));
+    }
+    project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
+    if (fields.action === 'halten' && date(fields.iso)) {
+      project.termine.push({
+        probe_id: rehearsal, iso: fields.iso,
+        von: time(fields.from) || '', bis: time(fields.to) || '',
+        gruppe: pr.gruppe, bestaetigt: true, ort: before?.ort || '',
+        gehalten: new Date().toISOString(),
+      });
+      m = { kind: 'good', key: 'r.fixed', values: { p1: h(rehearsal) } };
+    } else if (fields.action === 'loesen') {
+      m = { kind: 'good', key: 'r.released2', values: { p1: h(rehearsal) } };
+    }
+    await S.write(project);
+    return html(response, A.datesPage(project, proposeDates(project), m));
+  }
+
+  return html(response, A.errorPage('f.not_found3_t', 'f.not_found3'), 404);
+}
+
+export { S as storage };

@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------
+# joku.tv
+#
+# Apache liefert die statische Seite aus und reicht nur /theater an den
+# Node-Dienst durch, der auf 127.0.0.1:3011 lauscht. So bleibt die
+# Startseite unberuehrt, das vorhandene Zertifikat gilt weiter, und wir
+# sind unabhaengig von der Node.js-Schaltung der konsoleH.
+# ---------------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Immer verschluesselt
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Die Probenplanung liegt im Node-Dienst
+RewriteRule ^theater$      http://127.0.0.1:3011/theater [P,L]
+RewriteRule ^theater/(.*)$ http://127.0.0.1:3011/theater/$1 [P,L]
+RewriteRule ^gesund$       http://127.0.0.1:3011/gesund [P,L]
+</IfModule>
+
+# Quelltext und Konfiguration gehen niemanden etwas an
+<FilesMatch "^(app\.js|app\.mjs|package\.json|package-lock\.json|.*\.hetzner-platzhalter)$">
+  Require all denied
+</FilesMatch>

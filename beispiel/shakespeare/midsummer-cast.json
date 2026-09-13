@@ -1,0 +1,36 @@
+{
+  "version": 5,
+  "_note": "Casting for A Midsummer Night's Dream, for the tool (load as configuration). An ordinary play: role (b) and actor (a), 'roles' stays empty. The actor names are invented. Released under CC0 1.0.",
+  "innerTitle": "",
+  "cast": [
+    { "b": "THESEUS", "bFull": "Theseus, Duke of Athens", "a": "Alan Example", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "HIPPOLYTA", "bFull": "Hippolyta, Queen of the Amazons", "a": "Beth Sample", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "EGEUS", "bFull": "Egeus, father to Hermia", "a": "Carl Specimen", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "HERMIA", "bFull": "Hermia", "a": "Dana Placeholder", "funktion": "", "ich": true, "aliases": [], "roles": [] },
+    { "b": "HELENA", "bFull": "Helena", "a": "Erin Instance", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "LYSANDER", "bFull": "Lysander", "a": "Finn Model", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "DEMETRIUS", "bFull": "Demetrius", "a": "Gus Pattern", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "PHILOSTRATE", "bFull": "Philostrate, Master of the Revels", "a": "Hal Template", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "QUINCE", "bFull": "Peter Quince, the carpenter", "a": "Ivy Mockup", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "SNUG", "bFull": "Snug, the joiner", "a": "Jo Stand-in", "funktion": "", "ich": false, "aliases": ["LION"], "roles": [] },
+    { "b": "BOTTOM", "bFull": "Nick Bottom, the weaver", "a": "Kim Dummy", "funktion": "", "ich": false, "aliases": ["PYRAMUS"], "roles": [] },
+    { "b": "FLUTE", "bFull": "Francis Flute, the bellows-mender", "a": "Lee Fixture", "funktion": "", "ich": false, "aliases": ["THISBE"], "roles": [] },
+    { "b": "SNOUT", "bFull": "Tom Snout, the tinker", "a": "Max Proxy", "funktion": "", "ich": false, "aliases": ["WALL"], "roles": [] },
+    { "b": "STARVELING", "bFull": "Robin Starveling, the tailor", "a": "Nat Draft", "funktion": "", "ich": false, "aliases": ["MOONSHINE", "MOON"], "roles": [] },
+    { "b": "OBERON", "bFull": "Oberon, King of the Fairies", "a": "Oli Prototype", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "TITANIA", "bFull": "Titania, Queen of the Fairies", "a": "Pat Sketch", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "PUCK", "bFull": "Puck, or Robin Goodfellow", "a": "Quinn Outline", "funktion": "", "ich": false, "aliases": ["ROBIN", "ROBIN GOODFELLOW"], "roles": [] },
+    { "b": "PEASEBLOSSOM", "bFull": "Peaseblossom, a fairy", "a": "Rae Blank", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "COBWEB", "bFull": "Cobweb, a fairy", "a": "Sam Stub", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "MOTH", "bFull": "Moth, a fairy", "a": "Tay Filler", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "MUSTARDSEED", "bFull": "Mustardseed, a fairy", "a": "Uma Generic", "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "FIRST FAIRY", "bFull": "A fairy", "a": "Val Nominal", "funktion": "", "ich": false, "aliases": ["SECOND FAIRY"], "roles": [] },
+    { "b": "PROMPTER", "bFull": "Prompter", "a": "Wren Token", "funktion": "Prompter", "ich": false, "aliases": [], "roles": [] }
+  ],
+  "tokenMap": {
+    "ALL": "GROUP",
+    "CHORUS": "GROUP"
+  },
+  "hiddenChapters": {},
+  "narrator": { "desc": "calm narrator, matter-of-fact", "id": "" }
+}

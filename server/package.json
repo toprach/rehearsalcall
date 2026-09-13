@@ -1,0 +1,13 @@
+{
+  "name": "rehearsalcall",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rehearsal planning for theatre companies",
+  "main": "app.js",
+  "optionalDependencies": {},
+  "engines": {
+    "node": ">=20"
+  },
+  "_postgres": "Optional. Storage is files unless PGUSER is set. For PostgreSQL: npm install pg"
+}

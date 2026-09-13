@@ -1,0 +1,25 @@
+{
+  "version": 5,
+  "_hinweis": "Beispiel-Besetzung fuer ein gewoehnliches Stueck ohne Stueck im Stueck: es gibt nur die Rolle (b) und den Schauspieler (a), 'roles' bleibt leer. Die Ausgabe laesst die dritte Spalte dann von selbst weg. Alle Namen sind frei erfunden.",
+  "innerTitle": "",
+  "cast": [
+    { "b": "AMALIE", "bFull": "Amalie von Stetten", "a": "Anna Musterfrau",
+      "funktion": "", "ich": false, "aliases": ["AMALIE V.STETTEN", "FRAU VON STETTEN"], "roles": [] },
+    { "b": "BALTHASAR", "bFull": "Balthasar Kling", "a": "Bruno Beispiel",
+      "funktion": "", "ich": true, "aliases": ["BALTASAR"], "roles": [] },
+    { "b": "CORDULA", "bFull": "Cordula Rapp", "a": "Clara Cebulla",
+      "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "DOKTOR", "bFull": "Doktor Weinzierl", "a": "Doris Demo",
+      "funktion": "", "ich": false, "aliases": ["DR.WEINZIERL", "DOKTOR W."], "roles": [] },
+    { "b": "GENDARM", "bFull": "Gendarm Huber", "a": "Emil Exempel",
+      "funktion": "", "ich": false, "aliases": [], "roles": [] },
+    { "b": "SOUFFLEUSE", "bFull": "Souffleuse", "a": "Fanny Fallbeispiel",
+      "funktion": "Souffleuse", "ich": false, "aliases": [], "roles": [] }
+  ],
+  "tokenMap": {
+    "AMALIE  V. STETTEN": "AMALIE",
+    "DR. WEINZIERL": "DOKTOR"
+  },
+  "hiddenChapters": {},
+  "narrator": { "desc": "ruhiger Erzaehler, sachlich", "id": "" }
+}

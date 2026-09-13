@@ -1,0 +1,34 @@
+# Everything the image does not need. Keeping this tight matters twice:
+# a smaller context builds faster, and nothing private can slip in.
+
+.git
+.gitignore
+node_modules
+**/node_modules
+
+# Credentials never go into an image.
+.env
+**/.env
+*.key
+elevenlabs.key
+
+# Not needed at runtime.
+probenplan
+audio
+beispiel
+werkzeug
+*.md
+!server/**/*.md
+Dockerfile
+.dockerignore
+compose.yaml
+LICENSE
+
+# Local by-products.
+*.mp3
+*.pdf
+*.docx
+*.log
+theater-daten
+struktur.json
+probenplan.json

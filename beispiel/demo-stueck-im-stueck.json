@@ -1,0 +1,80 @@
+{
+  "version": 5,
+  "_hinweis": "Beispiel-Besetzung fuer ein Stueck im Stueck: der Schauspieler (a) spielt ein Ensemble-Mitglied (b), das auf der Buehne in eine Rolle (c) schluepft. Alle Namen sind frei erfunden. In die Oberflaeche mit 'Konfiguration laden' einlesen.",
+  "innerTitle": "Das Sommerhaus",
+  "cast": [
+    {
+      "b": "MONA",
+      "bFull": "Mona Berger",
+      "a": "Anna Musterfrau",
+      "funktion": "",
+      "ich": false,
+      "aliases": ["MONA B.", "Mona Berger"],
+      "roles": [
+        { "c": "FRAU HUBER", "voiceC": "resolut, trocken, tiefe Stimme",
+          "aliases": ["FRAU H.", "FR.HUBER", "FRAU HUBER."] }
+      ]
+    },
+    {
+      "b": "TILL",
+      "bFull": "Till Sanders",
+      "a": "Bruno Beispiel",
+      "funktion": "",
+      "ich": false,
+      "aliases": [],
+      "roles": [
+        { "c": "MARKUS", "voiceC": "jugendlich, ungeduldig", "aliases": ["MARCUS"] }
+      ]
+    },
+    {
+      "b": "LENI",
+      "bFull": "Leni Vogl",
+      "a": "Clara Cebulla",
+      "funktion": "",
+      "ich": false,
+      "aliases": [],
+      "roles": [
+        { "c": "SOPHIE", "voiceC": "hell, atemlos", "aliases": ["SOFIE"] }
+      ]
+    },
+    {
+      "b": "RUDI",
+      "bFull": "Rudi Kern",
+      "a": "Doris Demo",
+      "funktion": "",
+      "ich": false,
+      "aliases": [],
+      "roles": [
+        { "c": "HERR WEBER", "voiceC": "umstaendlich, freundlich", "aliases": ["HR.WEBER"] },
+        { "c": "POSTBOTE", "voiceC": "kurz angebunden", "aliases": [] }
+      ]
+    },
+    {
+      "b": "PAUL",
+      "bFull": "Paul Reiter",
+      "a": "Emil Exempel",
+      "funktion": "Regisseur",
+      "ich": true,
+      "aliases": [],
+      "roles": []
+    },
+    {
+      "b": "SIGI",
+      "bFull": "Sigi Ostermann",
+      "a": "Fanny Fallbeispiel",
+      "funktion": "Inspizientin",
+      "ich": false,
+      "aliases": [],
+      "roles": []
+    }
+  ],
+  "tokenMap": {
+    "FRAU  HUBER": "FRAU HUBER",
+    "MARKUS/TILL": "MARKUS"
+  },
+  "hiddenChapters": {},
+  "narrator": {
+    "desc": "ruhiger Erzaehler, sachlich, liest die Regieanweisungen",
+    "id": ""
+  }
+}

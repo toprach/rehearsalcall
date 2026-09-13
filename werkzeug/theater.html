@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theater Rollen-Ersetzer</title>
+<style>
+  :root { font-family: system-ui, Arial, sans-serif; }
+  body { max-width: 1050px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  .step { margin: 1.2rem 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: middle; }
+  th[data-col] { cursor: pointer; }
+  th { background: #f2f2f2; user-select: none; white-space: nowrap; }
+  th .arrow { color: #888; font-size: 0.8em; }
+  td.role { white-space: nowrap; }
+  td.role .label { font-weight: bold; }
+  td.role .variants { color: #888; font-size: 0.8em; }
+  td.count, td.ich { text-align: center; }
+  tr.aliased { background: #f7f7f7; color: #999; }
+  input[type=text] { width: 100%; box-sizing: border-box; padding: 4px 6px; }
+  input:disabled { background: #eee; color: #999; }
+  td.voice input { margin: 1px 0; }
+  td.voice .voiceId { font-size: 0.85em; }
+  button { padding: 8px 16px; font-size: 1rem; cursor: pointer; }
+  #generateBtn { background: #2d7; border: none; border-radius: 4px; font-weight: bold; }
+  .toolbar button { margin-right: 8px; }
+  .hint { color: #666; font-size: 0.85rem; }
+  .swatch { display:inline-block; width:.9em; height:.9em; vertical-align:middle; border:1px solid #999; }
+  .me-line   { background: #fff59d; }   /* gelb */
+  .cue-around{ background: #f8bbd0; }   /* rosa */
+  .cue-nr    { color: #888; font-weight: normal; font-style: normal; }
+  #preview { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; background: #fafafa;
+             white-space: pre-wrap; max-height: 420px; overflow: auto; font-family: Georgia, serif; }
+  #printWrap { margin-top: 1rem; overflow: auto; background: #e9e9e9; padding: 1rem; }
+  #printFrame { width: 297mm; height: 210mm; border: none; background: #fff;
+                box-shadow: 0 2px 10px rgba(0,0,0,.25); display: block; }
+</style>
+</head>
+<body>
+
+<h1>Theater Rollen-Ersetzer</h1>
+
+<div class="step">
+  <strong>1.</strong> Textdatei (Theaterstück) laden:
+  <input type="file" id="fileInput" accept=".txt,text/plain">
+  <span id="loadInfo" class="hint"></span>
+  <div class="hint">Rolle = GROSSBUCHSTABEN vor „:“. Leerzeichen und Punkte werden ignoriert
+    (<code>MRS.C.</code> = <code>MRS C</code>). Verschiedene Namen derselben Figur per <em>Alias</em> zusammenlegen.</div>
+</div>
+
+<div class="step" id="tableStep" style="display:none">
+  <strong>2.</strong> Zuordnung eintragen
+  <span class="hint">· Spaltentitel klicken = sortieren · <span class="swatch" style="background:#fff59d"></span> „Ich“-Text gelb ·
+    <span class="swatch" style="background:#f8bbd0"></span> Stichwort-Namen davor/danach rosa</span>
+  <div class="toolbar" style="margin:.5rem 0">
+    <button id="saveBtn">Zuordnung speichern</button>
+    <button id="loadBtn">Zuordnung laden</button>
+    <input type="file" id="mappingInput" accept=".json,application/json" style="display:none">
+    <button id="fdxBtn">ElevenLabs FDX (Studio-Upload)</button>
+    <button id="elevenBtn">ElevenLabs JSON (API)</button>
+    <label class="hint"><input type="checkbox" id="stripDir"> Regieanweisungen (…) für Audio entfernen</label>
+    <div class="hint">Zuordnung wird auch automatisch im Browser gemerkt</div>
+  </div>
+  <table id="rolesTable">
+    <thead>
+      <tr>
+        <th data-col="label">Rolle <span class="arrow"></span></th>
+        <th data-col="count">Auftritte <span class="arrow"></span></th>
+        <th>Alias&nbsp;→ dieselbe Figur</th>
+        <th data-col="newName">Neuer Rollenname <span class="arrow"></span></th>
+        <th data-col="actor">Schauspieler <span class="arrow"></span></th>
+        <th>Stimme (ElevenLabs)</th>
+        <th>Ich</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="step" id="genStep" style="display:none">
+  <strong>3.</strong>
+  <label>Format:
+    <select id="pageFormat">
+      <option value="a4l2">A4 quer · 2 Spalten</option>
+      <option value="a5p1">A5 hoch · 1 Spalte</option>
+    </select>
+  </label>
+  <button id="printPreviewBtn">Druckvorschau</button>
+  <button id="generateBtn">Als HTML speichern</button>
+  <br>
+  <button id="printA4Btn" style="margin-top:.5rem">A4 quer drucken</button>
+  <button id="printA5Btn" style="margin-top:.5rem">A5 hoch drucken</button>
+  <span class="hint">direkt drucken, ohne Umweg über Vorschau</span>
+</div>
+
+<div id="printWrap" style="display:none">
+  <h3 style="margin:.3rem 0">Druckvorschau <button id="printBtn">Drucken…</button></h3>
+  <iframe id="printFrame" title="Druckvorschau"></iframe>
+</div>
+
+<div id="previewWrap" style="display:none">
+  <h3>Vorschau (farbig)</h3>
+  <div id="preview"></div>
+</div>
+
+<script>
+const LS_KEY = 'theaterMapping';
+let sourceText = "";
+let state = { rows: [], byKey: new Map(), sortCol: 'count', sortDir: -1 };
+
+const fileInput = document.getElementById('fileInput');
+const tbody = document.querySelector('#rolesTable tbody');
+
+// --- Erkennung & Normalisierung --------------------------------------------
+function cueRegex() { return /([A-ZÄÖÜ](?:[A-ZÄÖÜ. ]*[A-ZÄÖÜ.])?)\s*:/g; }
+function validRole(tok) {
+  const t = tok.trim();
+  if (!t) return false;
+  if ((t.match(/ /g) || []).length > 1) return false;
+  if ((t.match(/\./g) || []).length > 2) return false;
+  if (!/[A-ZÄÖÜ]/.test(t)) return false;
+  return /^[A-ZÄÖÜ. ]+$/.test(t);
+}
+function normKey(tok) { return tok.replace(/[.\s]/g, '').toUpperCase(); }
+
+// Schutzhinweise entfernen: Block ab "Anmerkung:" bis zum ersten "Weinheim"
+// (inkl. Weinheim). Toleriert eingestreute Punkte/Leerzeichen wie "A.nm.erkung".
+function stripProtectionNotes(text) {
+  const loose = w => w.split('').map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[.\\s]*');
+  const re = new RegExp(loose('Anmerkung') + '[\\s\\S]*?' + loose('Weinheim'), 'g');
+  const removed = (text.match(re) || []).length;
+  return { cleaned: text.replace(re, ''), removed };
+}
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// In XML/FDX verbotene Steuerzeichen entfernen; Tab(9)/LF(10)/CR(13) bleiben.
+function stripCtrl(str) {
+  let out = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c === 9 || c === 10 || c === 13 || c >= 32) out += str[i];
+  }
+  return out;
+}
+
+// --- Alias-Auflösung --------------------------------------------------------
+function buildIndex() { state.byKey = new Map(state.rows.map(r => [r.key, r])); }
+function rowByKey(k) { return state.byKey.get(k); }
+function resolveRoot(key) {
+  const seen = new Set(); let k = key;
+  while (true) {
+    const r = rowByKey(k);
+    if (!r || !r.alias || seen.has(k)) return k;
+    seen.add(k); k = r.alias;
+  }
+}
+function reaches(startKey, targetKey) {           // Zyklus-Schutz
+  const seen = new Set(); let k = startKey;
+  while (k && !seen.has(k)) {
+    if (k === targetKey) return true;
+    seen.add(k); const r = rowByKey(k); k = r ? r.alias : '';
+  }
+  return false;
+}
+
+// --- Datei laden ------------------------------------------------------------
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const res = stripProtectionNotes(reader.result);   // zuerst: Schutzhinweise raus
+    // in XML/FDX verbotene Steuerzeichen entfernen (Tab/LF/CR bleiben erhalten)
+    sourceText = stripCtrl(res.cleaned);
+    document.getElementById('loadInfo').textContent =
+      res.removed ? res.removed + ' Schutzhinweis(e) „Anmerkung…Weinheim“ entfernt.' : '';
+    state.rows = detectRoles(sourceText);
+    buildIndex();
+    applyStored();
+    state.sortCol = 'count'; state.sortDir = -1;
+    sortRows(); render();
+    const has = state.rows.length > 0;
+    document.getElementById('tableStep').style.display = has ? 'block' : 'none';
+    document.getElementById('genStep').style.display = has ? 'block' : 'none';
+    if (!has) alert('Keine Rollen gefunden.');
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function detectRoles(text) {
+  const groups = new Map();
+  let order = 0;
+  for (const m of text.matchAll(cueRegex())) {
+    const tok = m[1].trim();
+    if (!validRole(tok)) continue;
+    const key = normKey(tok);
+    let g = groups.get(key);
+    if (!g) { g = { key, count: 0, variants: new Map(), firstOrder: order++ }; groups.set(key, g); }
+    g.count++;
+    g.variants.set(tok, (g.variants.get(tok) || 0) + 1);
+  }
+  return [...groups.values()].map(g => {
+    let label = null, best = -1;
+    for (const [v, c] of g.variants) if (c > best) { best = c; label = v; }
+    return { key: g.key, label, count: g.count, variants: [...g.variants.keys()],
+             firstOrder: g.firstOrder, newName: '', actor: '', alias: '', ich: false,
+             voiceDesc: '', voiceId: '' };
+  });
+}
+
+// --- Tabelle rendern --------------------------------------------------------
+function render() {
+  buildIndex();
+  tbody.innerHTML = '';
+  state.rows.forEach(r => {
+    const root = rowByKey(resolveRoot(r.key));
+    const aliased = !!r.alias && root && root.key !== r.key;
+    const tr = document.createElement('tr');
+    if (aliased) tr.className = 'aliased';
+    const others = r.variants.filter(v => v !== r.label);
+    const note = others.length ? '<div class="variants">= ' + others.map(escapeHtml).join(', ') + '</div>' : '';
+    tr.innerHTML =
+      '<td class="role"><span class="label"></span>' + note + '</td>' +
+      '<td class="count">' + r.count + '</td>' +
+      '<td class="alias"><select class="aliasSel"></select></td>' +
+      '<td><input type="text" class="newName" placeholder="neuer Rollenname"></td>' +
+      '<td><input type="text" class="actor" placeholder="Schauspieler"></td>' +
+      '<td class="voice">' +
+        '<input type="text" class="voiceDesc" placeholder="Stimm-Beschreibung, z.B. alte, raue Männerstimme">' +
+        '<input type="text" class="voiceId" placeholder="Voice-ID (optional)">' +
+      '</td>' +
+      '<td class="ich"><input type="checkbox" class="ichBox"></td>';
+    tr.querySelector('.label').textContent = r.label;
+
+    // Alias-Dropdown
+    const sel = tr.querySelector('.aliasSel');
+    sel.appendChild(new Option('— eigene Figur —', ''));
+    state.rows.forEach(o => { if (o.key !== r.key) sel.appendChild(new Option(o.label, o.key)); });
+    sel.value = r.alias || '';
+    sel.addEventListener('change', () => {
+      const t = sel.value;
+      if (t && reaches(t, r.key)) { alert('Zirkuläre Zuordnung nicht möglich.'); sel.value = r.alias || ''; return; }
+      r.alias = t; autosave(); render();
+    });
+
+    // Eingabefelder (bei Alias: geerbt & gesperrt)
+    const nn = tr.querySelector('.newName');
+    const ac = tr.querySelector('.actor');
+    const ich = tr.querySelector('.ichBox');
+    const vd = tr.querySelector('.voiceDesc');
+    const vi = tr.querySelector('.voiceId');
+    if (aliased) {
+      nn.value = root.newName; nn.disabled = true;
+      ac.value = root.actor;   ac.disabled = true;
+      ich.checked = root.ich;  ich.disabled = true;
+      vd.value = root.voiceDesc; vd.disabled = true;
+      vi.value = root.voiceId;   vi.disabled = true;
+    } else {
+      nn.value = r.newName; ac.value = r.actor; ich.checked = r.ich;
+      vd.value = r.voiceDesc; vi.value = r.voiceId;
+      nn.addEventListener('input', () => { r.newName = nn.value; autosave(); });
+      ac.addEventListener('input', () => { r.actor = ac.value; autosave(); });
+      ich.addEventListener('change', () => { r.ich = ich.checked; autosave(); });
+      vd.addEventListener('input', () => { r.voiceDesc = vd.value; autosave(); });
+      vi.addEventListener('input', () => { r.voiceId = vi.value; autosave(); });
+    }
+    tbody.appendChild(tr);
+  });
+  updateArrows();
+}
+
+function updateArrows() {
+  document.querySelectorAll('#rolesTable th[data-col]').forEach(th => {
+    th.querySelector('.arrow').textContent =
+      (th.dataset.col === state.sortCol) ? (state.sortDir === 1 ? '▲' : '▼') : '';
+  });
+}
+
+function sortRows() {
+  const col = state.sortCol, dir = state.sortDir;
+  state.rows.sort((a, b) => {
+    if (col === 'count') return (a.count - b.count) * dir || a.firstOrder - b.firstOrder;
+    const pick = x => (col === 'label' ? x.label : col === 'newName' ? x.newName : x.actor).toUpperCase();
+    const av = pick(a), bv = pick(b);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return  1 * dir;
+    return a.firstOrder - b.firstOrder;
+  });
+}
+
+document.querySelectorAll('#rolesTable th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (state.sortCol === col) state.sortDir *= -1;
+    else { state.sortCol = col; state.sortDir = (col === 'count') ? -1 : 1; }
+    sortRows(); render();
+  });
+});
+
+// --- Speichern / Laden ------------------------------------------------------
+function autosave() {
+  const obj = {};
+  state.rows.forEach(r => {
+    if (r.newName || r.actor || r.alias || r.ich || r.voiceDesc || r.voiceId)
+      obj[r.key] = { newName: r.newName, actor: r.actor, alias: r.alias, ich: r.ich,
+                     voiceDesc: r.voiceDesc, voiceId: r.voiceId };
+  });
+  try { localStorage.setItem(LS_KEY, JSON.stringify(obj)); } catch (e) {}
+}
+function applyRoles(obj) {
+  state.rows.forEach(r => {
+    const s = obj[r.key];
+    if (s) {
+      r.newName = s.newName || ''; r.actor = s.actor || ''; r.alias = s.alias || ''; r.ich = !!s.ich;
+      r.voiceDesc = s.voiceDesc || ''; r.voiceId = s.voiceId || '';
+    }
+  });
+}
+function applyStored() {
+  let obj = {};
+  try { obj = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) {}
+  applyRoles(obj);
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const data = { type: 'theater-mapping', roles: {} };
+  state.rows.forEach(r => { data.roles[r.key] = { label: r.label, newName: r.newName, actor: r.actor, alias: r.alias, ich: r.ich, voiceDesc: r.voiceDesc, voiceId: r.voiceId }; });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'rollen-zuordnung.json'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('mappingInput').click());
+document.getElementById('mappingInput').addEventListener('change', (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data; try { data = JSON.parse(reader.result); } catch (err) { alert('Ungültige JSON-Datei.'); return; }
+    const roles = (data && data.roles) || {};
+    applyRoles(roles); autosave(); render();
+    const hits = state.rows.filter(r => roles[r.key]).length;
+    alert(hits + ' von ' + state.rows.length + ' Rollen übernommen.');
+  };
+  reader.readAsText(file, 'utf-8'); e.target.value = '';
+});
+
+// --- Generieren (mit Ersetzung + Farb-Markierung) --------------------------
+function collectCues(escaped) {
+  const list = []; const re = cueRegex(); let m;
+  while ((m = re.exec(escaped)) !== null) {
+    const role = m[1].trim();
+    if (!validRole(role)) continue;
+    list.push({ index: m.index, length: m[0].length, role, key: normKey(role) });
+  }
+  return list;
+}
+
+function generate(text) {
+  buildIndex();
+  const escaped = escapeHtml(text);
+  const cues = collectCues(escaped);
+  if (!cues.length) return escaped;
+
+  const roots = cues.map(c => rowByKey(resolveRoot(c.key)));
+  const me = roots.map(r => !!(r && r.ich));
+  const pink = cues.map((c, i) => !me[i] && ((i > 0 && me[i - 1]) || (i < cues.length - 1 && me[i + 1])));
+
+  const counts = {};                            // laufende Nummer je Figur (alias-aufgelöst)
+  let out = escaped.slice(0, cues[0].index);   // Text vor der ersten Rolle
+  for (let i = 0; i < cues.length; i++) {
+    const c = cues[i], root = roots[i];
+    const bodyStart = c.index + c.length;
+    const bodyEnd = (i + 1 < cues.length) ? cues[i + 1].index : escaped.length;
+    const body = escaped.slice(bodyStart, bodyEnd);
+
+    const lineStart = escaped.slice(escaped.lastIndexOf('\n', c.index - 1) + 1, c.index);
+    const prefix = lineStart.trim() === '' ? '' : '\n';   // neue Zeile, falls mitten im Satz
+
+    const rk = resolveRoot(c.key);
+    counts[rk] = (counts[rk] || 0) + 1;
+    const nr = ' <span class="cue-nr">(' + counts[rk] + ')</span>';
+
+    let nameHtml = (root && (root.actor || root.newName))
+      ? '<b>' + escapeHtml(root.actor) + '</b> als <i>' + escapeHtml(root.newName) + '</i>' + nr + ' :'
+      : c.role + nr + ':';
+    if (pink[i]) nameHtml = '<span class="cue-around">' + nameHtml + '</span>';
+
+    let block = nameHtml + body;
+    if (me[i]) block = '<span class="me-line">' + block + '</span>';
+    out += prefix + block;
+  }
+  return out;
+}
+
+function buildDocument(bodyHtml, format) {
+  const a5 = format === 'a5p1';
+  const page     = a5 ? 'A5 portrait' : 'A4 landscape';
+  const margin   = a5 ? '10mm' : '12mm';
+  const fontSize = a5 ? '11pt' : '10pt';
+  const screenMax = a5 ? '15cm' : '27cm';
+  const colCss = a5 ? '' :
+    '    column-count: 2;\n' +
+    '    column-gap: 12mm;\n' +
+    '    column-rule: 1px solid #ccc;\n';
+  return '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n' +
+    '<title>Theaterstück</title>\n<style>\n' +
+    '  @page { size: ' + page + '; margin: ' + margin + '; }\n' +
+    '  body { font-family: Georgia, serif; margin: ' + margin + '; }\n' +
+    '  pre {\n' +
+    '    white-space: pre-wrap;\n' +
+    '    font-family: inherit;\n' +
+    '    font-size: ' + fontSize + ';\n' +
+    '    line-height: 1.25;\n' +
+    colCss +
+    '    margin: 0;\n' +
+    '  }\n' +
+    '  .me-line   { background: #fff59d; }\n' +
+    '  .cue-around{ background: #f8bbd0; }\n' +
+    '  .cue-nr    { color: #888; font-weight: normal; font-style: normal; }\n' +
+    '  /* Farben auch im Ausdruck erhalten */\n' +
+    '  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n' +
+    '  @media screen { body { margin: 2rem auto; max-width: ' + screenMax + '; } }\n' +
+    '</style>\n</head>\n<body>\n<pre>\n' + bodyHtml + '\n</pre>\n</body>\n</html>\n';
+}
+
+// --- ElevenLabs-Export ------------------------------------------------------
+function cleanSpeech(s, removeDir) {
+  let t = s.replace(/^\s*\d+\s*$/gm, ' ')   // Seitenzahlen (Zeilen nur aus Ziffern)
+           .replace(/\s+/g, ' ').trim();
+  if (removeDir) t = t.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  return t;
+}
+
+function exportElevenLabs() {
+  buildIndex();
+  const removeDir = document.getElementById('stripDir').checked;
+  const cues = collectCues(sourceText);
+
+  const dialogue = [];
+  for (let i = 0; i < cues.length; i++) {
+    const c = cues[i];
+    const root = rowByKey(resolveRoot(c.key));
+    const bodyStart = c.index + c.length;
+    const bodyEnd = (i + 1 < cues.length) ? cues[i + 1].index : sourceText.length;
+    const text = cleanSpeech(sourceText.slice(bodyStart, bodyEnd), removeDir);
+    if (!text) continue;
+    dialogue.push({
+      character_id: root ? root.key : c.key,
+      character:    root ? (root.newName || root.label) : c.role,
+      voice_id:     root ? (root.voiceId || '') : '',
+      voice_description: root ? (root.voiceDesc || '') : '',
+      text
+    });
+  }
+
+  const usedKeys = [...new Set(dialogue.map(d => d.character_id))];
+  const characters = usedKeys.map(k => {
+    const r = rowByKey(k);
+    return {
+      id: k,
+      name: r ? (r.newName || r.label) : k,
+      actor: r ? r.actor : '',
+      voice_id: r ? (r.voiceId || '') : '',
+      voice_description: r ? (r.voiceDesc || '') : ''
+    };
+  });
+
+  const data = {
+    format: 'elevenlabs-audiobook',
+    note: 'characters[].voice_description ist für ElevenLabs Voice Design gedacht; voice_id für eine bestehende Stimme. inputs[] entspricht dem Text-to-Dialogue-Body.',
+    characters,
+    dialogue,
+    // direkt für die ElevenLabs Text-to-Dialogue API verwendbar:
+    inputs: dialogue.map(d => ({ text: d.text, voice_id: d.voice_id }))
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'elevenlabs-script.json'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('elevenBtn').addEventListener('click', exportElevenLabs);
+
+// FDX (Final Draft) – von ElevenLabs Studio als Hörbuch-Upload erkannt.
+// Figuren = <Character>, Text = <Dialogue>, Regieanweisungen = <Action> (Erzähler).
+function exportFDX() {
+  buildIndex();
+  const removeDir = document.getElementById('stripDir').checked;
+  const cues = collectCues(sourceText);
+  const esc = s => s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const para = (type, t) => '    <Paragraph Type="' + type + '"><Text>' + esc(t) + '</Text></Paragraph>';
+
+  const paras = ['    <Paragraph Type="Scene Heading"><Text>THEATERSTÜCK</Text></Paragraph>'];
+  const usedRoots = new Set();
+
+  const pushBody = (raw, name, root) => {
+    // Dialog und Regieanweisungen (in Klammern) trennen
+    let needChar = true;
+    for (const part of raw.split(/(\([^)]*\))/g)) {
+      if (part.startsWith('(') && part.endsWith(')')) {
+        if (removeDir) continue;
+        const inner = cleanSpeech(part.replace(/^\(|\)$/g, ''), false);
+        if (inner) { paras.push(para('Action', inner)); needChar = true; }
+      } else {
+        const d = cleanSpeech(part, false);
+        if (!d) continue;
+        if (needChar) { paras.push(para('Character', name)); needChar = false; }
+        paras.push(para('Dialogue', d));
+        if (root) usedRoots.add(root);
+      }
+    }
+  };
+
+  // Text vor der ersten Rolle = Erzähler
+  const preEnd = cues.length ? cues[0].index : sourceText.length;
+  const pre = cleanSpeech(sourceText.slice(0, preEnd), removeDir);
+  if (pre && !removeDir) paras.push(para('Action', pre));
+
+  for (let i = 0; i < cues.length; i++) {
+    const c = cues[i], root = rowByKey(resolveRoot(c.key));
+    const name = (root ? (root.newName || root.label) : c.role).toUpperCase();
+    const bodyEnd = (i + 1 < cues.length) ? cues[i + 1].index : sourceText.length;
+    pushBody(sourceText.slice(c.index + c.length, bodyEnd), name, root);
+  }
+
+  // Vanilla-FDX ohne Prolog-Kommentar (strenge Importer lehnen den sonst ab).
+  // Stimm-Besetzung steht im JSON-Export und in der Tabelle.
+  const xml = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' +
+    '<FinalDraft DocumentType="Script" Template="No" Version="1">\n  <Content>\n' +
+    paras.join('\n') + '\n  </Content>\n</FinalDraft>\n';
+
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'theaterstueck.fdx'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('fdxBtn').addEventListener('click', exportFDX);
+
+document.getElementById('printPreviewBtn').addEventListener('click', () => {
+  const bodyHtml = generate(sourceText);
+  const fmt = document.getElementById('pageFormat').value;
+  // farbige Inline-Vorschau
+  document.getElementById('previewWrap').style.display = 'block';
+  document.getElementById('preview').innerHTML = bodyHtml;
+  // echte Druckvorschau im Iframe (respektiert @page / Spalten)
+  document.getElementById('printWrap').style.display = 'block';
+  const frame = document.getElementById('printFrame');
+  if (fmt === 'a5p1') { frame.style.width = '148mm'; frame.style.height = '210mm'; }
+  else                { frame.style.width = '297mm'; frame.style.height = '210mm'; }
+  frame.srcdoc = buildDocument(bodyHtml, fmt);
+});
+
+document.getElementById('printBtn').addEventListener('click', () => {
+  const win = document.getElementById('printFrame').contentWindow;
+  win.focus();
+  win.print();
+});
+
+// Direkt drucken in gewünschtem Format (rendert Iframe, wartet aufs Laden, druckt)
+function printInFormat(fmt) {
+  const bodyHtml = generate(sourceText);
+  document.getElementById('printWrap').style.display = 'block';
+  const frame = document.getElementById('printFrame');
+  if (fmt === 'a5p1') { frame.style.width = '148mm'; frame.style.height = '210mm'; }
+  else                { frame.style.width = '297mm'; frame.style.height = '210mm'; }
+  document.getElementById('pageFormat').value = fmt;   // Auswahl synchron halten
+  frame.onload = () => { frame.onload = null; frame.contentWindow.focus(); frame.contentWindow.print(); };
+  frame.srcdoc = buildDocument(bodyHtml, fmt);
+}
+document.getElementById('printA4Btn').addEventListener('click', () => printInFormat('a4l2'));
+document.getElementById('printA5Btn').addEventListener('click', () => printInFormat('a5p1'));
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const fmt = document.getElementById('pageFormat').value;
+  const blob = new Blob([buildDocument(generate(sourceText), fmt)], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'theaterstueck.html'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+
+</body>
+</html>

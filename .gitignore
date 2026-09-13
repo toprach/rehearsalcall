@@ -1,0 +1,32 @@
+# Schlüssel und Zugangsdaten
+.env
+*.key
+elevenlabs.key
+
+# Das Stück selbst ist urheberrechtlich geschützt und gehört nicht ins
+# öffentliche Verzeichnis - nur die Software wird veröffentlicht.
+*.docx
+*.doc
+*.odt
+struktur.json
+probenplan.json
+Der nackte Wahnsinn*
+BH Der nackerte*
+
+# Erzeugnisse
+*.mp3
+*.pdf
+*.html.bak
+
+# Abhaengigkeiten und Zugangsdaten des Servers
+node_modules/
+.env
+.env.local
+
+# Das Werkzeug wird nicht mitveroeffentlicht.
+#
+# Der Server BRAUCHT es: theater/script.mjs laedt es, um .docx zu lesen.
+# Wer die Software betreibt, legt die Datei selbst dazu - entweder unter
+# werkzeug/theater-md.html oder an einen Pfad, den THEATER_WERKZEUG nennt.
+# an jeder Stelle - compose.yaml erwartet sie neben sich im Wurzelverzeichnis
+theater-md.html
