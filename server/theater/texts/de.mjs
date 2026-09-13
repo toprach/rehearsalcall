@@ -212,7 +212,6 @@ export const de = {
   'cast.kind_auto':     'löst sich von selbst',
   'cast.times':          '{n}\u00d7',
   'cast.stuck':       'nicht aufgelöst',
-  'cast.who_plays':   'Wer spielt das?',
   'cast.open_title':  'Noch nicht aufgelöst:',
   'cast.open_where':     '– unten hervorgehoben.',
   'cast.open_what':    'Bei Namen mit Schrägstrich wie <code>EINBRECHER/GREGG</code> heißt '
@@ -225,8 +224,12 @@ export const de = {
                     + 'meiste ist vorgeschlagen – prüfen Sie vor allem, welche Namen '
                     + '<b>Bühnenrollen</b> sind, die jemand anderer spielt. Nur das kann '
                     + 'das Programm nicht wissen.',
-  'cast.help_person': '<b>eigene Person</b> – steht selbst auf der Probenliste. Hier '
-                    + 'gehört der Name der Schauspielerin oder des Schauspielers dazu.',
+  'cast.help_person': '<b>eigene Person</b> – steht selbst auf der Probenliste. Das Kürzel '
+                    + 'ist der Name im Drehbuch; der Name der Schauspielerin oder des '
+                    + 'Schauspielers wird auf der <a href="/theater/leute">Ensemble-Seite</a> '
+                    + 'eingetragen.',
+  'cast.names_where': 'Namen der Spielenden, Regie und Assistenz werden auf der '
+                    + '<a href="/theater/leute">Ensemble-Seite</a> gepflegt.',
   'cast.help_role':  '<b>Rolle von …</b> – eine Bühnenrolle; zur Probe kommt die Person '
                     + 'dahinter. Im Stück im Stück spielt etwa <i>Anna</i> die '
                     + '<i>Mrs. Clackett</i>.',
@@ -385,10 +388,10 @@ export const de = {
   'comp.link_new_confirm':'Der alte Link gilt dann nicht mehr. Fortfahren?',
   'comp.missing':       'Im Probenplan kommen Kürzel vor, zu denen niemand angelegt ist: '
                     + '{folks}',
-  'comp.col_short':   'Kürzel',
+  'comp.col_short':   'Name im Drehbuch',
   'comp.col_name':      'Name',
   'comp.col_available':      'Verfügbarkeit',
-  'comp.name_hint':   'Name',
+  'comp.name_hint':   'Name der Schauspielerin / des Schauspielers',
   'comp.evenings':       '{n} Abende',
   'comp.entered':  'eingetragen',
   'comp.still_missing':   'fehlt noch',

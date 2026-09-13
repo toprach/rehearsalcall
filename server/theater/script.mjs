@@ -297,17 +297,20 @@ export const normKey = s =>
 
    The kind names are stored with the project, so they stay as they are.
    --------------------------------------------------------------------- */
-export function buildCast(mapping, speakers) {
+export function buildCast(mapping, speakers, people = []) {
   const z = mapping || {};
   const all = (speakers || []).map(s => s.token);
   const kindOf = t => (z[t]?.art) || 'person';
+  // The actor's name is kept in ONE place: with the person on the
+  // company page. The mapping's own name is only a leftover from before.
+  const nameOf = t => (people.find(x => x.b === t)?.name) || z[t]?.name || '';
 
   // 1. people
   const cast = [];
   const byShort = new Map();
   for (const t of all) {
     if (kindOf(t) !== 'person') continue;
-    const e = { b: t, bFull: z[t]?.voll || t, a: z[t]?.name || '',
+    const e = { b: t, bFull: z[t]?.voll || t, a: nameOf(t),
                 funktion: z[t]?.funktion || '', ich: !!z[t]?.ich,
                 aliases: [], roles: [] };
     cast.push(e); byShort.set(t, e);

@@ -334,7 +334,7 @@ async function takeInScript(project, script) {
 
   // Rebuild the structure at once, so the plan can be carried over.
   let realigned = null, unresolved = [];
-  const { cast, tokenMap } = buildCast(project.zuordnung, script.sprecher);
+  const { cast, tokenMap } = buildCast(project.zuordnung, script.sprecher, project.personen);
   if (cast.length) {
     try {
       const r = rebuildStructure(project, cast, tokenMap);
@@ -578,7 +578,7 @@ export async function handle(request, response, path) {
 
     if (!project.drehbuch) return html(response,
       A.errorPage('f.no_script_t', 'f.no_script'), 404);
-    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
     /* Whose booklet is this? For a part book it stands in the path, for
        the full script in the query - and there it also marks that
        person's own text, the way the tool does through cast[].ich. */
@@ -769,7 +769,7 @@ export async function handle(request, response, path) {
     if (second === 'heft' || second === 'gesamt') {
       if (!project.drehbuch) return html(response,
         A.errorPage('f.no_script2_t', 'f.no_script2'), 404);
-      const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+      const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
       let text;
       try {
         text = (second === 'heft')
@@ -1002,7 +1002,7 @@ export async function handle(request, response, path) {
       let stuck = [];
       if (project.zuordnung) {
         try {
-          const b = buildCast(project.zuordnung, project.drehbuch.sprecher);
+          const b = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
           if (b.cast.length)
             stuck = buildStructure(project.drehbuch.markdown, b.cast, b.tokenMap,
                                   project.drehbuch.quelle,
@@ -1020,13 +1020,11 @@ export async function handle(request, response, path) {
       const e = { art };
       const target = String(fields['ziel_' + t] || '').trim();
       if (target && (art === 'rolle' || art === 'alias')) e.ziel = target;
-      const name = String(fields['name_' + t] || '').trim().slice(0, 80);
-      if (name) e.name = name;
       z[t] = e;
     }
     project.zuordnung = z;
 
-    const { cast, tokenMap } = buildCast(z, project.drehbuch.sprecher);
+    const { cast, tokenMap } = buildCast(z, project.drehbuch.sprecher, project.personen);
     if (!cast.length) {
       await S.write(project);
       return html(response, A.castPage(project, { kind: 'error',
@@ -1277,7 +1275,7 @@ export async function handle(request, response, path) {
       kind: 'error', key: 'r.no_script_stored' }));
     const action = parts[1] || 'gesamt';
     const query = new URLSearchParams((request.url || '').split('?')[1] || '');
-    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher);
+    const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
     const shortName = (project.drehbuch.quelle || 'drehbuch').replace(/\.[^.]+$/, '');
 
     let text, name;

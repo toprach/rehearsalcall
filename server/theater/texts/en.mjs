@@ -215,7 +215,6 @@ export const en = {
   'cast.kind_auto':     'sorts itself out',
   'cast.times':          '{n}\u00d7',
   'cast.stuck':       'not resolved',
-  'cast.who_plays':   'Who plays this?',
   'cast.open_title':  'Not resolved yet:',
   'cast.open_where':     '\u2013 highlighted below.',
   'cast.open_what':    'For names with a slash such as <code>EINBRECHER/GREGG</code>, '
@@ -229,7 +228,11 @@ export const en = {
                     + 'played by somebody else. That is the one thing the program cannot '
                     + 'know.',
   'cast.help_person': '<b>a person of their own</b> \u2013 appears on the rehearsal list '
-                    + 'in their own right. The name of the actor belongs here.',
+                    + 'in their own right. The short name is the name in the script; the '
+                    + 'actor\u2019s name is entered on the <a href="/theater/leute">company '
+                    + 'page</a>.',
+  'cast.names_where': 'Names of the actors, director and assistant are kept on the '
+                    + '<a href="/theater/leute">company page</a>.',
   'cast.help_role':  '<b>role played by \u2026</b> \u2013 a stage role; the person behind '
                     + 'it comes to the rehearsal. In the play within the play, '
                     + '<i>Anna</i> plays <i>Mrs Clackett</i>.',
@@ -387,10 +390,10 @@ export const en = {
   'comp.link_new':     'make a new link',
   'comp.link_new_confirm':'The old link will stop working. Go on?',
   'comp.missing':       'The rehearsal plan contains short names nobody is set up for: {folks}',
-  'comp.col_short':   'Short name',
+  'comp.col_short':   'Name in the script',
   'comp.col_name':      'Name',
   'comp.col_available':      'Availability',
-  'comp.name_hint':   'Name',
+  'comp.name_hint':   'name of the actor',
   'comp.evenings':       '{n} evenings',
   'comp.entered':  'entered',
   'comp.still_missing':   'still missing',

@@ -533,6 +533,8 @@ function castPage(p, m, unresolved = []) {
   const z = p.zuordnung || {};
   const people = (d.sprecher || []).map(x => x.token)
     .filter(k => (z[k]?.art || 'person') === 'person');
+  // The actor's name is kept on the company page; here it is only shown.
+  const personName = (token) => (p.personen || []).find(x => x.b === token)?.name || '';
   const targets = (d.sprecher || []).map(x => x.token);
 
   const row = (x) => {
@@ -552,9 +554,7 @@ function castPage(p, m, unresolved = []) {
               `<option value="${h(y)}"${y === e.ziel ? ' selected' : ''}>${h(y)}</option>`
               ).join('')}
           </select></td>
-      <td><input type="text" name="name_${h(x.token)}" value="${h(e.name || '')}"
-                 class="whosel" placeholder="${h(t('cast.who_plays'))}"${
-                 isPerson ? '' : ' hidden'}></td>
+      <td class="small muted">${isPerson ? h(personName(x.token)) : ''}</td>
     </tr>`;
   };
 
@@ -583,18 +583,17 @@ function castPage(p, m, unresolved = []) {
       <button type="submit">${t('cast.take_over')}</button>
     </form>
     ${people.length ? `<p class="small muted">${t('cast.results_in',
-      { n: people.length, folks: people.map(h).join(', ') })}</p>` : ''}
+      { n: people.length, folks: people.map(h).join(', ') })} ${t('cast.names_where')}</p>` : ''}
     <script>
-    // The target field belongs to role and spelling, the name to the
-    // person. What does not fit is hidden, not merely ignored.
+    // The target field belongs to role and spelling. What does not fit
+    // is hidden, not merely ignored.
     [].forEach.call(document.querySelectorAll('#bes tr'), function (tr) {
       var art = tr.querySelector('select.kindsel');
       if (!art) return;
-      var target = tr.querySelector('select.targetsel'), who = tr.querySelector('input.whosel');
+      var target = tr.querySelector('select.targetsel');
       function richte() {
         var a = art.value;
         if (target) target.hidden = (a !== 'rolle' && a !== 'alias');
-        if (who) who.hidden = (a !== 'person');
       }
       art.addEventListener('change', richte);
       richte();
