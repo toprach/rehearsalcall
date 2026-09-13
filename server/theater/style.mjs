@@ -17,6 +17,7 @@ export const STYLE = `
     --chip:#eceae5; --chip-ink:#2a2622;
   }
   * { box-sizing:border-box }
+  [hidden] { display:none !important }
   body { margin:0; background:var(--ground); color:var(--ink);
          font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
          -webkit-font-smoothing:antialiased }
@@ -164,8 +165,10 @@ export const STYLE = `
   .tabs a.on { font-weight:700; border-bottom:2px solid var(--accent) }
   /* The calendar's day panel floats above the calendar instead of
      pushing it around below. */
-  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex;
-             align-items:center; justify-content:center; z-index:50; padding:1rem }
+  .overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.45);
+             display:flex; align-items:center; justify-content:center; z-index:50; padding:1rem }
+  /* display:flex would beat the browser's [hidden] rule - say it again. */
+  .overlay[hidden] { display:none }
   .overlay .box { width:100%; max-width:34rem; margin:0; max-height:90vh; overflow:auto;
                   box-shadow:0 12px 40px rgba(0,0,0,.35) }
   .whopick select,
