@@ -68,7 +68,7 @@ export const de = {
   'mem.back_to':   'zurück zu {name}',
   'mem.switch_who': 'arbeiten für \u2026',
   'mem.switch_go': 'umschalten',
-  'mem.my_times': 'Meine Zeiten',
+  'mem.my_times': 'Meine Verfügbarkeit',
   'mem.my_rehearsals': 'Meine Proben',
   'mem.part_book':   'Rollenheft',
   'mem.full_script': 'Gesamtskript',
@@ -89,7 +89,7 @@ export const de = {
                     + '\u00f6ffnen und im Browser drucken.',
 
   /* ---------- the bar in a printed document ---------- */
-  'bar.times':    'Meine Zeiten',
+  'bar.times':    'Meine Verfügbarkeit',
   'bar.dates':   'Meine Probentermine',
   'bar.full':    'Gesamtskript, für mich markiert',
   'bar.hint':   'Diese Knöpfe werden nicht mitgedruckt.',
@@ -199,7 +199,7 @@ export const de = {
   'pick.nobody':     'In diesem Projekt ist noch niemand angelegt.',
 
   /* ---------- company navigation ---------- */
-  'navm.times':    'Meine Zeiten',
+  'navm.times':    'Meine Verfügbarkeit',
   'navm.dates':   'Termine',
   'navm.scripts': 'Skripte',
 
@@ -465,7 +465,7 @@ export const de = {
   'mdate.all_arranged':  'Alles vereinbart.',
 
   /* ---------- my times: the calendar ---------- */
-  'my.title':        'Meine Zeiten',
+  'my.title':        'Meine Verfügbarkeit',
   'my.holds':         'Das gilt derzeit für Sie: {n} Abende',
   'my.holds_1':       'Das gilt derzeit für Sie: ein Abend',
   'my.last_saved':      'Zuletzt gespeichert: {when}',

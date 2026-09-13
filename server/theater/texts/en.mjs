@@ -71,7 +71,7 @@ export const en = {
   'mem.back_to':   'back to {name}',
   'mem.switch_who': 'work for \u2026',
   'mem.switch_go': 'switch',
-  'mem.my_times': 'Times',
+  'mem.my_times': 'Availability',
   'mem.my_rehearsals': 'Rehearsals',
   'mem.part_book':   'Part book',
   'mem.full_script': 'Full script',
@@ -92,7 +92,7 @@ export const en = {
                     + 'open one and print it in the browser.',
 
   /* ---------- the bar in a printed document ---------- */
-  'bar.times':    'My times',
+  'bar.times':    'My availability',
   'bar.dates':   'My rehearsal dates',
   'bar.full':    'Full script, marked for me',
   'bar.hint':   'These buttons are not printed.',
@@ -203,7 +203,7 @@ export const en = {
   'pick.nobody':     'Nobody has been set up in this project yet.',
 
   /* ---------- company navigation ---------- */
-  'navm.times':    'My times',
+  'navm.times':    'My availability',
   'navm.dates':   'Dates',
   'navm.scripts': 'Scripts',
 
@@ -468,7 +468,7 @@ export const en = {
   'mdate.all_arranged':  'Everything arranged.',
 
   /* ---------- my times: the calendar ---------- */
-  'my.title':        'My times',
+  'my.title':        'My availability',
   'my.holds':         'This is what currently holds for you: {n} evenings',
   'my.holds_1':       'This is what currently holds for you: one evening',
   'my.last_saved':      'Last saved: {when}',

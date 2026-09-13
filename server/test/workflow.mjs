@@ -364,7 +364,7 @@ for (const b of cast) {
     check('the director sees the project link', /href="\/theater\/projekt"/.test(me.text));
     const pj = await call('GET', '/theater/projekt');
     check('the director opens the project through the company link', pj.status === 200);
-    check('the company page comes in the project language', /Meine Zeiten/.test(me.text) && /lang="de"/.test(me.text));
+    check('the company page comes in the project language', /Meine Verfügbarkeit/.test(me.text) && /lang="de"/.test(me.text));
     const all = await call('GET', '/theater/mit/termine?alle=1');
     check('all rehearsals for a member', all.status === 200 &&
           planIds.every(id => all.text.includes('>' + id + '<')), 'status ' + all.status);
