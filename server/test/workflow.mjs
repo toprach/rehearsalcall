@@ -444,7 +444,7 @@ for (const b of cast) {
     const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
     const bk = await call('GET', '/theater/mit/heft');
-    check('the screen part book lists passages', bk.status === 200 && /class="pass"/.test(bk.text) &&
+    check('the screen part book lists passages', bk.status === 200 && /class="pass cmt/.test(bk.text) &&
           /id="heft-data"/.test(bk.text) && /class="tabbar"/.test(bk.text), 'status ' + bk.status);
     clean('screen part book', bk);
     const hd = JSON.parse((/<script id="heft-data" type="application\/json">([\s\S]*?)<\/script>/.exec(bk.text) || [])[1] || '{}');
@@ -460,6 +460,10 @@ for (const b of cast) {
     check('an unknown chunk is refused', lr.status === 400, 'status ' + lr.status);
     const bk2 = await call('GET', '/theater/mit/heft');
     check('the state comes back with the page', new RegExp('"' + firstKey + '":\\{"s":0').test(bk2.text));
+    const pl = await call('GET', '/theater/mit/stueck');
+    check('the whole play is readable on the screen', pl.status === 200 && /class="say cmt mine"/.test(pl.text) &&
+          /id="play-data"/.test(pl.text), 'status ' + pl.status);
+    clean('the play page', pl);
     const js = await call('GET', '/theater/heft.js');
     check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
   }

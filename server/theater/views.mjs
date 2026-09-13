@@ -1156,6 +1156,8 @@ function memberPage(project, person, m, realSelf) {
         : t('mem.rehearsals_no')}</td></tr>
       <tr><th>${t('mem.part_book')}</th><td>${project.drehbuch
         ? t('mem.book_open') : t('mem.no_script')}</td></tr>
+      <tr><th>${t('mem.play')}</th><td>${project.skript
+        ? t('mem.play_open') : '<span class="muted">\u2014</span>'}</td></tr>
       <tr><th>${t('mem.full_script')}</th><td>${project.drehbuch
         ? t('mem.full_open') : '<span class="muted">\u2014</span>'}</td></tr>
       ${project.drehbuch && project.plan?.proben?.length && project.druck_token
@@ -1175,16 +1177,23 @@ function memberPage(project, person, m, realSelf) {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words, state = {}, today = '') {
+function bookPage(project, person, passages, words, state = {}, today = '', comments = []) {
   const who = person.name || person.b;
   const chunks = passages.flatMap(p => p.chunks);
   const fig = summaryOf(state, chunks, today);
   const line = (l) => l.dir
     ? `<p class="dir">${h(l.text)}</p>`
     : `<p class="say ctxline">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`;
+  /* The private note "what do I want here?": a small icon after the
+     last character of the chunk opens it. It belongs to the person
+     alone and never appears anywhere else. */
+  const noteButton = (key, note) => `<button type="button" class="notebtn${note ? ' has' : ''}" data-key="${h(key)}"
+      title="${h(t('book.intent'))}" aria-label="${h(t('book.intent'))}">${icon('note')}</button>`;
+  const noteBox = (key, note) => `<div class="notebox" data-key="${h(key)}" hidden>
+      <label class="small">${t('book.intent')} <span class="muted">${t('book.intent_hint')}</span></label>
+      <input type="text" maxlength="200" value="${h(note)}" placeholder="${h(t('book.intent_private'))}"></div>`;
   const card = (p) => {
-    const notes = p.chunks.map(c => state[c.key]?.a).filter(Boolean);
-    return `<section class="pass${p.cut ? ' cut' : ''}" id="pass-${p.i}">
+    return `<section class="pass cmt${p.cut ? ' cut' : ''}" id="pass-${p.i}"${p.nr != null ? ` data-nr="${p.nr}"` : ''}>
       <div class="passhead small muted"><span class="pno">${p.i}</span>
         ${p.chapter ? h(p.chapter) : ''}${p.nr != null ? ' \u00b7 ' + t('book.cue_nr', { nr: p.nr }) : ''}
         ${p.role ? ' \u00b7 ' + h(p.role) : ''}</div>
@@ -1193,11 +1202,15 @@ function bookPage(project, person, passages, words, state = {}, today = '') {
       ${p.cue ? `<p class="cue"><b>${h(p.cue.who)}:</b> ${h(p.cue.text)}</p>` : `<p class="cue muted">${t('book.no_cue')}</p>`}
       ${p.before.map(d => `<p class="dir">${h(d)}</p>`).join('')}
       <div class="mine">
-        ${p.lines.map(l => l.direction
-          ? `<p class="dir">${h(l.direction)}</p>`
-          : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`).join('')}
+        ${p.chunks.map(c => {
+          const last = c.lines.map((l, i) => l.text ? i : -1).filter(i => i >= 0).pop();
+          const note = state[c.key]?.a || '';
+          return c.lines.map((l, i) => l.direction
+            ? `<p class="dir">${h(l.direction)}</p>`
+            : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}${
+                i === last ? noteButton(c.key, note) : ''}</p>`).join('') + noteBox(c.key, note);
+        }).join('')}
       </div>
-      ${notes.length ? `<p class="intent small"><b>${t('book.intent')}:</b> ${notes.map(h).join(' \u00b7 ')}</p>` : ''}
       ${p.after.map(d => `<p class="dir after">${h(d)}</p>`).join('')}
       ${p.ctxAfter.length ? `<div class="ctxwrap"><div class="ctx after">${p.ctxAfter.map(l => `<div hidden>${line(l)}</div>`).join('')}</div>
         <button type="button" class="quiet mini ctx-more after">${h(t('book.more_after'))}</button></div>` : ''}
@@ -1207,6 +1220,10 @@ function bookPage(project, person, passages, words, state = {}, today = '') {
   const data = {
     today,
     state,
+    token: project.druck_token || '',
+    me: person.b,
+    locale: L.locale,
+    comments,
     passages: passages.map(p => ({ i: p.i, chapter: p.chapter, nr: p.nr,
       chunks: p.chunks.map(c => ({ key: c.key, cue: c.cue, lines: c.lines, before: c.before, after: c.after,
                                    teil: c.teil, words: c.words })) })),
@@ -1219,6 +1236,10 @@ function bookPage(project, person, passages, words, state = {}, today = '') {
       again: t('book.again'), with_help: t('book.with_help'), knew: t('book.knew'),
       done_title: t('book.done_title'), done_text: t('book.done_text'), once_more: t('book.once_more'),
       nothing_hard: t('book.nothing_hard'), nothing_hard_what: t('book.nothing_hard_what'),
+      c_new: t('kd.new'), c_text: t('kd.text'), c_question: t('kd.question'), c_save: t('kd.save'),
+      c_cancel: t('kd.cancel'), c_comments: t('kd.comments'), c_answer: t('kd.answer'), c_del: t('kd.delete'),
+      c_done: t('kd.done'), c_failed: t('kd.failed'), c_hint: t('book.dbl_hint'),
+      intent_private: t('book.intent_private'), note_icon: icon('note'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -1229,21 +1250,70 @@ function bookPage(project, person, passages, words, state = {}, today = '') {
     <h1>${t('book.title_for', { name: h(who) })}</h1>
     <p class="small muted">${t('book.figures', { passages: passages.length, words })}
       ${project.druck_token ? `\u00b7 <a href="/theater/druck/${h(project.druck_token)}/rolle/${
-        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>
-        \u00b7 <a href="/theater/druck/${h(project.druck_token)}/probenplan" target="_blank" rel="noopener">${t('book.plan_doc')}</a>` : ''}</p>
+        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>` : ''}
+      \u00b7 <a href="/theater/mit/stueck">${t('book.play_link')}</a></p>
     <div class="heft-modes">
       <button type="button" data-mode="lesen" class="on">${h(t('book.mode_read'))}</button>
       <button type="button" data-mode="lernen">${h(t('book.mode_learn'))}</button>
       <button type="button" data-mode="intensiv">${h(t('book.mode_hard'))} <span id="heft-hardcount">${fig.hard ? '(' + fig.hard + ')' : ''}</span></button>
     </div>
     <div id="heft-lesen">
-      <p class="small muted">${t('book.read_what')}</p>
+      <p class="small muted">${t('book.read_what')} ${t('book.dbl_hint')}</p>
       <div id="book">${passages.map(card).join('')}</div>
       ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
     </div>
     <div id="heft-lernen" hidden><p class="small muted">${t('book.learn_what')}</p></div>
     <div id="heft-intensiv" hidden><p class="small muted">${t('book.hard_what')}</p></div>
     <script id="heft-data" type="application/json">${json}</script>
+    <script src="/theater/heft.js?v=${HEFT_V}"></script>` });
+}
+
+/* ---------------------------------------------------------------------
+   The whole play on the screen: every line, the own ones marked, the
+   own name in the directions too; the bar hops between them, a double
+   tap opens the comments. The rehearsal that begins at a line is noted.
+   --------------------------------------------------------------------- */
+function playPage(project, person, blocks, starts, comments) {
+  const me = person.b;
+  const markName = (text) => {
+    // the own name in a direction, whole word only
+    const parts = [];
+    let i = 0, idx;
+    const isWord = c => !!c && /[\p{L}\p{N}]/u.test(c);
+    while ((idx = text.indexOf(me, i)) >= 0) {
+      const ok = !isWord(text.charAt(idx - 1)) && !isWord(text.charAt(idx + me.length));
+      parts.push(h(text.slice(i, idx)), ok ? `<mark class="me">${h(me)}</mark>` : h(me));
+      i = idx + me.length;
+    }
+    parts.push(h(text.slice(i)));
+    return parts.join('');
+  };
+  const block = (b) => {
+    if (b.kind === 'chapter') return b.act ? `<h2>${h(b.text)}</h2>` : `<h3>${h(b.text)}</h3>`;
+    if (b.kind === 'dir') return `<p class="dir">${markName(b.text)}</p>`;
+    const from = b.nr != null && starts[b.nr] ? `<div class="rehearsal-from small">${
+      starts[b.nr].map(id => `<a class="chip" href="/theater/mit/plan/${encodeURIComponent(id)}">${h(t('play.rehearsal_from', { id: h(id) }))}</a>`).join('')}</div>` : '';
+    return from + `<p class="say cmt${b.own ? ' mine' : ''}${b.cut ? ' cut' : ''}"${b.nr != null ? ` data-nr="${b.nr}"` : ''}>${
+      b.cont ? '' : `<b>${h(b.who)}:</b> `}${h(b.text)}</p>`;
+  };
+  const own = blocks.filter(b => b.kind === 'speech' && b.own && !b.cont).length;
+  const data = { token: project.druck_token || '', me, locale: L.locale, comments, play: true,
+    t: { c_new: t('kd.new'), c_text: t('kd.text'), c_question: t('kd.question'), c_save: t('kd.save'),
+         c_cancel: t('kd.cancel'), c_comments: t('kd.comments'), c_answer: t('kd.answer'), c_del: t('kd.delete'),
+         c_failed: t('kd.failed'), prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine') } };
+  const json = JSON.stringify(data).replace(/</g, '\u003c');
+  return page({ title: t('play.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), narrow: true, body: `
+    <p class="eyebrow">${h(project.titel)}</p>
+    <h1>${t('play.title')}</h1>
+    <p class="small muted">${t('play.what', { n: own })}
+      <a href="/theater/mit/heft">${t('play.to_book')}</a></p>
+    <div class="play" id="play">${blocks.map(block).join('')}</div>
+    <div class="playbar" id="playbar">
+      <button type="button" class="quiet" id="play-prev" title="${h(t('kd.prev_mine'))}">\u25c0 ${h(me)}</button>
+      <span class="small muted" id="play-pos"></span>
+      <button type="button" class="quiet" id="play-next" title="${h(t('kd.next_mine'))}">${h(me)} \u25b6</button>
+    </div>
+    <script id="play-data" type="application/json">${json}</script>
     <script src="/theater/heft.js?v=${HEFT_V}"></script>` });
 }
 
@@ -2201,5 +2271,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
-           settingsPage };
+           settingsPage, playPage };
 }

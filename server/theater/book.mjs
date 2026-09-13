@@ -112,6 +112,20 @@ export function partBook(structure, b, opt = {}) {
   return passages;
 }
 
+/* The whole play for the screen: chapters, speeches and directions in
+   order, the own speeches marked. What the plan document shows on A4,
+   readable on a phone. */
+export function wholePlay(structure, b) {
+  const out = [];
+  for (const e of flatten(structure)) {
+    if (e.typ === 'kapitel') out.push({ kind: 'chapter', text: e.text || '', act: /^\d+\.$/.test(e.kapitel || '') });
+    else if (isDirection(e)) out.push({ kind: 'dir', text: e.text || '' });
+    else if (isSpeech(e)) out.push({ kind: 'speech', nr: e.nr ?? null, who: e.figur || e.sprecher_im_text || '',
+                                     text: e.text || '', cont: e.typ === 'fortsetzung', own: speaks(e, b), cut: !!e.gestrichen });
+  }
+  return out;
+}
+
 /* Rough count of the words one has to learn. */
 export const wordsOf = passages => passages.reduce((a, p) =>
   a + p.lines.reduce((x, l) => x + (l.text ? l.text.split(/\s+/).length : 0), 0), 0);

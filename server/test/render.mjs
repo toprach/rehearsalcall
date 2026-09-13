@@ -179,8 +179,14 @@ for (const { code } of LANGUAGES) {
                    before: [], after: ['Exit.'], teil: [2, 2], words: 1 }] },
       { i: 2, nr: null, act: '', chapter: '', cue: null, before: [], lines: [{ who: 'OBERON', text: 'x', cut: true }], after: [], cut: true, role: 'KING',
         ctxBefore: [], ctxAfter: [], chunks: [{ key: 'k3.c', cue: null, lines: [{ who: 'OBERON', text: 'x', cut: true }], before: [], after: [], teil: null, words: 1 }] },
-    ], 12, { 'k1.a': { s: 3, f: '2026-09-10', l: [2, 2, 0], a: 'win <her>' } }, '2026-09-14'),
+    ], 12, { 'k1.a': { s: 3, f: '2026-09-10', l: [2, 2, 0], a: 'win <her>' } }, '2026-09-14',
+       [{ id: 'c1', nr: 3, text: 'a <b>', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false }]),
     bookEmpty: () => A.bookPage(project, person, [], 0, {}, '2026-09-14'),
+    playPage: () => A.playPage(project, person, [
+      { kind: 'chapter', text: 'ACT I', act: true }, { kind: 'chapter', text: 'SCENE I', act: false },
+      { kind: 'dir', text: 'Enter OBERON and <PUCK>.' }, { kind: 'speech', nr: 1, who: 'PUCK', text: 'How now?', own: false },
+      { kind: 'speech', nr: 2, who: 'OBERON', text: 'Ill met <b>', own: true }, { kind: 'speech', nr: null, who: 'OBERON', text: 'Tarry.', own: true, cont: true },
+    ], { 2: ['P01', 'P02'] }, [{ id: 'c1', nr: 2, text: 'x', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: false, antwort: null, erledigt: false }]),
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([
       { id: 'abcd1234', titel: 'One <play>', angelegt: '2026-09-01T10:00:00Z', email: 'a@b.c',

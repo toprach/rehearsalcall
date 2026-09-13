@@ -269,9 +269,26 @@ export const STYLE = `
   .heft-modes button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--field-edge) }
   .heft-modes button.on { background:var(--accent); color:#fff; border-color:var(--accent) }
   .pass .cue.own { border-left-color:var(--accent) }
+  /* A double tap opens the comments; it must not select a word instead. */
+  .pass { -webkit-user-select:none; user-select:none }
+  .pass .cbadge { display:inline-block; margin-left:.4em; padding:0 .45em; border-radius:1em; border:1px solid var(--accent);
+                  color:var(--accent); font-size:.75rem; font-weight:600; cursor:pointer }
+  .pass .cbadge.q { background:var(--accent); color:#fff }
+  .cmt-item { border-top:1px solid var(--rule); padding:.5rem 0 }
+  .cmt-item .who { font-size:.85em; color:var(--muted) }
+  .cmt-item .q { color:var(--accent); font-weight:600; font-size:.85em }
+  .cmt-item .ans { margin:.3rem 0 0 1rem; padding-left:.6rem; border-left:3px solid var(--good) }
+  .cmt-item .del { float:right; font-size:.8em; color:var(--accent); background:none; border:0; padding:0; margin:0; cursor:pointer }
+  .overlay .box textarea { width:100%; min-height:5rem; margin:.3rem 0 }
   .pass .ctxwrap .ctx-more { margin:.2rem 0 }
   .pass .ctx .ctxline, .pass .ctx .dir { opacity:.7; font-size:.95rem }
   .pass .intent { color:var(--muted); margin:.4rem 0 0 }
+  .pass .notebtn { display:inline-block; vertical-align:baseline; margin:0 0 0 .35em; padding:0; border:0; background:none;
+                   color:var(--muted); cursor:pointer; line-height:0 }
+  .pass .notebtn svg { width:1em; height:1em; vertical-align:-.1em }
+  .pass .notebtn.has { color:var(--accent) }
+  .pass .notebox { margin:.3rem 0 .5rem }
+  .pass .notebox input { width:100%; margin:.2rem 0 0 }
   .pass.learn .speak { margin:.6rem 0 .2rem }
   .pass.learn .hinted { color:var(--muted); letter-spacing:.02em }
   .pass.learn .acts { margin-top:.6rem }
@@ -280,6 +297,22 @@ export const STYLE = `
   .pass.learn .rate button { flex:1 1 6rem; margin:0 }
   .pass.learn .intentbox input { width:100%; margin:.2rem 0 .4rem }
   .pass.learn .batch { margin-left:auto }
+  /* --- the whole play on the screen --- */
+  .play h2 { margin:1.6rem 0 .4rem } .play h3 { margin:1.2rem 0 .3rem; font-size:1.05rem }
+  .play .say { margin:.35rem 0; -webkit-user-select:none; user-select:none }
+  .play .say.mine { border-left:3px solid var(--accent); padding-left:.5rem; margin-left:-.6rem; background:rgba(179,39,45,.05) }
+  .play .say.cut { text-decoration:line-through; opacity:.6 }
+  .play .dir { color:var(--muted); font-style:italic; margin:.3rem 0 }
+  .play mark.me { background:#ffe58a; color:inherit; font-weight:700; padding:0 .1em }
+  .play .rehearsal-from { margin:.6rem 0 .2rem }
+  .play .rehearsal-from .chip { text-decoration:none }
+  .play .cbadge { display:inline-block; margin-left:.4em; padding:0 .45em; border-radius:1em; border:1px solid var(--accent);
+                  color:var(--accent); font-size:.75rem; font-weight:600; cursor:pointer }
+  .play .cbadge.q { background:var(--accent); color:#fff }
+  .playbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.6rem; align-items:center;
+             justify-content:center; padding:.4rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
+  .playbar button { margin:0 }
+  @media (max-width:700px) { body .playbar { bottom:3.9rem } }
   .figures { margin:.4rem 0 .8rem }
   .figures .steps { display:flex; height:.5rem; margin-top:.4rem; border-radius:3px; overflow:hidden; background:var(--rule) }
   .figures .steps i { display:block; min-width:0 }

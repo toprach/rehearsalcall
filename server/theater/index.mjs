@@ -28,7 +28,7 @@ import * as Throttle from './throttle.mjs';
 import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
          mappingProposal, buildDocument } from './script.mjs';
 import { compareSpeeches, realignPlan, rehearsalsByCue } from './versions.mjs';
-import { partBook, wordsOf } from './book.mjs';
+import { partBook, wordsOf, wholePlay } from './book.mjs';
 import * as Learn from './learn.mjs';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -946,6 +946,23 @@ export async function handle(request, response, path) {
 
     /* The part book for the screen: passage by passage, with the
        learning mode. The A4 document stays on the scripts page. */
+    /* The whole play, readable on a phone: own lines marked, the
+       rehearsals noted where they begin, comments by double tap. */
+    if (second === 'stueck') {
+      await drainBody(request);
+      if (!project.skript) return html(response, A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
+      const blocks = wholePlay(project.skript, person.b);
+      const starts = {};
+      for (const pr of project.plan?.proben || [])
+        for (const sz of pr.szenen || []) if (sz.nr_von != null) (starts[sz.nr_von] = starts[sz.nr_von] || []).push(pr.id);
+      const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const nameOf = (b) => (project.personen || []).find(x => x.b === b)?.name || b;
+      const comments = (project.kommentare || []).filter(c => mayAll || c.wer === person.b)
+        .map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer, name: nameOf(c.wer), datum: c.datum,
+                     frage: !!c.frage, antwort: c.antwort || null, erledigt: !!c.erledigt }));
+      return html(response, A.playPage(project, person, blocks, starts, comments));
+    }
+
     if (second === 'heft') {
       if (!project.skript) { await drainBody(request); return html(response,
         A.errorPage('f.no_structure_t', 'f.no_structure'), 404); }
@@ -983,7 +1000,13 @@ export async function handle(request, response, path) {
 
       await drainBody(request);
       const state = project.lernen?.[person.id] || {};
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today));
+      // Comments as in the documents: the director sees all, everybody else their own.
+      const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const nameOf = (b) => (project.personen || []).find(x => x.b === b)?.name || b;
+      const comments = (project.kommentare || []).filter(c => mayAll || c.wer === person.b)
+        .map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer, name: nameOf(c.wer), datum: c.datum,
+                     frage: !!c.frage, antwort: c.antwort || null, erledigt: !!c.erledigt }));
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today, comments));
     }
 
     if (second === 'gesamt') {
