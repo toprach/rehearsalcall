@@ -18,8 +18,14 @@ export const STYLE = `
   }
   * { box-sizing:border-box }
   [hidden] { display:none !important }
+  /* The type size is a setting per device; everything is in rem, so the
+     root size carries it through. */
+  html { font-size:16px }
+  html[data-font="klein"] { font-size:14px }
+  html[data-font="gross"] { font-size:18px }
+  html[data-font="sehrgross"] { font-size:21px }
   body { margin:0; background:var(--ground); color:var(--ink);
-         font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+         font:1rem/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
          -webkit-font-smoothing:antialiased }
   .frame { max-width:60rem; margin:0 auto; padding:2.5rem 1.5rem 5rem }
   .foot { border-top:1px solid var(--rule); margin-top:2rem }
@@ -197,6 +203,11 @@ export const STYLE = `
   .langpick { display:flex; align-items:center; flex:0 0 auto; order:1;
               margin:0 0 0 .8rem }
   .themepick { flex:0 0 auto; order:2; margin:0 0 0 .4rem }
+  .head a.settings { flex:0 0 auto; order:3; margin-left:.5rem; text-decoration:none; color:var(--muted);
+                     font-size:1.15rem; line-height:1 }
+  .head a.settings:hover { color:var(--ink) }
+  form.settings .choices { display:flex; flex-wrap:wrap; gap:.4rem 1.2rem; margin:.2rem 0 .6rem }
+  form.settings label.choice { font-weight:400; font-size:1rem; margin:0 }
   .themepick button { margin:0; padding:.25rem .5rem; line-height:1; font-size:1rem;
                       border-radius:6px }
   .whopick { display:inline-block; margin:0 }

@@ -418,6 +418,15 @@ for (const b of cast) {
     pj = await call('GET', '/theater/mit');
     check('so does the member start page', pj.status === 200 &&
           new RegExp('/theater/ich/[a-z0-9]{16}/heft').test(pj.text), 'status ' + pj.status);
+    // Settings for this device: three cookies, applied on the next page.
+    pj = await post('/theater/einstellungen', { language: 'en', thema: 'dunkel', schrift: 'gross', back: '/theater/mit' });
+    check('settings are saved and lead back', pj.status === 303, 'status ' + pj.status);
+    pj = await call('GET', '/theater/mit');
+    check('language, look and type size apply', /<html lang="en"/.test(pj.text) && /<html [^>]*data-theme="dark"/.test(pj.text) &&
+          /<html [^>]*data-font="gross"/.test(pj.text), 'status ' + pj.status);
+    pj = await post('/theater/einstellungen', { language: '', thema: 'hell', schrift: 'normal', back: '/theater/mit' });
+    pj = await call('GET', '/theater/mit');
+    check('and can be put back', !/<html [^>]*data-theme="dark"/.test(pj.text) && !/<html [^>]*data-font=/.test(pj.text), 'status ' + pj.status);
     cookies = '';
     await call('GET', ich || '/theater/ich/x');
     const me2 = await call('GET', '/theater/mit');

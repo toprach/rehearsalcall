@@ -123,6 +123,9 @@ for (const { code } of LANGUAGES) {
   const pages = {
     entryPage: () => A.entryPage({ kind: 'error', key: 'r.code_unknown' }),
     entryDemos: () => A.entryPage(null, [{ key: 'midsummer', title: 'A <Dream>' }]),
+    settingsPage: () => A.settingsPage({ language: 'de', theme: 'dunkel', font: 'gross' }, '/theater/mit', null,
+      { project, person }),
+    settingsAnon: () => A.settingsPage({ language: '', theme: 'hell', font: 'normal' }, '/theater', null, null),
     aboutPage: () => A.aboutPage(),
     projectPage: () => A.projectPage(project, { kind: 'good', key: 'r.created', values: { p1: 'X' } }),
     uploadPage: () => A.uploadPage(project, { kind: 'error', key: 'r.style_unknown', values: { colon: 3, dot: 4 } }),

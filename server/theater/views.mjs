@@ -57,7 +57,8 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
      entry. The navigation says which. */
   const home = /href="\/theater\/mit\/zeiten"/.test(nav) ? '/theater/mit'
              : /href="\/theater\/leute"/.test(nav) ? '/theater/projekt' : '/theater';
-  return `<!doctype html><html lang="${L.code}"${ctx.theme === 'dunkel' ? ' data-theme="dark"' : ''}><head><meta charset="utf-8">
+  return `<!doctype html><html lang="${L.code}"${ctx.theme === 'dunkel' ? ' data-theme="dark"' : ''}${
+    ctx.font && ctx.font !== 'normal' ? ` data-font="${h(ctx.font)}"` : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
@@ -69,6 +70,8 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
     <button class="quiet" type="submit" title="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}"
             aria-label="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}">${ctx.theme === 'dunkel' ? '\u2600' : '\u263d'}</button>
   </form>
+  <a class="settings" href="/theater/einstellungen?z=${encodeURIComponent(pfad)}" title="${h(t('nav.settings'))}"
+     aria-label="${h(t('nav.settings'))}">\u2699</a>
 </div></header>
 <div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${ctx.demo
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
@@ -1079,9 +1082,10 @@ const memberTabbar = (project, person) => {
     ['/theater/mit/termine', t('navm.dates'), '\u2637'],
     ['/theater/mit/heft', t('navm.book'), '\u270e'],
     ['/theater/mit/kommentare', t('nav.comments'), '\u2709'],
+    ['/theater/einstellungen?z=' + encodeURIComponent(pfad), t('nav.settings'), '\u2699'],
   ];
   return `<nav class="tabbar">${items.map(([href, label, icon]) =>
-    `<a href="${href}"${pfad === href || (href !== '/theater/mit' && pfad.startsWith(href)) ? ' class="on"' : ''}>
+    `<a href="${href}"${pfad === href || pfad.startsWith(href.split('?')[0]) ? ' class="on"' : ''}>
       <span class="ico">${icon}</span><span>${h(label)}</span></a>`).join('')}</nav>`;
 };
 
@@ -1247,6 +1251,44 @@ function bookPage(project, person, passages, words, link = '') {
       paint();
     })();
     <\/script>` });
+}
+
+/* ---------------------------------------------------------------------
+   Settings for this device: language, light or dark, type size. Kept
+   in cookies, so each phone and each computer has its own.
+   --------------------------------------------------------------------- */
+function settingsPage(current, back, m, who) {
+  const radio = (name, value, label, checked) => `<label class="inline choice">
+      <input type="radio" name="${name}" value="${h(value)}"${checked ? ' checked' : ''}> ${h(label)}</label>`;
+  const nav = who ? navMember(who.project, who.person) : '';
+  const tabbar = who ? memberTabbar(who.project, who.person) : '';
+  return page({ title: t('set.title'), nav, tabbar, narrow: true, body: `
+    <p class="eyebrow">${t('set.eyebrow')}</p>
+    <h1>${t('set.title')}</h1>
+    ${notice(m)}
+    <p class="muted">${t('set.what')}</p>
+    <form method="post" action="/theater/einstellungen" class="settings">
+      <input type="hidden" name="back" value="${h(back)}">
+      <label>${t('set.language')}</label>
+      <div class="choices">
+        ${radio('language', '', t('set.language_auto'), !current.language)}
+        ${LANGUAGES.map(x => radio('language', x.code, x.name, current.language === x.code)).join('')}
+      </div>
+      <label>${t('set.theme')}</label>
+      <div class="choices">
+        ${radio('thema', 'hell', t('set.theme_light'), current.theme !== 'dunkel')}
+        ${radio('thema', 'dunkel', t('set.theme_dark'), current.theme === 'dunkel')}
+      </div>
+      <label>${t('set.font')}</label>
+      <div class="choices">
+        ${radio('schrift', 'klein', t('set.font_small'), current.font === 'klein')}
+        ${radio('schrift', 'normal', t('set.font_normal'), !current.font || current.font === 'normal')}
+        ${radio('schrift', 'gross', t('set.font_large'), current.font === 'gross')}
+        ${radio('schrift', 'sehrgross', t('set.font_xlarge'), current.font === 'sehrgross')}
+      </div>
+      <button type="submit">${t('common.save')}</button>
+      <a class="btn quiet" href="${h(back)}">${t('common.back')}</a>
+    </form>` });
 }
 
 /* ---------------------------------------------------------------------
@@ -2115,5 +2157,6 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage };
+           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
+           settingsPage };
 }

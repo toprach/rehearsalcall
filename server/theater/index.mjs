@@ -416,8 +416,10 @@ export async function handle(request, response, path) {
   let L = isLanguage(chosen) ? chosen
         : fromHeader(request.headers['accept-language']);
   const regie = await regieFrom(request, null);
+  const fontCookie = plainCookie(request, 'schrift');
   const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null,
-                theme: plainCookie(request, 'thema') === 'dunkel' ? 'dunkel' : 'hell' };
+                theme: plainCookie(request, 'thema') === 'dunkel' ? 'dunkel' : 'hell',
+                font: ['klein', 'normal', 'gross', 'sehrgross'].includes(fontCookie) ? fontCookie : 'normal' };
   /* A demo project says so on every page, with the hour of the next reset. */
   const demoBanner = (project) => {
     if (project?.demo) ctx.demo = { until: new Date(Date.parse(project.demo_reset || 0) + Demo.RESET_MS) };
@@ -450,6 +452,33 @@ export async function handle(request, response, path) {
       '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
     const back = String(fields.back || '/theater');
     return redirect(response, /^\/theater(\/|$)/.test(back) ? back : '/theater');
+  }
+
+  /* --- settings for this device: language, light or dark, type size.
+         Three cookies, no access needed; the language one is the same
+         the picker in the head sets, and empty means "as the project or
+         the browser says". --- */
+  if (first === 'einstellungen') {
+    const who = await memberFrom(request);
+    const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+    const own = (x) => /^\/theater(\/|$)/.test(x) && !/^\/theater\/einstellungen/.test(x);
+    if (!post) {
+      await drainBody(request);
+      const back = own(query.get('z') || '') ? query.get('z') : (who ? '/theater/mit' : '/theater');
+      return html(response, A.settingsPage({ language: isLanguage(chosen) ? chosen : '', theme: ctx.theme, font: ctx.font },
+        back, null, who));
+    }
+    const { fields } = await readForm(request);
+    const lang = String(fields.language || '');
+    addCookie(response, isLanguage(lang)
+      ? 'sprache=' + lang + '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly'
+      : 'sprache=; Path=/theater; Max-Age=0; SameSite=Lax; HttpOnly');
+    const theme = String(fields.thema) === 'dunkel' ? 'dunkel' : 'hell';
+    addCookie(response, 'thema=' + theme + '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
+    const font = ['klein', 'normal', 'gross', 'sehrgross'].includes(String(fields.schrift)) ? String(fields.schrift) : 'normal';
+    addCookie(response, 'schrift=' + font + '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
+    const back = String(fields.back || '');
+    return redirect(response, own(back) ? back : (who ? '/theater/mit' : '/theater'));
   }
 
   /* --- about this installation: open to everyone --- */
