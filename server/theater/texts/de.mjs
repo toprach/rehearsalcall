@@ -200,7 +200,7 @@ export const de = {
 
   /* ---------- company navigation ---------- */
   'navm.times':    'Meine Verfügbarkeit',
-  'navm.dates':   'Termine',
+  'navm.dates':   'Probentermine',
   'navm.scripts': 'Skripte',
 
   /* ---------- casting ---------- */

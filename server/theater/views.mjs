@@ -52,12 +52,17 @@ export function views(code, pfad = '/theater', ctx = {}) {
 
 function page({ title, body, nav = '', narrow = false }) {
   const name = t('app.name');
+  /* The name in the head leads home - and home is where the visitor
+     is: a member's start page, the director's overview, else the
+     entry. The navigation says which. */
+  const home = /href="\/theater\/mit\/zeiten"/.test(nav) ? '/theater/mit'
+             : /href="\/theater\/leute"/.test(nav) ? '/theater/projekt' : '/theater';
   return `<!doctype html><html lang="${L.code}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
 <header class="head"><div class="inner">
-  <a class="brand" href="/theater">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
+  <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
 </div></header>
 <div class="frame${narrow ? ' narrow' : ''}">${body}</div>
 <footer class="foot"><div class="inner small muted">

@@ -204,7 +204,7 @@ export const en = {
 
   /* ---------- company navigation ---------- */
   'navm.times':    'My availability',
-  'navm.dates':   'Dates',
+  'navm.dates':   'Rehearsal dates',
   'navm.scripts': 'Scripts',
 
   /* ---------- casting ---------- */

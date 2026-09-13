@@ -808,6 +808,8 @@ export async function handle(request, response, path) {
   if (first === '' && !post) {
     const id = projectIdFromCookie(request);
     if (id && await S.read(id)) return redirect(response, '/theater/projekt');
+    // A member who is signed in lands on their own page, not at the code.
+    if (await memberFrom(request)) return redirect(response, '/theater/mit');
     return html(response, A.entryPage(null));
   }
 
