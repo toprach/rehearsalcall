@@ -220,9 +220,11 @@ export const STYLE = `
     .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40;
               background:var(--card); border-top:1px solid var(--rule);
               padding:.3rem 0 max(.3rem, env(safe-area-inset-bottom)) }
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:.1rem;
-                font-size:.7rem; color:var(--muted); text-decoration:none; padding:.2rem 0 }
-    .tabbar a .ico { font-size:1.25rem; line-height:1 }
+    /* The bar keeps its size whatever the type setting: five labels
+       have to fit a phone's width. */
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+                font-size:11px; line-height:1.25; text-align:center; color:var(--muted); text-decoration:none; padding:3px 0 }
+    .tabbar a .ico { font-size:20px; line-height:1 }
     .tabbar a.on { color:var(--accent); font-weight:700 }
     .frame.hastabs { padding-bottom:6rem }
     .overlay { align-items:flex-start; padding-top:1rem }
