@@ -1083,17 +1083,28 @@ const navMember = (project, person) => {
 /* The bar at the bottom of a phone screen: the four places a member
    goes. On a desk the links in the head do the same, and the bar is
    hidden. The current page is marked. */
+const ICONS = {
+  person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
 const memberTabbar = (project, person) => {
   const items = [
-    ['/theater/mit/zeiten', t('navm.times_short'), '\u25a6'],
-    ['/theater/mit/termine', t('navm.dates'), '\u2637'],
-    ['/theater/mit/heft', t('navm.book'), '\u270e'],
-    ['/theater/mit/kommentare', t('nav.comments'), '\u2709'],
-    ['/theater/einstellungen?z=' + encodeURIComponent(pfad), t('nav.settings'), '\u2699'],
+    ['/theater/mit/zeiten', t('navm.tab_avail'), 'person'],
+    ['/theater/mit/termine', t('navm.tab_dates'), 'calendar'],
+    ['/theater/mit/heft', t('navm.tab_book'), 'book'],
+    ['/theater/mit/kommentare', t('navm.tab_notes'), 'note'],
+    ['/theater/einstellungen?z=' + encodeURIComponent(pfad), '', 'gear', t('nav.settings')],
   ];
-  return `<nav class="tabbar">${items.map(([href, label, icon]) =>
-    `<a href="${href}"${pfad === href || pfad.startsWith(href.split('?')[0]) ? ' class="on"' : ''}>
-      <span class="ico">${icon}</span><span>${h(label)}</span></a>`).join('')}</nav>`;
+  return `<nav class="tabbar">${items.map(([href, label, ico, aria]) =>
+    `<a href="${href}"${pfad === href || pfad.startsWith(href.split('?')[0]) ? ' class="on"' : ''}${
+      aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
+      ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
 };
 
 /* The link that opens somebody's part book on any device. Copy, and

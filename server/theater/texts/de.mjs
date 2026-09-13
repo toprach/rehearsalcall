@@ -226,6 +226,10 @@ export const de = {
   'navm.scripts': 'Skripte',
   'navm.book':    'Rollenheft',
   'navm.times_short': 'Verf\u00fcgbarkeit',
+  'navm.tab_avail': 'Verf\u00fcgbar',
+  'navm.tab_dates': 'Termine',
+  'navm.tab_book':  'Rolle',
+  'navm.tab_notes': 'Notizen',
 
   /* ---------- casting ---------- */
   'cast.step':      'Schritt 2',

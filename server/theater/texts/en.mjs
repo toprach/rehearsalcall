@@ -229,6 +229,10 @@ export const en = {
   'navm.scripts': 'Scripts',
   'navm.book':    'Part book',
   'navm.times_short': 'Availability',
+  'navm.tab_avail': 'Available',
+  'navm.tab_dates': 'Dates',
+  'navm.tab_book':  'Part',
+  'navm.tab_notes': 'Notes',
 
   /* ---------- casting ---------- */
   'cast.step':      'Step 2',

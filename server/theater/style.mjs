@@ -213,8 +213,12 @@ export const STYLE = `
   .whopick { display:inline-block; margin:0 }
   /* --- a member on a phone: the links move into a bar at the bottom --- */
   .tabbar { display:none }
+  /* A long link or word must never make the page wider than the
+     screen: on a phone that drags the fixed bar out of sight. */
+  html, body { overflow-x:hidden; overflow-x:clip }
+  .copyable { max-width:100% }
+  .copyable code { min-width:0; max-width:100%; overflow-wrap:anywhere; word-break:break-all }
   @media (max-width:700px) {
-    body { overflow-x:hidden }
     .head.member nav a, .head.member .whopick, .head.member .langpick,
     .head.member .themepick, .head.member a.settings { display:none }
     .head.member nav { flex:0 1 auto; margin-left:0 }
@@ -226,7 +230,8 @@ export const STYLE = `
        have to fit a phone's width. */
     .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
                 font-size:11px; line-height:1.25; text-align:center; color:var(--muted); text-decoration:none; padding:3px 0 }
-    .tabbar a .ico { font-size:20px; line-height:1 }
+    .tabbar a svg { width:22px; height:22px; flex:0 0 auto }
+    .tabbar a { white-space:nowrap; justify-content:center }
     .tabbar a.on { color:var(--accent); font-weight:700 }
     .frame.hastabs { padding-bottom:6rem }
     .overlay { align-items:flex-start; padding-top:1rem }
