@@ -485,6 +485,10 @@ export const de = {
   'my.can':         'ich kann',
   'my.cannot':   'ich kann nicht',
   'my.time_wrong':  'Die Zeit „bis“ muss nach „ab“ liegen.',
+  'my.legend_blocked': 'von der Regie gestrichen',
+  'my.blocked':     'Die Regie hat diesen Tag gestrichen \u2013 keine Probe, wer auch immer k\u00f6nnte.',
+  'my.block':       'Tag f\u00fcr alle streichen',
+  'my.unblock':     'Tag wieder freigeben',
 
   /* ---------- audiobook ---------- */
   'ab.title':         'Hörbuch',

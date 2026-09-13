@@ -487,6 +487,10 @@ export const en = {
   'my.can':         'I can make it',
   'my.cannot':   'I cannot',
   'my.time_wrong':  'The \u201cuntil\u201d time has to be later than \u201cfrom\u201d.',
+  'my.legend_blocked': 'struck by the director',
+  'my.blocked':     'The director has struck this day \u2013 no rehearsal, whoever could.',
+  'my.block':       'strike this day for everyone',
+  'my.unblock':     'release this day again',
 
   /* ---------- audiobook ---------- */
   'ab.title':         'Audiobook',

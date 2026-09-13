@@ -131,6 +131,11 @@ export const STYLE = `
   table.cal td.level2, .dot.level2 { background:#f7c890; border-color:#d9a35f }
   table.cal td.level3, .dot.level3 { background:#a8dfbb; border-color:#75bc90 }
   table.cal td.me { outline:3px solid var(--accent); outline-offset:-3px }
+  /* Struck by the director: no rehearsal that day, whoever could. */
+  table.cal td.blocked, .dot.blocked {
+    background:repeating-linear-gradient(135deg, var(--chip) 0 6px, var(--card) 6px 12px);
+    border-color:var(--field-edge) }
+  table.cal td.blocked .num { text-decoration:line-through }
   .dot.me { background:transparent; border:2px solid var(--accent) }
   td.fixed { box-shadow:inset 0 -4px 0 var(--good) }
   table.cal td:hover { border-color:var(--accent) }

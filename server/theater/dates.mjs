@@ -97,11 +97,17 @@ export function calendarDays(project) {
 }
 
 /* The evenings of the rehearsal period. */
+/* Days the director has struck - a holiday, the hall taken. No
+   rehearsal is proposed for them, whoever could. */
+export const blockedOf = project =>
+  new Set((project?.einstellungen?.gesperrt || []).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)));
+
 function evenings(project) {
   const { start, end } = period(project);
+  const blocked = blockedOf(project);
   const out = [];
   for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1))
-    out.push(new Date(d));
+    if (!blocked.has(isoDate(d))) out.push(new Date(d));
   return out;
 }
 
@@ -325,10 +331,12 @@ export function dayStates(project, person, days) {
     return x ? !!windowOn(project.verfuegbar?.[x.id], date) : false;
   };
 
+  const blocked = blockedOf(project);
   const states = {};
   for (const t of days) {
     const d = asDate(t.iso);
     if (!d) continue;
+    if (blocked.has(t.iso)) { states[t.iso] = { level: 0, best: null, canCome: [], fixed: [], blocked: true }; continue; }
 
     // Who can make this day at all?
     const canCome = (project.personen || [])

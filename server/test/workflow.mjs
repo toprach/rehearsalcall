@@ -344,8 +344,15 @@ for (const b of cast) {
   }
   const fields = {};
   for (const iso of days) { fields['t_' + iso] = '1'; fields['v_' + iso] = '18:00'; fields['b_' + iso] = '23:00'; }
+  // The director strikes the first of those days for everyone.
+  if (b === cast[0]) {
+    check('the director can strike days', /name="g_/.test(cal.text));
+    fields['g_' + days[0]] = '1';
+  }
   const e = await post('/theater/mit/zeiten', fields);
   check('enter availability (' + b + ')', good(e), say(e));
+  if (b === cast[0]) check('the struck day shows as struck', new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(e.text));
+  else check('a member sees the struck day but cannot strike', new RegExp('blocked[^"]*" data-iso="' + days[0] + '"').test(e.text) && !/name="g_/.test(e.text));
   const me = await call('GET', '/theater/mit');
   check('member page counts the evenings (' + b + ')', me.status === 200 &&
         new RegExp('\\b' + days.length + ' ').test(me.text));
@@ -376,6 +383,7 @@ for (const b of cast) {
   const mine = new RegExp('name="rehearsal" value="' + target + '"[\\s\\S]*?name="iso" value="([^"]+)"' +
     '[\\s\\S]*?name="from" value="([^"]*)"[\\s\\S]*?name="to" value="([^"]*)"').exec(d.text);
   check('a date is proposed for ' + target, !!mine, mine ? mine[1] + ' ' + mine[2] + '-' + mine[3] : 'none');
+  check('not on the struck day', !mine || mine[1] !== days[0], mine ? mine[1] : '');
   if (mine) {
     d = await post('/theater/mit/termine', { action: 'halten', rehearsal: target, iso: mine[1], from: mine[2], to: mine[3], place: 'Attic <room>' });
     check('confirm the date from the company, with a place', good(d) && /Attic &lt;room&gt;/.test(d.text), say(d));

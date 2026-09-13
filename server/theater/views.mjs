@@ -1264,12 +1264,15 @@ function myTimesPage(project, person, m, days, states) {
   }
   const mondayIndex = wtag => (wtag + 6) % 7;      // So=0 -> 6
 
+  // Director and assistant director strike days for everyone.
+  const director = !!(person.regie || person.assistenz);
   const cell = (tg) => {
     const e = entered[tg.iso];
     const l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
     const classes = ['day', 'level' + l.level];
     if (e) classes.push('me');
     if (l.fixed?.length) classes.push('fixed');
+    if (l.blocked) classes.push('blocked');
     const hinweis = l.best
       ? t('my.best', { rehearsal: l.best.rehearsal, here: l.best.here, total: l.best.total })
       : (l.canCome.length ? t('my.can_n', { n: l.canCome.length })
@@ -1287,6 +1290,7 @@ function myTimesPage(project, person, m, days, states) {
       <input type="hidden" name="t_${tg.iso}" value="${e ? '1' : ''}">
       <input type="hidden" name="v_${tg.iso}" value="${h(e?.von || '')}">
       <input type="hidden" name="b_${tg.iso}" value="${h(e?.bis || '')}">
+      ${director ? `<input type="hidden" name="g_${tg.iso}" value="${l.blocked ? '1' : ''}">` : ''}
     </td>`;
   };
 
@@ -1350,6 +1354,7 @@ function myTimesPage(project, person, m, days, states) {
         <span class="dot level2"></span> ${t('my.half')}
         <span class="dot level1"></span> ${t('my.one')}
         <span class="dot me"></span> ${t('my.me')}
+        <span class="dot blocked"></span> ${t('my.legend_blocked')}
       </div>
 
       ${months.map(monthTable).join('')}
@@ -1365,7 +1370,9 @@ function myTimesPage(project, person, m, days, states) {
       var names = ${JSON.stringify(Object.fromEntries(names))};
       var preset = ${JSON.stringify(preset)};
       var place = ${JSON.stringify(L.locale)};
+      var regie = ${director ? 'true' : 'false'};
       var W = { evenings: ${js('my.evenings_n', { n: '#' })},
+                blocked: ${js('my.blocked')}, block: ${js('my.block')}, unblock: ${js('my.unblock')},
                 fixed: ${js('my.fixed_on')},
                 absent: ${js('my.still_missing')},
                 nurSie: ${js('my.only_you')},
@@ -1411,10 +1418,13 @@ function myTimesPage(project, person, m, days, states) {
         var bI = td.querySelector('input[name^="b_"]');
         var tI = td.querySelector('input[name^="t_"]');
         var da = td.dataset.da, gesamt = td.dataset.gesamt;
+        var gI = td.querySelector('input[name^="g_"]');
+        var blocked = td.classList.contains('blocked');
         schleier.hidden = false;
         tafel.innerHTML =
           '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit',
               month: '2-digit', year: 'numeric' }) + '</b>' +
+          (blocked ? '<div class="notice error small" style="margin:.5rem 0">' + W.blocked + '</div>' : '') +
           (td.dataset.fixed ? '<div class="notice good small" style="margin:.5rem 0">' +
               W.fixed + td.dataset.fixed + '</div>' : '') +
           '<div class="small muted" style="margin:.5rem 0">' +
@@ -1434,7 +1444,15 @@ function myTimesPage(project, person, m, days, states) {
               (bI.value || preset.bis) + '"></div>' +
           '</div>' +
           '<button type="button" id="jat">' + W.ja + '</button> ' +
-          '<button type="button" id="neint" class="quiet">' + W.nein + '</button>';
+          '<button type="button" id="neint" class="quiet">' + W.nein + '</button>' +
+          (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
+             (blocked ? W.unblock : W.block) + '</button>' : '');
+
+        if (regie && gI) document.getElementById('sperrt').onclick = function () {
+          gI.value = blocked ? '' : '1';
+          td.classList.toggle('blocked', !blocked);
+          schleier.hidden = true;
+        };
 
         document.getElementById('jat').onclick = function () {
           var a = document.getElementById('tv').value, b = document.getElementById('tb').value;

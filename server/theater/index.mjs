@@ -712,6 +712,12 @@ export async function handle(request, response, path) {
       }
       project.verfuegbar = project.verfuegbar || {};
       project.verfuegbar[person.id] = { tage: entered, stand: new Date().toISOString() };
+      // The director strikes days for everyone; the flags travel in the
+      // same form as the times.
+      if (person.regie || person.assistenz) {
+        project.einstellungen = project.einstellungen || {};
+        project.einstellungen.gesperrt = days.filter(t => fields['g_' + t.iso] === '1').map(t => t.iso);
+      }
       await S.write(project);
       const n = Object.keys(entered).length;
       return html(response, A.myTimesPage(project, person, timesSaved(n), days, states()));
