@@ -10,6 +10,8 @@ export const de = {
   /* ---------- chrome ---------- */
   'app.name':        'Probenplanung',
   'app.for':        'Für Theatergruppen',
+  'nav.dark':     'Dunkle Seite',
+  'nav.light':    'Helle Seite',
   'nav.language':     'Sprache',
   'nav.overview':  'Übersicht',
   'nav.company':    'Ensemble',
@@ -83,8 +85,8 @@ export const de = {
   'mem.rehearsals_yes':    '{n}, davon {fixed} mit festem Termin – '
                     + '<a href="/theater/mit/termine">ansehen</a>',
   'mem.rehearsals_no': '<span class="muted">noch kein Probenplan</span>',
-  'mem.book_open':     '<a href="/theater/mit/heft" target="_blank" rel="noopener">öffnen</a> '
-                    + '– nur meine Passagen, im Browser druckbar',
+  'mem.book_open':     '<a href="/theater/mit/heft">öffnen</a> – meine Passagen, mit Lernmodus; '
+                    + 'die Druckfassung liegt auf der Skripte-Seite',
   'mem.no_script':    '<span class="muted">noch kein Drehbuch</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">öffnen</a>',
   'mem.plan_book':   'Probenplan im Drehbuch',
@@ -207,6 +209,7 @@ export const de = {
   'navm.times':    'Meine Verfügbarkeit',
   'navm.dates':   'Probentermine',
   'navm.scripts': 'Skripte',
+  'navm.book':    'Rollenheft',
 
   /* ---------- casting ---------- */
   'cast.step':      'Schritt 2',
@@ -840,6 +843,26 @@ export const de = {
   'r.version_new_names': 'Fassung {nr} \u00fcbernommen: {changed} ge\u00e4ndert, {added} neu, {removed} gestrichen. '
                       + '{fresh} neue Sprechernamen \u2013 auf der <a href="/theater/besetzung">Besetzungsseite</a> '
                       + 'zuordnen; bis dahin gelten sie als eigene Personen.',
+
+  /* ---------- das Rollenheft am Bildschirm ---------- */
+  'book.title':      'Rollenheft',
+  'book.title_for':  'Rollenheft \u2013 {name}',
+  'book.figures':    '{passages} Passagen, etwa {words} W\u00f6rter',
+  'book.print':      'A4 zum Drucken',
+  'book.what':       'Jede Passage mit ihrem Stichwort. Mit \u201eLernen\u201c sind die eigenen Zeilen '
+                   + 'verdeckt, bis Sie sie einblenden; \u201esitzt\u201c markiert, was Sie k\u00f6nnen, '
+                   + 'und das merkt sich dieses Ger\u00e4t.',
+  'book.learn':      'Lernen',
+  'book.open_only':  'nur, was noch nicht sitzt',
+  'book.shuffle':    'mischen',
+  'book.progress':   '{done} von {all} sitzen',
+  'book.cue_nr':     'Stichwort {nr}',
+  'book.no_cue':     '(kein Stichwort \u2013 die Passage er\u00f6ffnet)',
+  'book.reveal':     'Einblenden',
+  'book.next':       'Zur n\u00e4chsten Passage',
+  'book.sits':       'sitzt',
+  'book.again':      'nochmal',
+  'book.none':       'Keine eigenen Passagen im Drehbuch.',
 
   /* ---------- Kommentare ---------- */
   'kd.new':          'Neuer Kommentar bei Stichwort {nr}',

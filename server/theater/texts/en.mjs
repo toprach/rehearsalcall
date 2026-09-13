@@ -13,6 +13,8 @@ export const en = {
   /* ---------- chrome ---------- */
   'app.name':        'Rehearsal Planner',
   'app.for':        'For theatre groups',
+  'nav.dark':     'Dark page',
+  'nav.light':    'Light page',
   'nav.language':     'Language',
   'nav.overview':  'Overview',
   'nav.company':    'Company',
@@ -86,8 +88,8 @@ export const en = {
   'mem.rehearsals_yes':    '{n}, {fixed} of them with a fixed date \u2013 '
                     + '<a href="/theater/mit/termine">look</a>',
   'mem.rehearsals_no': '<span class="muted">no rehearsal plan yet</span>',
-  'mem.book_open':     '<a href="/theater/mit/heft" target="_blank" rel="noopener">open</a> '
-                    + '\u2013 only my passages, printable in the browser',
+  'mem.book_open':     '<a href="/theater/mit/heft">open</a> \u2013 my passages, with a learning '
+                    + 'mode; the printable version is on the scripts page',
   'mem.no_script':    '<span class="muted">no script yet</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">open</a>',
   'mem.plan_book':   'Rehearsal plan in the script',
@@ -211,6 +213,7 @@ export const en = {
   'navm.times':    'My availability',
   'navm.dates':   'Rehearsal dates',
   'navm.scripts': 'Scripts',
+  'navm.book':    'Part book',
 
   /* ---------- casting ---------- */
   'cast.step':      'Step 2',
@@ -838,6 +841,26 @@ export const en = {
                       + '{fresh} new speaker name(s) \u2013 assign them on the '
                       + '<a href="/theater/besetzung">casting page</a>; until then they are '
                       + 'read as persons of their own.',
+
+  /* ---------- the part book on the screen ---------- */
+  'book.title':      'Part book',
+  'book.title_for':  'Part book \u2013 {name}',
+  'book.figures':    '{passages} passages, about {words} words',
+  'book.print':      'A4 for printing',
+  'book.what':       'Every passage with its cue. Tick \u201clearning\u201d and the own lines are '
+                   + 'hidden until you reveal them; \u201csits\u201d marks what you know, and that '
+                   + 'is remembered on this device.',
+  'book.learn':      'learning',
+  'book.open_only':  'only what does not sit yet',
+  'book.shuffle':    'shuffle',
+  'book.progress':   '{done} of {all} sit',
+  'book.cue_nr':     'cue {nr}',
+  'book.no_cue':     '(no cue \u2013 the passage opens)',
+  'book.reveal':     'Reveal',
+  'book.next':       'Next passage',
+  'book.sits':       'sits',
+  'book.again':      'again',
+  'book.none':       'No passages of yours in the script.',
 
   /* ---------- comments ---------- */
   'kd.new':          'New comment at cue {nr}',

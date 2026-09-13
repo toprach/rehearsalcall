@@ -50,21 +50,28 @@ export function views(code, pfad = '/theater', ctx = {}) {
 
 
 
-function page({ title, body, nav = '', narrow = false }) {
+function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
   const name = t('app.name');
   /* The name in the head leads home - and home is where the visitor
      is: a member's start page, the director's overview, else the
      entry. The navigation says which. */
   const home = /href="\/theater\/mit\/zeiten"/.test(nav) ? '/theater/mit'
              : /href="\/theater\/leute"/.test(nav) ? '/theater/projekt' : '/theater';
-  return `<!doctype html><html lang="${L.code}"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="${L.code}"${ctx.theme === 'dunkel' ? ' data-theme="dark"' : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
-<header class="head"><div class="inner">
+<header class="head${tabbar ? ' member' : ''}"><div class="inner">
   <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
+  <form method="post" action="/theater/thema" class="themepick">
+    <input type="hidden" name="back" value="${h(pfad)}">
+    <input type="hidden" name="thema" value="${ctx.theme === 'dunkel' ? 'hell' : 'dunkel'}">
+    <button class="quiet" type="submit" title="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}"
+            aria-label="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}">${ctx.theme === 'dunkel' ? '\u2600' : '\u263d'}</button>
+  </form>
 </div></header>
-<div class="frame${narrow ? ' narrow' : ''}">${body}</div>
+<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${body}</div>
+${tabbar}
 <footer class="foot"><div class="inner small muted">
   <a href="/theater/ueber">${h(name)}${ABOUT.version ? ' ' + h(ABOUT.version) : ''}</a>
   · <a href="${h(ABOUT.repository)}" rel="noopener">${t('about.source')}</a>
@@ -742,6 +749,7 @@ function planPage(p, m, acts = []) {
 function passagesPage(p, d, m, opt = {}) {
   const pr = d.rehearsal;
   const nav = opt.member ? navMember(p, opt.member) : navDirector(p);
+  const tabbar = opt.member ? memberTabbar(p, opt.member) : '';
   const back = opt.member ? '/theater/mit/termine' : '/theater/plan';
 
   const speech = (b) => {
@@ -784,7 +792,7 @@ function passagesPage(p, d, m, opt = {}) {
     ${sc.parts.length ? sc.parts.map(block).join('')
       : `<p class="muted">${t('text.no_text')}</p>`}`;
 
-  return page({ title: t('text.title', { id: pr.id }), nav, body: `
+  return page({ title: t('text.title', { id: pr.id }), nav, tabbar, body: `
     <p class="eyebrow"><a href="${back}">${opt.member ? t('text.back_member') : t('text.back')}</a></p>
     <h1>${t('text.title', { id: h(pr.id) })}</h1>
     ${notice(m)}
@@ -1033,6 +1041,21 @@ const navMember = (project, person) => {
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
 };
 
+/* The bar at the bottom of a phone screen: the four places a member
+   goes. On a desk the links in the head do the same, and the bar is
+   hidden. The current page is marked. */
+const memberTabbar = (project, person) => {
+  const items = [
+    ['/theater/mit/zeiten', t('navm.times'), '\u25a6'],
+    ['/theater/mit/termine', t('navm.dates'), '\u2637'],
+    ['/theater/mit/heft', t('navm.book'), '\u270e'],
+    ['/theater/mit/kommentare', t('nav.comments'), '\u2709'],
+  ];
+  return `<nav class="tabbar">${items.map(([href, label, icon]) =>
+    `<a href="${href}"${pfad === href || (href !== '/theater/mit' && pfad.startsWith(href)) ? ' class="on"' : ''}>
+      <span class="ico">${icon}</span><span>${h(label)}</span></a>`).join('')}</nav>`;
+};
+
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
   const evenings = Object.keys(v.tage || {}).length;
@@ -1041,7 +1064,7 @@ function memberPage(project, person, m, realSelf) {
     rehearsals.some(pr => pr.id === x.probe_id)).length;
   const who = person.name || person.b;
 
-  return page({ title: who, nav: navMember(project, person), narrow: true, body: `
+  return page({ title: who, nav: navMember(project, person), tabbar: memberTabbar(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p>
     <h1>${t('mem.hello', { name: h(who) })}</h1>
     ${notice(m)}
@@ -1072,6 +1095,108 @@ function memberPage(project, person, m, realSelf) {
     </table>
     ${project.druck_token ? `<p class="small muted">${t('mem.docs',
       { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}` });
+}
+
+/* ---------------------------------------------------------------------
+   The part book for the screen, with a learning mode.
+
+   One passage after another: the cue by somebody else, the directions,
+   then the own lines. In learning mode the own lines are hidden and
+   a button reveals them; the bar below steps to the next passage. What
+   sits and what does not is remembered in the browser only.
+   --------------------------------------------------------------------- */
+function bookPage(project, person, passages, words) {
+  const who = person.name || person.b;
+  const card = (p) => `<section class="pass${p.cut ? ' cut' : ''}" id="pass-${p.i}" data-i="${p.i}">
+      <div class="passhead small muted"><span class="pno">${p.i}</span>
+        ${p.chapter ? h(p.chapter) : ''}${p.nr != null ? ' \u00b7 ' + t('book.cue_nr', { nr: p.nr }) : ''}
+        ${p.role ? ' \u00b7 ' + h(p.role) : ''}
+        <button type="button" class="quiet mini sits" data-i="${p.i}">${h(t('book.sits'))}</button></div>
+      ${p.cue ? `<p class="cue"><b>${h(p.cue.who)}:</b> ${h(p.cue.text)}</p>` : `<p class="cue muted">${t('book.no_cue')}</p>`}
+      ${p.before.map(d => `<p class="dir">${h(d)}</p>`).join('')}
+      <div class="mine">
+        ${p.lines.map(l => l.direction
+          ? `<p class="dir">${h(l.direction)}</p>`
+          : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`).join('')}
+      </div>
+      <button type="button" class="reveal">${h(t('book.reveal'))}</button>
+      ${p.after.map(d => `<p class="dir after">${h(d)}</p>`).join('')}
+    </section>`;
+
+  return page({ title: t('book.title'), nav: navMember(project, person),
+                tabbar: memberTabbar(project, person), narrow: true, body: `
+    <p class="eyebrow">${h(project.titel)}</p>
+    <h1>${t('book.title_for', { name: h(who) })}</h1>
+    <p class="small muted">${t('book.figures', { passages: passages.length, words })}
+      ${project.druck_token ? `\u00b7 <a href="/theater/druck/${h(project.druck_token)}/rolle/${
+        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>` : ''}</p>
+    <p class="small muted">${t('book.what')}</p>
+    <div class="bookbar">
+      <label class="inline"><input type="checkbox" id="learn"> ${h(t('book.learn'))}</label>
+      <label class="inline"><input type="checkbox" id="openonly"> ${h(t('book.open_only'))}</label>
+      <button type="button" class="quiet mini" id="shuffle">${h(t('book.shuffle'))}</button>
+      <span class="cnt small muted" id="progress"></span>
+    </div>
+    <div id="book">${passages.map(card).join('')}</div>
+    ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
+    <div class="bookstep" id="bookstep" hidden>
+      <button type="button" id="prev" class="quiet">\u25c0</button>
+      <span id="pos" class="small"></span>
+      <button type="button" id="next">${h(t('book.next'))}</button>
+    </div>
+    <script>
+    (function () {
+      var KEY = ${JSON.stringify('heft:' + project.id + ':' + person.b)};
+      var book = document.getElementById('book');
+      var cards = function () { return [].slice.call(book.querySelectorAll('.pass')).filter(function (c) { return !c.hidden; }); };
+      var sits = {};
+      try { sits = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+      var save = function () { try { localStorage.setItem(KEY, JSON.stringify(sits)); } catch (e) {} };
+      var learn = document.getElementById('learn'), openOnly = document.getElementById('openonly');
+      var step = document.getElementById('bookstep'), pos = document.getElementById('pos');
+      var W = { sits: ${JSON.stringify(t('book.sits'))}, again: ${JSON.stringify(t('book.again'))},
+                progress: ${JSON.stringify(t('book.progress'))} };
+      function paint() {
+        [].forEach.call(book.querySelectorAll('.pass'), function (c) {
+          var s = !!sits[c.dataset.i];
+          c.classList.toggle('sits', s);
+          c.querySelector('.sits').textContent = s ? W.again : W.sits;
+          c.hidden = openOnly.checked && s;
+          c.classList.remove('shown');
+        });
+        var all = book.querySelectorAll('.pass').length, done = Object.keys(sits).filter(function (k) { return sits[k]; }).length;
+        document.getElementById('progress').textContent = W.progress.replace('{done}', done).replace('{all}', all);
+        document.body.classList.toggle('learn', learn.checked);
+        step.hidden = !learn.checked;
+        if (learn.checked) current(0);
+      }
+      var cur = 0;
+      function current(i) {
+        var list = cards(); if (!list.length) { pos.textContent = ''; return; }
+        cur = Math.max(0, Math.min(list.length - 1, i));
+        list[cur].scrollIntoView({ block: 'start' });
+        window.scrollBy(0, -8);
+        pos.textContent = (cur + 1) + ' / ' + list.length;
+      }
+      book.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var c = b.closest('.pass');
+        if (b.classList.contains('reveal')) { c.classList.add('shown'); return; }
+        if (b.classList.contains('sits')) { sits[c.dataset.i] = !sits[c.dataset.i]; if (!sits[c.dataset.i]) delete sits[c.dataset.i]; save(); paint(); }
+      });
+      learn.addEventListener('change', paint);
+      openOnly.addEventListener('change', paint);
+      document.getElementById('shuffle').addEventListener('click', function () {
+        var list = [].slice.call(book.querySelectorAll('.pass'));
+        for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = list[i]; list[i] = list[j]; list[j] = t; }
+        list.forEach(function (c) { book.appendChild(c); });
+        paint();
+      });
+      document.getElementById('next').addEventListener('click', function () { current(cur + 1); });
+      document.getElementById('prev').addEventListener('click', function () { current(cur - 1); });
+      paint();
+    })();
+    <\/script>` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1179,7 +1304,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
   const fixed = mine.filter(x => x.fixed);
   const unresolved = mine.filter(x => !x.fixed);
 
-  return page({ title: t('date.title'), nav: navMember(project, person), body: `
+  return page({ title: t('date.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${showAll ? t('mdate.all') : t('mdate.title')}</h1>
     <p class="tabs"><a href="/theater/mit/termine"${showAll ? '' : ' class="on"'}>${t('mdate.mine')}</a>
       <a href="/theater/mit/termine?alle=1"${showAll ? ' class="on"' : ''}>${t('mdate.all')}</a></p>
@@ -1357,24 +1482,12 @@ function myTimesPage(project, person, m, days, states) {
   const preset = Object.values(entered)[0] || { von: '19:00', bis: '22:00' };
   const js = (schluessel, werte) => JSON.stringify(t(schluessel, werte));
 
-  return page({ title: t('my.title'), nav: navMember(project, person), body: `
+  return page({ title: t('my.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p>
     <h1>${t('my.title')}</h1>
     ${notice(m)}
 
-    ${count ? `<div class="box">
-      <b>${count === 1 ? t('my.holds_1') : t('my.holds', { n: count })}</b>
-      <div class="small muted" style="margin-top:.4rem; line-height:1.9">
-        ${myDays.map(x => `<span class="chip">${h(x)}</span>`).join('')}
-      </div>
-      ${v.stand ? `<p class="small muted" style="margin:.6rem 0 0">${
-        t('my.last_saved', { when: h(L.date(v.stand)) })}</p>` : ''}
-    </div>` : `<p class="muted">${t('my.nothing')}</p>`}
-
-    ${rehearsals.length ? `<p class="small muted">${t('my.needed_for',
-      { n: rehearsals.length })}${rehearsals.map(pr => `<span class="chip"
-      title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
-      >${h(pr.id)}</span>`).join('')}</p>` : ''}
+    ${count ? '' : `<p class="muted">${t('my.nothing')}</p>`}
 
     <form method="post" action="/theater/mit/zeiten" id="formular">
       <div class="calhead">
@@ -1401,6 +1514,19 @@ function myTimesPage(project, person, m, days, states) {
       <button type="submit">${t('my.save')}</button>
       <span class="small muted">${t('my.only_after')}</span>
     </form>
+
+    ${count ? `<details class="box small" style="margin-top:1.2rem">
+      <summary><b>${count === 1 ? t('my.holds_1') : t('my.holds', { n: count })}</b></summary>
+      <div class="muted" style="margin-top:.4rem; line-height:1.9">
+        ${myDays.map(x => `<span class="chip">${h(x)}</span>`).join('')}
+      </div>
+      ${v.stand ? `<p class="muted" style="margin:.6rem 0 0">${
+        t('my.last_saved', { when: h(L.date(v.stand)) })}</p>` : ''}
+    </details>` : ''}
+    ${rehearsals.length ? `<p class="small muted">${t('my.needed_for',
+      { n: rehearsals.length })}${rehearsals.map(pr => `<span class="chip"
+      title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
+      >${h(pr.id)}</span>`).join('')}</p>` : ''}
 
     <script>
     (function () {
@@ -1922,7 +2048,7 @@ function myCommentsPage(project, person, m) {
       ${c.antwort ? `<div class="answer"><div class="small muted">${t('cmt.answer')} \u00b7 ${h(c.antwort.wer || '')} \u00b7 ${
         h(L.date(c.antwort.datum, { dateStyle: 'medium', timeStyle: 'short' }))}</div>${h(c.antwort.text).replace(/\n/g, '<br>')}</div>` : ''}
     </div>`;
-  return page({ title: t('mcmt.title'), nav: navMember(project, person), narrow: true, body: `
+  return page({ title: t('mcmt.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${t('mcmt.title')}</h1>
     ${notice(m)}
     <p class="muted">${t('mcmt.what')}</p>
@@ -1941,5 +2067,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage };
+           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage };
 }

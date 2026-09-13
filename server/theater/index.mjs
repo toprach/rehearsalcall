@@ -28,6 +28,7 @@ import * as Throttle from './throttle.mjs';
 import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
          mappingProposal, buildDocument } from './script.mjs';
 import { compareSpeeches, realignPlan, rehearsalsByCue } from './versions.mjs';
+import { partBook, wordsOf } from './book.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -414,7 +415,8 @@ export async function handle(request, response, path) {
   let L = isLanguage(chosen) ? chosen
         : fromHeader(request.headers['accept-language']);
   const regie = await regieFrom(request, null);
-  const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null };
+  const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null,
+                theme: plainCookie(request, 'thema') === 'dunkel' ? 'dunkel' : 'hell' };
   let A = views(L, path, ctx);
   /* A project may set the language for its company. It counts as long
      as the visitor has not switched in the page head themselves. */
@@ -431,6 +433,16 @@ export async function handle(request, response, path) {
       response.setHeader('Set-Cookie', 'sprache=' + fresh +
         '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
     // Only our own paths, so the picker cannot send anyone away.
+    const back = String(fields.back || '/theater');
+    return redirect(response, /^\/theater(\/|$)/.test(back) ? back : '/theater');
+  }
+
+  /* --- light or dark: a cookie, no access needed --- */
+  if (first === 'thema' && post) {
+    const { fields } = await readForm(request);
+    const wanted = String(fields.thema) === 'dunkel' ? 'dunkel' : 'hell';
+    response.setHeader('Set-Cookie', 'thema=' + wanted +
+      '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
     const back = String(fields.back || '/theater');
     return redirect(response, /^\/theater(\/|$)/.test(back) ? back : '/theater');
   }
@@ -866,16 +878,23 @@ export async function handle(request, response, path) {
       return html(response, A.myDatesPage(project, person, proposeDates(project), m));
     }
 
-    if (second === 'heft' || second === 'gesamt') {
+    /* The part book for the screen: passage by passage, with the
+       learning mode. The A4 document stays on the scripts page. */
+    if (second === 'heft') {
+      await drainBody(request);
+      if (!project.skript) return html(response,
+        A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
+      const passages = partBook(project.skript, person.b);
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages)));
+    }
+
+    if (second === 'gesamt') {
       if (!project.drehbuch) return html(response,
         A.errorPage('f.no_script2_t', 'f.no_script2'), 404);
       const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
       let text;
       try {
-        text = (second === 'heft')
-          ? buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
-                         { person: person.b, context: 1 })
-          : buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
+        text = buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
       } catch (e) {
         console.error('[Dokument] ' + (e && e.stack || e));
         return html(response, A.errorPage('f.failed2_t', 'f.failed2', { reason: reasonOf(e) }), 500);
@@ -888,7 +907,7 @@ export async function handle(request, response, path) {
         'X-Content-Type-Options': 'nosniff',
       });
       text = text.replace('<body>', '<body>' + docExtrasFor(A, project, project.druck_token,
-        second === 'heft' ? 'rolle' : 'gesamt', person, ctx));
+        'gesamt', person, ctx));
       return response.end(text);
     }
 

@@ -119,7 +119,7 @@ const seams = (html) => {
 
 let failures = 0;
 for (const { code } of LANGUAGES) {
-  const A = views(code, '/theater/x');
+  const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell' });
   const pages = {
     entryPage: () => A.entryPage({ kind: 'error', key: 'r.code_unknown' }),
     aboutPage: () => A.aboutPage(),
@@ -163,6 +163,13 @@ for (const { code } of LANGUAGES) {
         frage: true, antwort: { text: 'Left.', wer: 'Regie', datum: '2026-09-03T10:00:00Z' }, erledigt: true } ] }, person, null),
     docExtras: () => '<html>' + A.docExtras('tok', 'probenplan', person, [
       { id: 'c1', nr: 12, text: 'a <b>', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false }], true) + '</html>',
+    bookPage: () => A.bookPage(project, person, [
+      { i: 1, nr: 3, act: 'ACT I', chapter: 'SCENE I', cue: { who: 'PUCK', text: 'How now, spirit!', nr: 2 },
+        before: ['Enter OBERON.'], lines: [{ who: 'OBERON', text: 'Ill met by moonlight, <proud> Titania.' },
+        { direction: 'He turns.' }, { who: 'OBERON', text: 'Tarry.', cont: true }], after: ['Exit.'], cut: false, role: '' },
+      { i: 2, nr: null, act: '', chapter: '', cue: null, before: [], lines: [{ who: 'OBERON', text: 'x', cut: true }], after: [], cut: true, role: 'KING' },
+    ], 12),
+    bookEmpty: () => A.bookPage(project, person, [], 0),
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([
       { id: 'abcd1234', titel: 'One <play>', angelegt: '2026-09-01T10:00:00Z', email: 'a@b.c',

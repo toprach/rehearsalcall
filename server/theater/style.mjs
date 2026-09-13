@@ -162,7 +162,50 @@ export const STYLE = `
   /* --- the language picker in the head --- */
   .langpick { display:flex; align-items:center; flex:0 0 auto; order:1;
               margin:0 0 0 .8rem }
+  .themepick { flex:0 0 auto; order:2; margin:0 0 0 .4rem }
+  .themepick button { margin:0; padding:.25rem .5rem; line-height:1; font-size:1rem;
+                      border-radius:6px }
   .whopick { display:inline-block; margin:0 }
+  /* --- a member on a phone: the links move into a bar at the bottom --- */
+  .tabbar { display:none }
+  @media (max-width:700px) {
+    .head.member nav a { display:none }
+    .head.member nav { flex:0 1 auto; margin-left:0 }
+    .head.member .whopick select { max-width:38vw }
+    .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40;
+              background:var(--card); border-top:1px solid var(--rule);
+              padding:.3rem 0 max(.3rem, env(safe-area-inset-bottom)) }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:.1rem;
+                font-size:.7rem; color:var(--muted); text-decoration:none; padding:.2rem 0 }
+    .tabbar a .ico { font-size:1.25rem; line-height:1 }
+    .tabbar a.on { color:var(--accent); font-weight:700 }
+    .frame.hastabs { padding-bottom:6rem }
+    .overlay { align-items:flex-start; padding-top:1rem }
+    body .bookstep { bottom:3.9rem }
+  }
+  /* --- the part book on the screen --- */
+  .bookbar { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; margin:.6rem 0 1rem }
+  .pass { border:1px solid var(--rule); border-radius:6px; background:var(--card); padding:.8rem 1rem; margin:.8rem 0 }
+  .pass .passhead { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.4rem }
+  .pass .pno { font-weight:700; color:var(--accent) }
+  .pass .passhead .sits { margin-left:auto }
+  .pass .cue { color:var(--muted); margin:0 0 .4rem; padding-left:.6rem; border-left:3px solid var(--rule) }
+  .pass .dir { color:var(--muted); font-style:italic; margin:.2rem 0 }
+  .pass .say { margin:.25rem 0; font-size:1.05rem }
+  .pass .say.cut { text-decoration:line-through; opacity:.6 }
+  .pass .reveal { display:none; margin:.3rem 0 }
+  .pass.sits { border-color:var(--good) }
+  .pass.sits .pno { color:var(--good) }
+  body.learn .pass .mine { display:none }
+  body.learn .pass .reveal { display:inline-block }
+  body.learn .pass.shown .mine { display:block }
+  body.learn .pass.shown .reveal { display:none }
+  .bookstep { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.6rem;
+              align-items:center; justify-content:center; padding:.5rem .8rem;
+              background:var(--card); border-top:1px solid var(--rule) }
+  .bookstep button { margin:0 }
+  .bookstep #pos { white-space:nowrap }
+  .bookstep #next { flex:0 1 20rem }
   label.inline { display:inline-flex; gap:.3rem; align-items:center; font-weight:400;
                  font-size:.82rem; margin:0 .2rem; white-space:nowrap }
   label.inline input { margin:0 }
@@ -223,23 +266,26 @@ export const STYLE = `
   @media (max-width:640px) {
     table.twocol td { display:block; width:auto }
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ground:#15151a; --card:#1e1e25; --ink:#eceae5; --muted:#aaa49a;
-      --rule:#33333d; --accent:#ef6b70; --good:#5ec27f;
-      --field:#23232c; --field-ink:#f2f0eb; --field-edge:#4e4e5a;
-      --chip:#2e2e38; --chip-ink:#eceae5;
-    }
-    .notice.foreign { background:#3a2c16; border-left-color:#d59b4a }
-    .notice.error { background:#3a1d1f } .notice.good { background:#16301f }
-    table.diff del { background:#3a1d1f } table.diff ins { background:#16301f }
-    .box.important { background:var(--card) }
-    table.cal td.level1, .dot.level1 { background:#5c5026; border-color:#7a6c39 }
-    table.cal td.level2, .dot.level2 { background:#6e5a22; border-color:#8d7533 }
-    table.cal td.level3, .dot.level3 { background:#8a4a14; border-color:#b3651f }
-    table.cal td.level3.me, .dot.level3.me { background:#255c39; border-color:#39794f }
-    table.cal td.fixed, .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
-    button.quiet, .btn.quiet { background:var(--card); border-color:var(--field-edge);
-                               color:var(--ink) }
+  /* --- the dark look: only when chosen in the head ---
+     Most people read on a light page; the dark one is a choice that
+     the browser keeps as a cookie, not a guess from the system. */
+  html[data-theme="dark"] {
+    --ground:#15151a; --card:#1e1e25; --ink:#eceae5; --muted:#aaa49a;
+    --rule:#33333d; --accent:#ef6b70; --good:#5ec27f;
+    --field:#23232c; --field-ink:#f2f0eb; --field-edge:#4e4e5a;
+    --chip:#2e2e38; --chip-ink:#eceae5;
   }
+  html[data-theme="dark"] .notice.foreign { background:#3a2c16; border-left-color:#d59b4a }
+  html[data-theme="dark"] .notice.error { background:#3a1d1f }
+  html[data-theme="dark"] .notice.good { background:#16301f }
+  html[data-theme="dark"] table.diff del { background:#3a1d1f }
+  html[data-theme="dark"] table.diff ins { background:#16301f }
+  html[data-theme="dark"] .box.important { background:var(--card) }
+  html[data-theme="dark"] table.cal td.level1, html[data-theme="dark"] .dot.level1 { background:#5c5026; border-color:#7a6c39 }
+  html[data-theme="dark"] table.cal td.level2, html[data-theme="dark"] .dot.level2 { background:#6e5a22; border-color:#8d7533 }
+  html[data-theme="dark"] table.cal td.level3, html[data-theme="dark"] .dot.level3 { background:#8a4a14; border-color:#b3651f }
+  html[data-theme="dark"] table.cal td.level3.me, html[data-theme="dark"] .dot.level3.me { background:#255c39; border-color:#39794f }
+  html[data-theme="dark"] table.cal td.fixed, html[data-theme="dark"] .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
+  html[data-theme="dark"] button.quiet, html[data-theme="dark"] .btn.quiet { background:var(--card); border-color:var(--field-edge);
+                             color:var(--ink) }
 `;

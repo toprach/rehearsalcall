@@ -114,7 +114,9 @@ while ((m = block.exec(body))) {
     continue;
   }
   // A speech, or a continuation after a direction (then without a name).
-  put(text, '');
+  // Gutenberg drops the full stop after some names ("FAIRY", "SNOUT");
+  // a first line in capitals alone is a speaker all the same.
+  put(text.replace(/^([A-Z][A-Z0-9 '\u2019,-]{1,40})(\n)/, '$1.$2'), '');
 }
 
 const text = lines.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';

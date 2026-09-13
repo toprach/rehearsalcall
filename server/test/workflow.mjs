@@ -422,6 +422,10 @@ for (const b of cast) {
     clean('member passages page', pg);
     const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
+    const bk = await call('GET', '/theater/mit/heft');
+    check('the screen part book lists passages', bk.status === 200 && /class="pass"/.test(bk.text) &&
+          /id="learn"/.test(bk.text) && /class="tabbar"/.test(bk.text), 'status ' + bk.status);
+    clean('screen part book', bk);
   }
 }
 

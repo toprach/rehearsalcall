@@ -507,7 +507,7 @@ QUINCE.
 Robin Starveling, you must play Thisbe’s mother.
 Tom Snout, the tinker.
 
-SNOUT
+SNOUT.
 Here, Peter Quince.
 
 QUINCE.
@@ -515,7 +515,7 @@ You, Pyramus’ father; myself, Thisbe’s father;
 Snug, the joiner, you, the lion’s part. And, I hope here is a play
 fitted.
 
-SNUG
+SNUG.
 Have you the lion’s part written? Pray you, if it be, give it me, for I
 am slow of study.
 
@@ -531,7 +531,7 @@ QUINCE.
 If you should do it too terribly, you would fright the Duchess and the ladies,
 that they would shriek; and that were enough to hang us all.
 
-ALL
+ALL.
 That would hang us every mother’s son.
 
 BOTTOM.
@@ -586,7 +586,7 @@ Enough. Hold, or cut bow-strings.
 PUCK.
 How now, spirit! Whither wander you?
 
-FAIRY
+FAIRY.
 Over hill, over dale,
 Thorough bush, thorough brier,
 Over park, over pale,
@@ -620,7 +620,7 @@ By fountain clear, or spangled starlight sheen,
 But they do square; that all their elves for fear
 Creep into acorn cups, and hide them there.
 
-FAIRY
+FAIRY.
 Either I mistake your shape and making quite,
 Or else you are that shrewd and knavish sprite
 Call’d Robin Goodfellow. Are not you he
@@ -652,7 +652,7 @@ And waxen in their mirth, and neeze, and swear
 A merrier hour was never wasted there.
 But room, fairy. Here comes Oberon.
 
-FAIRY
+FAIRY.
 And here my mistress. Would that he were gone!
 
 *Enter OBERON at one door, with his Train, and TITANIA at another, with hers.*
@@ -1221,7 +1221,7 @@ There are things in this comedy of Pyramus and Thisbe that will never please.
 First, Pyramus must draw a sword to kill himself; which the ladies cannot
 abide. How answer you that?
 
-SNOUT
+SNOUT.
 By’r lakin, a parlous fear.
 
 STARVELING.
@@ -1240,7 +1240,7 @@ six.
 BOTTOM.
 No, make it two more; let it be written in eight and eight.
 
-SNOUT
+SNOUT.
 Will not the ladies be afeard of the lion?
 
 STARVELING.
@@ -1251,7 +1251,7 @@ Masters, you ought to consider with yourselves, to bring in (God shield us!) a
 lion among ladies is a most dreadful thing. For there is not a more fearful
 wild-fowl than your lion living; and we ought to look to it.
 
-SNOUT
+SNOUT.
 Therefore another prologue must tell he is not a lion.
 
 BOTTOM.
@@ -1269,7 +1269,7 @@ Well, it shall be so. But there is two hard things: that is, to bring the
 moonlight into a chamber, for you know, Pyramus and Thisbe meet by
 moonlight.
 
-SNOUT
+SNOUT.
 Doth the moon shine that night we play our play?
 
 BOTTOM.
@@ -1289,7 +1289,7 @@ comes to disfigure or to present the person of Moonshine. Then there is another
 thing: we must have a wall in the great chamber; for Pyramus and Thisbe, says
 the story, did talk through the chink of a wall.
 
-SNOUT
+SNOUT.
 You can never bring in a wall. What say you, Bottom?
 
 BOTTOM.
@@ -1379,7 +1379,7 @@ Why do they run away? This is a knavery of them to make me afeard.
 
 *Enter SNOUT.*
 
-SNOUT
+SNOUT.
 O Bottom, thou art changed! What do I see on thee?
 
 BOTTOM.
@@ -2665,7 +2665,7 @@ You must say paragon. A paramour is, God bless us, a thing of naught.
 
 *Enter SNUG.*
 
-SNUG
+SNUG.
 Masters, the Duke is coming from the temple, and there is two or three lords
 and ladies more married. If our sport had gone forward, we had all been made
 men.
@@ -2874,7 +2874,7 @@ Let him approach.
 
 *Flourish of trumpets. Enter the PROLOGUE.*
 
-PROLOGUE
+PROLOGUE.
 If we offend, it is with our good will.
 That you should think, we come not to offend,
 But with good will. To show our simple skill,
@@ -2903,7 +2903,7 @@ is next?
 
 *Enter PYRAMUS and THISBE, WALL, MOONSHINE and LION as in dumb show.*
 
-PROLOGUE
+PROLOGUE.
 Gentles, perchance you wonder at this show;
 But wonder on, till truth make all things plain.
 This man is Pyramus, if you would know;
