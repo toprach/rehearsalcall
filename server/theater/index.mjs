@@ -374,9 +374,16 @@ export async function handle(request, response, path) {
      sends. The views hang on it, so bind it once here - then every call
      below stays exactly as it was.                                  */
   const chosen = plainCookie(request, 'sprache');
-  const L = isLanguage(chosen) ? chosen
-          : fromHeader(request.headers['accept-language']);
-  const A = views(L, path);
+  let L = isLanguage(chosen) ? chosen
+        : fromHeader(request.headers['accept-language']);
+  const ctx = { directorProject: projectIdFromCookie(request) };
+  let A = views(L, path, ctx);
+  /* A project may set the language for its company. It counts as long
+     as the visitor has not switched in the page head themselves. */
+  const projectLanguage = (project) => {
+    const wanted = project?.einstellungen?.sprache;
+    if (!isLanguage(chosen) && isLanguage(wanted) && wanted !== L) { L = wanted; A = views(L, path, ctx); }
+  };
 
   /* --- Sprache umschalten: geht ohne Zugang --- */
   if (first === 'sprache' && post) {
@@ -492,6 +499,7 @@ export async function handle(request, response, path) {
     await drainBody(request);
     const hit = await S.findByPersonToken(parts[1]);
     if (!hit) return html(response, A.errorPage('f.link_gone_t', 'f.link_gone'), 404);
+    projectLanguage(hit.project);
     setMemberCookie(response, hit.project.id, hit.person.id);
     setRealSelfCookie(response, null);
     return redirect(response, '/theater/mit/zeiten');
@@ -508,6 +516,7 @@ export async function handle(request, response, path) {
     const project = await S.findByPrintToken(token);
     if (!project) { await drainBody(request); return html(response,
       A.errorPage('f.link_gone2_t', 'f.link_gone2'), 404); }
+    projectLanguage(project);
     const action = parts[2] || '';
 
     // 'base' is only built further down, for the director's pages;
@@ -627,6 +636,7 @@ export async function handle(request, response, path) {
     const project = await S.findByGroupToken(token);
     if (!project) { await drainBody(request); return html(response,
       A.errorPage('f.link_gone3_t', 'f.link_gone3'), 404); }
+    projectLanguage(project);
     if (!post) return html(response, A.pickNamePage(project, token, null));
     const { fields } = await readForm(request);
     const person = (project.personen || []).find(x => x.id === String(fields.person || ''));
@@ -647,6 +657,7 @@ export async function handle(request, response, path) {
     if (!who) { await drainBody(request); return html(response,
       A.errorPage('f.not_signed_in_t', 'f.not_signed_in'), 401); }
     const { project, person } = who;
+    projectLanguage(project);
 
     /* Who is being worked for, and who is one really? */
     const realSelfValue = sealedCookie(request, REALSELF);
@@ -851,6 +862,7 @@ export async function handle(request, response, path) {
     return html(response, A.entryPage({ kind: 'error',
       key: 'r.expired' }), 401);
   }
+  projectLanguage(project);
 
   const base = baseOf(request);
 
@@ -870,6 +882,15 @@ export async function handle(request, response, path) {
   if (first === 'projekt') {
     if (!post) return html(response, A.projectPage(project, null));
     const { fields } = await readForm(request);
+    if (String(fields.action) === 'sprache') {
+      project.einstellungen = project.einstellungen || {};
+      const wanted = String(fields.language || '');
+      if (isLanguage(wanted)) project.einstellungen.sprache = wanted;
+      else delete project.einstellungen.sprache;
+      await S.write(project);
+      projectLanguage(project);
+      return html(response, A.projectPage(project, { kind: 'good', key: 'r.language_saved' }));
+    }
     if (String(fields.action) !== 'zeitraum')
       return html(response, A.projectPage(project, { kind: 'error', key: 'r.unknown_action' }));
     project.einstellungen = project.einstellungen || {};

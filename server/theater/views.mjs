@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { language } from './texts.mjs';
+import { language, LANGUAGES } from './texts.mjs';
 import { STYLE } from './style.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -42,7 +42,9 @@ export const ABOUT = {
    L.number()/L.percent()/L.date() the figures as that language writes
    them.
    --------------------------------------------------------------------- */
-export function views(code, pfad = '/theater') {
+/* ctx: what the router knows about the visitor that the pages need -
+   directorProject: the project the director's cookie opens, if any. */
+export function views(code, pfad = '/theater', ctx = {}) {
   const L = language(code);
   const t = L.t;
 
@@ -228,7 +230,7 @@ const navDirector = (p) => `<nav>
   <a href="/theater/drucken">${t('nav.print')}</a>
   <a href="/theater/hoerbuch">${t('nav.audiobook')}</a>
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
-    <select name="person" onchange="this.form.submit()" aria-label="${h(t('nav.calendar_for'))}">
+    <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('nav.calendar_for'))}">
       <option value="">${h(t('nav.calendar_for'))}</option>
       ${[...p.personen].sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale))
         .map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
@@ -352,6 +354,18 @@ function projectPage(p, m) {
       ${row(t('proj.dates'), rehearsalCount
         ? t('proj.dates_yes') : t('proj.dates_waits'))}
     </table>
+
+    <h2>${t('proj.language')}</h2>
+    <p class="small muted">${t('proj.language_what')}</p>
+    <form method="post" action="/theater/projekt" class="inline">
+      <input type="hidden" name="action" value="sprache">
+      <select name="language" style="max-width:16rem">
+        <option value=""${!p.einstellungen?.sprache ? ' selected' : ''}>${t('proj.language_browser')}</option>
+        ${LANGUAGES.map(x => `<option value="${x.code}"${
+          p.einstellungen?.sprache === x.code ? ' selected' : ''}>${h(x.name)}</option>`).join('')}
+      </select>
+      <button type="submit" class="quiet mini">${h(t('common.save'))}</button>
+    </form>
 
     <h2>${t('proj.period')}</h2>
     <p class="small muted">${t('proj.period_what')}</p>
@@ -986,7 +1000,7 @@ const navMember = (project, person) => {
     .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale));
   const picker = folks.length > 1 ? `<form method="post" action="/theater/mit" class="whopick">
     <input type="hidden" name="action" value="wechseln">
-    <select name="person" onchange="this.form.submit()" aria-label="${h(t('mem.switch_who'))}">
+    <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('mem.switch_who'))}">
       ${folks.map(x => `<option value="${h(x.id)}"${x.id === person.id ? ' selected' : ''}>${
         h(x.name || x.b)}</option>`).join('')}
     </select>
@@ -997,7 +1011,8 @@ const navMember = (project, person) => {
   <a href="/theater/mit/zeiten">${t('navm.times')}</a>
   <a href="/theater/mit/termine">${t('navm.dates')}</a>
   ${project.druck_token ? `<a href="/theater/druck/${h(project.druck_token)}">${t('navm.scripts')}</a>` : ''}
-  ${person.regie || person.assistenz ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
+  ${person.regie || person.assistenz || ctx.directorProject === project.id
+    ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
 };
 

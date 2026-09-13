@@ -142,6 +142,11 @@ export const en = {
                     + 'here. So not into the group chat.',
   'proj.link_new':     'make a new one',
   'proj.link_new_confirm':'The old director link will stop working. Go on?',
+  'proj.language':      'Language for the company',
+  'proj.language_what': 'What the company sees on its pages, unless someone switches in the '
+                      + 'page head. Without a choice, the browser decides.',
+  'proj.language_browser': 'as the browser says',
+  'r.language_saved':   'Language saved.',
   'proj.period':        'Rehearsal period',
   'proj.period_what':   'Dates are looked for in this window, and the company is offered these '
                       + 'days in the calendar. Without an end, three months from today.',

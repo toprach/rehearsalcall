@@ -259,6 +259,8 @@ const cast = target ? groupOf(planHtml, target) : [];
   }
   r = await post('/theater/projekt', { action: 'zeitraum', von: '', bis: '' });
   check('save an empty rehearsal period', good(r), say(r));
+  r = await post('/theater/projekt', { action: 'sprache', language: 'de' });
+  check('set German as the company language', good(r), say(r));
 }
 r = await post('/theater/leute', { action: 'neu', b: 'TESTPERSON', name: 'Test Person' });
 check('add a person to the company', good(r), say(r));
@@ -329,6 +331,7 @@ check('a rehearsal with a cast to enter times for', cast.length > 0, target + ':
         /\/theater\/mit\/zeiten/.test(r.res.headers.get('location') || ''), 'status ' + r.status);
   r = await call('GET', '/theater/mit/zeiten');
   check('that calendar opens', r.status === 200 && /class="overlay"/.test(r.text));
+  check('and the way back to the project is there', /href="\/theater\/projekt"/.test(r.text));
   cookies = director;
 }
 let days = [];
@@ -361,6 +364,7 @@ for (const b of cast) {
     check('the director sees the project link', /href="\/theater\/projekt"/.test(me.text));
     const pj = await call('GET', '/theater/projekt');
     check('the director opens the project through the company link', pj.status === 200);
+    check('the company page comes in the project language', /Meine Zeiten/.test(me.text) && /lang="de"/.test(me.text));
     const all = await call('GET', '/theater/mit/termine?alle=1');
     check('all rehearsals for a member', all.status === 200 &&
           planIds.every(id => all.text.includes('>' + id + '<')), 'status ' + all.status);
@@ -417,6 +421,8 @@ for (const b of cast) {
 }
 
 /* ---- 11. languages and the About page ---- */
+r = await post('/theater/projekt', { action: 'sprache', language: '' });
+check('company language back to the browser', good(r), say(r));
 r = await post('/theater/sprache', { language: 'de', back: '/theater/plan' });
 check('switch language', r.status === 303);
 r = await call('GET', '/theater/plan');

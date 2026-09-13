@@ -138,6 +138,11 @@ export const de = {
                     + 'Also nicht in die WhatsApp-Gruppe.',
   'proj.link_new':     'neuen erzeugen',
   'proj.link_new_confirm':'Der alte Regie-Link gilt dann nicht mehr. Fortfahren?',
+  'proj.language':      'Sprache f\u00fcrs Ensemble',
+  'proj.language_what': 'Was das Ensemble auf seinen Seiten sieht, solange niemand in der '
+                      + 'Kopfzeile umschaltet. Ohne Wahl entscheidet der Browser.',
+  'proj.language_browser': 'wie der Browser',
+  'r.language_saved':   'Sprache gespeichert.',
   'proj.period':        'Probenzeitraum',
   'proj.period_what':   'In diesem Zeitraum werden Termine gesucht, und diese Tage bekommt das '
                       + 'Ensemble im Kalender angeboten. Ohne Ende: drei Monate ab heute.',
