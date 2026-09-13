@@ -96,6 +96,13 @@ Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
 Framadate, Nuudel): there, one poll is always one date.
 
+**Demo projects.** With `THEATER_DEMO` pointing at `beispiel/shakespeare`
+(the Docker image does that by itself), the start page offers *A
+Midsummer Night's Dream* and *Macbeth* as demo projects: in as the
+director without a code, or through the company link. Anyone may change
+them; once an hour the server puts back every demo that is a day old.
+Uploading a script and the audiobook are switched off in them.
+
 Members mostly come on a phone. The four places they go sit in a bar at
 the bottom of the screen, and the part book has a screen edition next to
 the A4 one: passage by passage with its cue, and a **learning mode** that

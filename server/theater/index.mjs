@@ -29,6 +29,7 @@ import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
          mappingProposal, buildDocument } from './script.mjs';
 import { compareSpeeches, realignPlan, rehearsalsByCue } from './versions.mjs';
 import { partBook, wordsOf } from './book.mjs';
+import * as Demo from './demo.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -417,6 +418,10 @@ export async function handle(request, response, path) {
   const regie = await regieFrom(request, null);
   const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null,
                 theme: plainCookie(request, 'thema') === 'dunkel' ? 'dunkel' : 'hell' };
+  /* A demo project says so on every page, with the hour of the next reset. */
+  const demoBanner = (project) => {
+    if (project?.demo) ctx.demo = { until: new Date(Date.parse(project.demo_reset || 0) + Demo.RESET_MS) };
+  };
   let A = views(L, path, ctx);
   /* A project may set the language for its company. It counts as long
      as the visitor has not switched in the page head themselves. */
@@ -759,6 +764,7 @@ export async function handle(request, response, path) {
       A.errorPage('f.not_signed_in_t', 'f.not_signed_in'), 401); }
     const { project, person } = who;
     projectLanguage(project);
+    demoBanner(project);
 
     /* Who is being worked for, and who is one really? */
     const realSelfValue = sealedCookie(request, REALSELF);
@@ -925,7 +931,18 @@ export async function handle(request, response, path) {
     if (id && await S.read(id)) return redirect(response, '/theater/projekt');
     // A member who is signed in lands on their own page, not at the code.
     if (await memberFrom(request)) return redirect(response, '/theater/mit');
-    return html(response, A.entryPage(null));
+    return html(response, A.entryPage(null, Demo.available()));
+  }
+
+  /* --- the demo projects: in as the director without a code, or on to
+         the company link. Open to everyone; reset every 24 hours. --- */
+  if (first === 'demo') {
+    await drainBody(request);
+    const project = await Demo.demoProject(parts[1] || '');
+    if (!project) return html(response, A.errorPage('f.demo_gone_t', 'f.demo_gone'), 404);
+    if (parts[2] === 'ensemble') return redirect(response, '/theater/gruppe/' + project.gruppen_token);
+    setCookie(response, project.id);
+    return redirect(response, '/theater/projekt');
   }
 
   if (first === 'zugang' && post) {
@@ -977,6 +994,15 @@ export async function handle(request, response, path) {
       key: 'r.expired' }), 401);
   }
   projectLanguage(project);
+  demoBanner(project);
+
+  /* In a demo the script stays as it is and no audiobook is made: the
+     one would have the server hand out anybody's files for a day, the
+     other keeps an API key with a project everyone can open. */
+  if (project.demo && post && (first === 'skript' || first === 'hoerbuch')) {
+    await drainBody(request);
+    return html(response, A.errorPage('f.demo_locked_t', 'f.demo_locked'), 403);
+  }
 
   const base = baseOf(request);
 

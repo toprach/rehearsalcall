@@ -43,9 +43,11 @@ RUN if [ "$WITH_POSTGRES" = "true" ]; then \
 COPY server/app.js ./
 COPY server/theater-code.mjs ./
 COPY server/theater ./theater
+COPY beispiel/shakespeare ./demo
 
 # The data directory belongs to the volume, not to the image.
 ENV THEATER_DATEN=/data \
+    THEATER_DEMO=/app/demo \
     HOST=0.0.0.0 \
     PORT=3011 \
     NODE_ENV=production

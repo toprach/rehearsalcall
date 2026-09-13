@@ -70,7 +70,9 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
             aria-label="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}">${ctx.theme === 'dunkel' ? '\u2600' : '\u263d'}</button>
   </form>
 </div></header>
-<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${body}</div>
+<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${ctx.demo
+  ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
+      { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${body}</div>
 ${tabbar}
 <footer class="foot"><div class="inner small muted">
   <a href="/theater/ueber">${h(name)}${ABOUT.version ? ' ' + h(ABOUT.version) : ''}</a>
@@ -200,7 +202,7 @@ const copyLink = (url) => {
 
 /* ---------- Einstieg ---------- */
 
-const entryPage = (m) => page({
+const entryPage = (m, demos = []) => page({
   title: t('app.name'), narrow: true,
   body: `
     <p class="eyebrow">${t('app.for')}</p>
@@ -223,6 +225,13 @@ const entryPage = (m) => page({
         : t('entry.request_none')}</p>
       <p class="small muted" style="margin:0">${t('entry.by_hand')}</p>
     </div>
+    ${demos.length ? `<h2>${t('entry.demo_title')}</h2>
+    <p class="small muted">${t('entry.demo_what')}</p>
+    <div class="box demos">${demos.map(d => `<p>
+      <b>${h(d.title)}</b><br>
+      <a class="btn quiet mini" href="/theater/demo/${h(d.key)}">${t('entry.demo_director')}</a>
+      <a class="btn quiet mini" href="/theater/demo/${h(d.key)}/ensemble">${t('entry.demo_member')}</a></p>`).join('')}
+    </div>` : ''}
     <p class="small muted">${t('entry.more')}</p>
     <p class="small muted">${t('entry.open_source')}</p>`
 });

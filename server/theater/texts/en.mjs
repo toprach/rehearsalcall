@@ -56,6 +56,14 @@ export const en = {
   'entry.by_hand':  'No sign-up form, no account, no data collection – with a ' +
                      'handful of stages, doing it by hand is the lesser evil.',
   'entry.more':        'Described at length: <a href="/software-en.html">what the software works out, and why</a>.',
+  'entry.demo_title':    'Try it out',
+  'entry.demo_what':     'Two plays in the public domain are set up as demo projects. Anyone may '
+                       + 'look around and change things there; every 24 hours they go back to how '
+                       + 'they were. Uploading a script and the audiobook are switched off in them.',
+  'entry.demo_director': 'as the director',
+  'entry.demo_member':   'as a member of the company',
+  'demo.banner':         'Demo project \u2013 everyone may change things here; it is put back '
+                       + 'to its starting state every 24 hours, next around {when}.',
   'entry.open_source':       'The tools behind it are open to inspect: ' +
                      '<a href="https://github.com/toprach/rehearsalcall">' +
                      'github.com/toprach/rehearsalcall</a>',
@@ -689,6 +697,11 @@ export const en = {
   'f.failed2': 'The document could not be typeset: {reason}',
   'f.not_found2_t': 'Not found',
   'f.not_found2': 'There is no such page.',
+  'f.demo_gone_t':    'No such demo',
+  'f.demo_gone':      'There is no demo project of that name.',
+  'f.demo_locked_t':  'Not in the demo',
+  'f.demo_locked':    'Uploading a script and generating an audiobook are switched off in the '
+                    + 'demo projects. Everything else is open \u2013 <a href="/theater/projekt">back</a>.',
   'f.no_structure_t': 'No script',
   'f.no_structure': 'A script has to be brought in and the casting taken over first.',
   'f.no_plan_t': 'No plan yet',

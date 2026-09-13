@@ -59,6 +59,10 @@ export const STYLE = `
   .notice { padding:.8rem 1.1rem; border-radius:3px; margin:1rem 0; font-size:.93rem }
   .notice.error { background:#fdecec; border-left:4px solid var(--accent) }
   .notice.good { background:#e9f5ed; border-left:4px solid var(--good) }
+  .notice.demo { background:#eef2fb; border-left:4px solid #4a6fd0; font-size:.9rem }
+  html[data-theme="dark"] .notice.demo { background:#1d2540 }
+  .box.demos p { margin:.4rem 0 .8rem } .box.demos p:last-child { margin-bottom:0 }
+  .box.demos .btn { margin:.3rem .3rem 0 0 }
   .row { display:flex; gap:.6rem; align-items:end; flex-wrap:wrap }
   .row > * { flex:1; min-width:7rem }
   .row label { margin-top:0 }

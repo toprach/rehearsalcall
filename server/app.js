@@ -12,6 +12,7 @@
 
 import http from 'node:http';
 import { handle, storage } from './theater/index.mjs';
+import * as Demo from './theater/demo.mjs';
 
 const PORT = Number(process.env.PORT || 3011);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -75,6 +76,13 @@ const server = http.createServer(async (request, response) => {
 });
 
 await storage.setUp();
+
+/* The demo projects: made when missing, put back every 24 hours. The
+   check runs at start and once an hour, in the background - deriving
+   a plan for a big cast takes a while, and the service should answer
+   meanwhile. */
+Demo.ensureAll();
+setInterval(() => Demo.ensureAll(), 60 * 60 * 1000).unref();
 
 server.listen(PORT, HOST, () => {
   console.log('[' + new Date().toISOString() + '] Rehearsal Planner ready on ' +

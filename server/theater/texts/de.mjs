@@ -54,6 +54,15 @@ export const de = {
   'entry.by_hand':  'Kein Formular, keine Anmeldung, keine Datensammlung – bei einer ' +
                      'Handvoll Bühnen ist Handarbeit das kleinere Übel.',
   'entry.more':        'Ausführlich beschrieben: <a href="/software-de.html">was die Software rechnet und warum</a>.',
+  'entry.demo_title':    'Ausprobieren',
+  'entry.demo_what':     'Zwei gemeinfreie St\u00fccke sind als Demo-Projekte eingerichtet. Dort darf '
+                       + 'jeder hineinschauen und \u00e4ndern; alle 24 Stunden werden sie in den '
+                       + 'Ausgangszustand zur\u00fcckgesetzt. Drehbuch hochladen und H\u00f6rbuch sind '
+                       + 'darin abgeschaltet.',
+  'entry.demo_director': 'als Regie',
+  'entry.demo_member':   'als Ensemble-Mitglied',
+  'demo.banner':         'Demo-Projekt \u2013 hier darf jeder \u00e4ndern; alle 24 Stunden wird es in '
+                       + 'den Ausgangszustand zur\u00fcckgesetzt, das n\u00e4chste Mal gegen {when}.',
   'entry.open_source':       'Die Werkzeuge dahinter sind offen einsehbar: ' +
                      '<a href="https://github.com/toprach/rehearsalcall">' +
                      'github.com/toprach/rehearsalcall</a>',
@@ -689,6 +698,11 @@ export const de = {
   'f.failed2': 'Das Dokument liess sich nicht setzen: {reason}',
   'f.not_found2_t': 'Nicht gefunden',
   'f.not_found2': 'Diese Seite gibt es nicht.',
+  'f.demo_gone_t':    'Keine solche Demo',
+  'f.demo_gone':      'Ein Demo-Projekt mit diesem Namen gibt es nicht.',
+  'f.demo_locked_t':  'Nicht in der Demo',
+  'f.demo_locked':    'Drehbuch hochladen und H\u00f6rbuch erzeugen sind in den Demo-Projekten '
+                    + 'abgeschaltet. Alles andere ist offen \u2013 <a href="/theater/projekt">zur\u00fcck</a>.',
   'f.no_structure_t': 'Kein Skript',
   'f.no_structure': 'Zuerst muss ein Drehbuch eingespielt und die Besetzung uebernommen werden.',
   'f.no_plan_t': 'Noch kein Plan',
