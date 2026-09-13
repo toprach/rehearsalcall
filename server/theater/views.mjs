@@ -1224,7 +1224,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
     me: person.b,
     locale: L.locale,
     comments,
-    passages: passages.map(p => ({ i: p.i, chapter: p.chapter, nr: p.nr,
+    passages: passages.map(p => ({ i: p.i, chapter: p.chapter, nr: p.nr, ctxBefore: p.ctxBefore, ctxAfter: p.ctxAfter,
       chunks: p.chunks.map(c => ({ key: c.key, cue: c.cue, lines: c.lines, before: c.before, after: c.after,
                                    teil: c.teil, words: c.words })) })),
     t: {
@@ -1240,6 +1240,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       c_cancel: t('kd.cancel'), c_comments: t('kd.comments'), c_answer: t('kd.answer'), c_del: t('kd.delete'),
       c_done: t('kd.done'), c_failed: t('kd.failed'), c_hint: t('book.dbl_hint'),
       intent_private: t('book.intent_private'), note_icon: icon('note'),
+      more_before: t('book.more_before'), more_after: t('book.more_after'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');

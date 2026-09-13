@@ -192,6 +192,7 @@
     [].forEach.call(document.querySelectorAll('.heft-modes button'), function (b) { b.classList.toggle('on', b.dataset.mode === name); });
     try { localStorage.setItem('heft-mode', name); } catch (e) {}
     if (name === 'lernen' || name === 'intensiv') startSession(name);
+    else dropActsBar();
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('.heft-modes button'); if (b) mode(b.dataset.mode);
@@ -295,38 +296,79 @@
       (r ? ' · ' + esc(fmt(T.step_short, { i: r.s })) : ' · ' + esc(T.new_)) +
       '<span class="batch">' + esc(fmt(T.progress, { done: session.done, total: session.total })) + '</span></div>';
   }
+  /* What comes before and after a chunk: the other chunks of the same
+     passage, then the lines around the passage. Nearest first for
+     "before", as the reading cards have it. */
+  function contextOf(c) {
+    var p = c.p, k = p.chunks.indexOf(c);
+    var line = function (l) { return l.direction ? { text: l.direction, dir: true } : { who: l.who, text: l.text, cont: l.cont }; };
+    var before = [], after = [];
+    for (var i = k - 1; i >= 0; i--) before = before.concat(p.chunks[i].lines.slice().reverse().map(line));
+    before = before.concat(p.ctxBefore || []);
+    for (var j = k + 1; j < p.chunks.length; j++) after = after.concat(p.chunks[j].lines.map(line));
+    after = after.concat(p.ctxAfter || []);
+    return { before: before.slice(0, 10), after: after.slice(0, 10) };
+  }
+  var ctxLine = function (l) {
+    return l.dir ? '<p class="dir">' + esc(l.text) + '</p>'
+      : '<p class="say ctxline">' + (l.cont ? '' : '<b>' + esc(l.who) + ':</b> ') + esc(l.text) + '</p>';
+  };
+  function ctxBeforeHtml(list) {
+    if (!list.length) return '';
+    return '<div class="ctxwrap"><button type="button" class="quiet mini ctx-more before">' + esc(T.more_before) + '</button>' +
+      '<div class="ctx before">' + list.slice().reverse().map(function (l) { return '<div hidden>' + ctxLine(l) + '</div>'; }).join('') + '</div></div>';
+  }
+  function ctxAfterHtml(list) {
+    if (!list.length) return '';
+    return '<div class="ctxwrap"><div class="ctx after">' + list.map(function (l) { return '<div hidden>' + ctxLine(l) + '</div>'; }).join('') + '</div>' +
+      '<button type="button" class="quiet mini ctx-more after">' + esc(T.more_after) + '</button></div>';
+  }
+
+  /* The buttons live in a bar fixed above the phone's navigation, so
+     they are always in the same place. */
+  function actsBar() {
+    var bar = document.getElementById('heft-acts');
+    if (!bar) { bar = document.createElement('div'); bar.className = 'learnbar'; bar.id = 'heft-acts'; document.body.appendChild(bar); }
+    document.body.classList.add('learning');
+    return bar;
+  }
+  function dropActsBar() {
+    var bar = document.getElementById('heft-acts'); if (bar) bar.parentNode.removeChild(bar);
+    document.body.classList.remove('learning');
+  }
+
   function render(panel, e, open) {
     var c = e.item, r = rec(c.key);
-    var nr = c.p.nr;
-    var html = '<section class="pass learn" id="heft-card"' + (nr != null ? ' data-nr="' + nr + '"' : '') + '>' + head(e) + cueHtml(c) +
+    var nr = c.p.nr, ctx = contextOf(c);
+    var html = '<section class="pass learn cmt" id="heft-card"' + (nr != null ? ' data-nr="' + nr + '"' : '') + '>' + head(e) +
+      ctxBeforeHtml(ctx.before) + cueHtml(c) +
       c.before.map(function (d) { return '<p class="dir">' + esc(d) + '</p>'; }).join('');
+    var bar = actsBar();
     if (open) {
       html += '<div class="mine">' + ownHtml(c, 0, true) + '</div>' +
-        '<p class="small muted">' + esc(T.first_time) + '</p>' +
-        '<div class="acts"><button type="button" data-act="weiter">' + esc(T.next) + '</button></div>';
+        '<p class="small muted">' + esc(T.first_time) + '</p>';
+      bar.innerHTML = '<button type="button" data-act="weiter">' + esc(T.next) + '</button>';
     } else {
       html += '<p class="small muted speak">' + esc(T.say_aloud) + '</p>' +
         '<div class="mine hidden-lines" id="heft-own" hidden>' + ownHtml(c, 0, true) + '</div>' +
-        '<div class="hinted" id="heft-hint" hidden></div>' +
-        '<div class="acts" id="heft-acts">' +
-          '<button type="button" class="quiet" data-act="hinweis">' + esc(T.hint) + '</button> ' +
-          '<button type="button" data-act="anzeigen">' + esc(T.reveal) + '</button></div>';
+        '<div class="hinted" id="heft-hint" hidden></div>';
+      bar.innerHTML = '<button type="button" class="quiet" data-act="hinweis">' + esc(T.hint) + '</button>' +
+          '<button type="button" data-act="anzeigen">' + esc(T.reveal) + '</button>';
     }
-    html += c.after.map(function (d) { return '<p class="dir after">' + esc(d) + '</p>'; }).join('') + '</section>';
+    html += c.after.map(function (d) { return '<p class="dir after">' + esc(d) + '</p>'; }).join('') +
+      ctxAfterHtml(ctx.after) + '</section>';
     panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' + html;
     paintFigures(); paintBadges();
     panel.querySelector('#heft-card').scrollIntoView({ block: 'start' });
     window.scrollBy(0, -8);
   }
   function reveal(panel, e) {
-    var c = e.item, r = rec(c.key);
     var own = panel.querySelector('#heft-own'); own.hidden = false;
     var h = panel.querySelector('#heft-hint'); if (h) h.hidden = true;
-    var acts = panel.querySelector('#heft-acts');
-    acts.innerHTML = '<div class="rate">' +
-        '<button type="button" class="quiet" data-act="nochmal">' + esc(T.again) + '</button>' +
-        '<button type="button" class="quiet" data-act="hilfe">' + esc(T.with_help) + '</button>' +
-        '<button type="button" data-act="kann">' + esc(T.knew) + '</button></div>';
+    actsBar().innerHTML =
+        '<button type="button" class="rate-again" data-act="nochmal">' + esc(T.again) + '</button>' +
+        '<button type="button" class="rate-help" data-act="hilfe">' + esc(T.with_help) + '</button>' +
+        '<button type="button" class="rate-knew" data-act="kann">' + esc(T.knew) + '</button>';
   }
   function rate(e, rating) {
     var c = e.item;
@@ -348,6 +390,7 @@
     next();
   }
   function finish(panel) {
+    dropActsBar();
     var f = figures();
     var tomorrow = items.filter(function (c) { var r = rec(c.key); return r && r.f <= addDays(today, 1) && r.f > today; }).length;
     panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' +

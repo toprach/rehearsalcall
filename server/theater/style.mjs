@@ -313,6 +313,15 @@ export const STYLE = `
              justify-content:center; padding:.4rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
   .playbar button { margin:0 }
   @media (max-width:700px) { body .playbar { bottom:3.9rem } }
+  /* --- the fixed bar with the learning buttons: always in the same place --- */
+  .learnbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.5rem; align-items:center;
+              justify-content:center; padding:.5rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
+  .learnbar button { flex:1 1 0; max-width:14rem; margin:0; padding:.7rem .5rem; font-weight:700 }
+  .learnbar .rate-again { background:#c9302c; border-color:#c9302c; color:#fff }
+  .learnbar .rate-help { background:#e08a1e; border-color:#e08a1e; color:#fff }
+  .learnbar .rate-knew { background:#1d7a3e; border-color:#1d7a3e; color:#fff }
+  body.learning .frame { padding-bottom:9rem }
+  @media (max-width:700px) { body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem } }
   .figures { margin:.4rem 0 .8rem }
   .figures .steps { display:flex; height:.5rem; margin-top:.4rem; border-radius:3px; overflow:hidden; background:var(--rule) }
   .figures .steps i { display:block; min-width:0 }
