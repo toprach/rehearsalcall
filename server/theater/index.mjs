@@ -18,7 +18,7 @@ import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage } from './texts.mjs';
-import { proposeDates, calendarDays, dayStates } from './dates.mjs';
+import { proposeDates, calendarDays, dayStates, directorsOf } from './dates.mjs';
 import { derivePlan, peopleOf, summaryOf } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -673,7 +673,29 @@ export async function handle(request, response, path) {
       return redirect(response, '/theater/mit');
     }
 
+    // The print link belongs to the whole project; a member needs it for
+    // the scripts page. Usually the director has been here first and it
+    // exists; if not, make it now.
+    if (!project.druck_token) { project.druck_token = S.randomId(18); await S.write(project); }
+
     if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
+
+    /* The passages of one rehearsal, for a member: the same page as
+       the director's, with the member's navigation. */
+    if (second === 'plan' && parts[2]) {
+      await drainBody(request);
+      const id = decodeURIComponent(parts[2]);
+      if (!project.skript || !project.plan) return html(response,
+        A.errorPage('f.no_plan_t', 'f.no_plan'), 404);
+      let d;
+      try { d = passagesOf(project.skript, project.plan, id); }
+      catch (e) {
+        console.error('[Passagen] ' + (e && e.stack || e));
+        return html(response, A.errorPage('f.failed3_t', 'f.failed3', { reason: reasonOf(e) }), 500);
+      }
+      if (!d) return html(response, A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404);
+      return html(response, A.passagesPage(project, d, null, { member: person }));
+    }
 
     if (second === 'zeiten') {
       const days = calendarDays(project);
@@ -696,13 +718,17 @@ export async function handle(request, response, path) {
     }
 
     if (second === 'termine') {
-      if (!post) return html(response, A.myDatesPage(project, person, proposeDates(project), null));
+      const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+      const view = { all: query.get('alle') === '1' };
+      if (!post) return html(response, A.myDatesPage(project, person, proposeDates(project), null, view));
       const { fields } = await readForm(request);
       const rehearsal = String(fields.rehearsal || '');
       const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
-      if (!mine || !mine.gruppe.includes(person.b))
+      const allowed = mine && (mine.gruppe.includes(person.b) || person.regie || person.assistenz ||
+                               directorsOf(project).includes(person.b));
+      if (!allowed)
         return html(response, A.myDatesPage(project, person, proposeDates(project), {
-          kind: 'error', key: 'r.not_yours' }));
+          kind: 'error', key: 'r.not_yours' }, view));
       const old = (project.termine || []).find(t => t.probe_id === rehearsal);
       let m = null;
 
@@ -722,7 +748,8 @@ export async function handle(request, response, path) {
         project.termine.push({
           probe_id: rehearsal, iso: fields.iso,
           von: time(fields.from) || '', bis: time(fields.to) || '',
-          gruppe: mine.gruppe, bestaetigt: true, ort: old?.ort || '',
+          gruppe: mine.gruppe, bestaetigt: true,
+          ort: String(fields.place || '').trim().slice(0, 120) || old?.ort || '',
           gehalten: new Date().toISOString(), von_wem: person.b,
         });
         m = { kind: 'good', key: 'r.now_fixed', values: { p1: h(rehearsal) } };
@@ -807,6 +834,12 @@ export async function handle(request, response, path) {
     const projectId = projectIdFromCookie(request);
     project = projectId ? await S.read(projectId) : null;
   }
+  /* The director and the assistant director, signed in through the
+     company link, may do everything the access code allows. */
+  if (!project) {
+    const who = await memberFrom(request);
+    if (who && (who.person.regie || who.person.assistenz)) project = who.project;
+  }
   if (!project) {
     await drainBody(request);
     return html(response, A.entryPage({ kind: 'error',
@@ -828,7 +861,28 @@ export async function handle(request, response, path) {
   project.regielink = base + '/theater/projekt?s=' + project.regie_token;
   project.drucklink = base + '/theater/druck/' + project.druck_token;
 
-  if (first === 'projekt') return html(response, A.projectPage(project, null));
+  if (first === 'projekt') {
+    if (!post) return html(response, A.projectPage(project, null));
+    const { fields } = await readForm(request);
+    if (String(fields.action) !== 'zeitraum')
+      return html(response, A.projectPage(project, { kind: 'error', key: 'r.unknown_action' }));
+    project.einstellungen = project.einstellungen || {};
+    project.einstellungen.von = date(fields.von) || '';
+    project.einstellungen.bis = date(fields.bis) || '';
+    await S.write(project);
+    return html(response, A.projectPage(project, { kind: 'good', key: 'r.period_saved' }));
+  }
+
+  /* Into somebody's calendar from the director's pages: sign in as that
+     person the way the part book does, and go to the calendar. */
+  if (first === 'als' && post) {
+    const { fields } = await readForm(request);
+    const person = (project.personen || []).find(x => x.id === String(fields.person || ''));
+    if (!person) return html(response, A.projectPage(project, { kind: 'error', key: 'r.person_gone' }));
+    setMemberCookie(response, project.id, person.id);
+    setRealSelfCookie(response, null);
+    return redirect(response, '/theater/mit/zeiten');
+  }
 
   if (first === 'skript') {
     /* --- one version compared with the one before it --- */
@@ -1181,6 +1235,10 @@ export async function handle(request, response, path) {
       if (!x) m = { kind: 'error', key: 'r.person_gone3' };
       else {
         x.name = String(fields.name || '').trim().slice(0, 80);
+        x.regie = fields.regie === '1';
+        x.assistenz = fields.assistenz === '1';
+        if (!x.regie) delete x.regie;
+        if (!x.assistenz) delete x.assistenz;
         m = { kind: 'good', key: 'r.name_saved', values: { p1: h(x.b) } };
       }
     } else if (action === 'neuerlink') {
@@ -1270,7 +1328,8 @@ export async function handle(request, response, path) {
       project.termine.push({
         probe_id: rehearsal, iso: fields.iso,
         von: time(fields.from) || '', bis: time(fields.to) || '',
-        gruppe: pr.gruppe, bestaetigt: true, ort: before?.ort || '',
+        gruppe: pr.gruppe, bestaetigt: true,
+        ort: String(fields.place || '').trim().slice(0, 120) || before?.ort || '',
         gehalten: new Date().toISOString(),
       });
       m = { kind: 'good', key: 'r.fixed', values: { p1: h(rehearsal) } };

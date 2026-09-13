@@ -151,6 +151,18 @@ export const STYLE = `
   .langpick { display:flex; align-items:center; flex:0 0 auto; order:1;
               margin:0 0 0 .8rem }
   .whopick { display:inline-block; margin:0 }
+  label.inline { display:inline-flex; gap:.3rem; align-items:center; font-weight:400;
+                 font-size:.82rem; margin:0 .2rem; white-space:nowrap }
+  label.inline input { margin:0 }
+  .chip.muted { opacity:.6; font-weight:500 }
+  .tabs a { margin-right:1.2rem; text-decoration:none; padding-bottom:.15rem }
+  .tabs a.on { font-weight:700; border-bottom:2px solid var(--accent) }
+  /* The calendar's day panel floats above the calendar instead of
+     pushing it around below. */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex;
+             align-items:center; justify-content:center; z-index:50; padding:1rem }
+  .overlay .box { width:100%; max-width:34rem; margin:0; max-height:90vh; overflow:auto;
+                  box-shadow:0 12px 40px rgba(0,0,0,.35) }
   .whopick select,
   .langpick select { padding:.15rem .3rem; font-size:.82rem; margin:0;
                      background:var(--field); color:var(--field-ink);

@@ -20,6 +20,8 @@ export const de = {
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',
   'nav.signout':    'Abmelden',
+  'nav.project':    'Projekt',
+  'nav.calendar_for': 'Kalender f\u00fcr \u2026',
 
   /* ---------- wording used all over ---------- */
   'common.save':    'sichern',
@@ -80,6 +82,11 @@ export const de = {
                     + '– nur meine Passagen, im Browser druckbar',
   'mem.no_script':    '<span class="muted">noch kein Drehbuch</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">öffnen</a>',
+  'mem.plan_book':   'Probenplan im Drehbuch',
+  'mem.plan_open':   '<a href="{url}" target="_blank" rel="noopener">öffnen</a> \u2013 das ganze '
+                    + 'St\u00fcck mit eingezeichneten Proben',
+  'mem.docs':        'Alle Skripte und Rollenhefte an einer Stelle: <a href="{url}">Skripte</a> \u2013 '
+                    + '\u00f6ffnen und im Browser drucken.',
 
   /* ---------- the bar in a printed document ---------- */
   'bar.times':    'Meine Zeiten',
@@ -131,6 +138,12 @@ export const de = {
                     + 'Also nicht in die WhatsApp-Gruppe.',
   'proj.link_new':     'neuen erzeugen',
   'proj.link_new_confirm':'Der alte Regie-Link gilt dann nicht mehr. Fortfahren?',
+  'proj.period':        'Probenzeitraum',
+  'proj.period_what':   'In diesem Zeitraum werden Termine gesucht, und diese Tage bekommt das '
+                      + 'Ensemble im Kalender angeboten. Ohne Ende: drei Monate ab heute.',
+  'proj.period_from':   'von',
+  'proj.period_to':     'bis',
+  'r.period_saved':     'Probenzeitraum gespeichert.',
   'proj.road':          'Der Weg',
   'proj.road_1':        '<b>Drehbuch hochladen</b> – Word oder Markdown.',
   'proj.road_2':        '<b>Besetzung zuordnen</b> – wer ist eine Person, was ist eine '
@@ -183,6 +196,7 @@ export const de = {
   /* ---------- company navigation ---------- */
   'navm.times':    'Meine Zeiten',
   'navm.dates':   'Termine',
+  'navm.scripts': 'Skripte',
 
   /* ---------- casting ---------- */
   'cast.step':      'Schritt 2',
@@ -318,6 +332,7 @@ export const de = {
   'text.director_reads': '\u2013 Regie liest',
   'text.carries_on':      '\u2013 Rede läuft schon',
   'text.back_long':'\u2190 zurück zum Probenplan',
+  'text.back_member': '\u2190 Proben',
 
   /* ---------- printing ---------- */
   'print.output':      'Ausgabe',
@@ -378,6 +393,11 @@ export const de = {
   'comp.entered':  'eingetragen',
   'comp.still_missing':   'fehlt noch',
   'comp.remove':    'entfernen',
+  'comp.director':  'Regie',
+  'comp.assistant': 'Regieassistenz',
+  'comp.director_what': 'Regie und Regieassistenz d\u00fcrfen alles auf diesen Seiten, sobald sie \u00fcber '
+                    + 'den Ensemble-Link angemeldet sind. Die Regie ist bei jeder Probe dabei: ein '
+                    + 'Termin wird nur f\u00fcr Abende vorgeschlagen, an denen die Regie kann.',
   'comp.remove_confirm':'{who} wirklich entfernen? Eingetragene Zeiten gehen mit.',
   'comp.comes_from':     'Das Ensemble entsteht beim Übernehmen der '
                     + '<a href="/theater/besetzung">Besetzung</a>. Hier lässt es sich '
@@ -413,11 +433,16 @@ export const de = {
   'date.none_possible':       'kein Termin möglich',
   'date.none_yet':  'noch kein Termin',
   'date.also':         'auch möglich: {days}',
+  'date.director':     'Regie',
   'date.scenes_min':   '{scenes} Szenen, {min} min Spielzeit',
   'date.possible_n':   '{n} mögliche Abende',
 
   /* ---------- dates, the company's view ---------- */
-  'mdate.title':       'Meine Termine',
+  'mdate.title':       'Meine Proben',
+  'mdate.mine':        'Meine Proben',
+  'mdate.all':         'Alle Proben',
+  'mdate.all_what':    'Der ganze Plan, wie die Regie ihn sieht. Ein Klick auf die Kennung zeigt, '
+                    + 'was in dieser Probe gesprochen wird.',
   'mdate.none':       'Für Sie ist noch keine Probe vorgesehen.',
   'mdate.alone':      'allein',
   'mdate.with':         'mit {who}',

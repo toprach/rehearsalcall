@@ -69,6 +69,11 @@ export function period(project) {
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() + 1);
 
+  // The director may push the start out - rehearsals begin after the
+  // casting is done, say - but never behind tomorrow.
+  const from = asDate(project?.einstellungen?.von);
+  if (from && from > start) { start.setTime(from.getTime()); }
+
   let end = asDate(project?.einstellungen?.bis);
   if (!end || end <= start) {
     end = new Date(start);
@@ -162,6 +167,13 @@ export function proposeDates(project) {
   const personByShort = new Map();
   for (const p of project.personen || []) personByShort.set(p.b, p);
 
+  /* The director is at every rehearsal. So a rehearsal fits an evening
+     only when its cast AND the director can - and the director cannot
+     be in two rehearsals at once, which is what keeps them one after
+     the other on a shared evening. */
+  const directors = directorsOf(project);
+  const needing = (group) => [...new Set([...group, ...directors])];
+
   // How many rehearsals can run at once? Usually there is one stage.
   const stages = Math.max(1, Number(project.einstellungen?.buehnen || 1));
   const days = evenings(project);
@@ -175,7 +187,8 @@ export function proposeDates(project) {
 
   const rehearsals = plan.proben.map(pr => {
     const playing = Number(pr.minuten || 0);
-    const withoutEntry = pr.gruppe.filter(b => {
+    const needed = needing(pr.gruppe);
+    const withoutEntry = needed.filter(b => {
       const person = personByShort.get(b);
       return !person || !entered.has(person.id);
     });
@@ -184,7 +197,7 @@ export function proposeDates(project) {
     const missingCount = new Map();
     let longest = 0, tooShort = 0;
     for (const d of days) {
-      const r = windowFor(pr.gruppe, d, project.verfuegbar || {}, personByShort);
+      const r = windowFor(needed, d, project.verfuegbar || {}, personByShort);
       if (!r.ok) {
         for (const b of r.missing) missingCount.set(b, (missingCount.get(b) || 0) + 1);
         continue;
@@ -195,7 +208,7 @@ export function proposeDates(project) {
       possible.push({ date: d, from: r.from, to: r.to });
     }
     return {
-      id: pr.id, group: pr.gruppe, minutes: playing, needs,
+      id: pr.id, group: pr.gruppe, needed, minutes: playing, needs,
       scenes: pr.szenen || [],
       withoutEntry,
       possible,
@@ -223,7 +236,7 @@ export function proposeDates(project) {
     if (!t.bestaetigt || !t.iso) continue;
     fixed.set(t.probe_id, t);
     const pr = rehearsals.find(x => x.id === t.probe_id);
-    const group = pr ? pr.group : (t.gruppe || []);
+    const group = pr ? pr.needed : needing(t.gruppe || []);
     const from = asMinutes(t.von) ?? 19 * 60;
     const to = asMinutes(t.bis) ?? (from + (pr ? pr.needs : 90));
     book(t.iso, group, from, to);
@@ -242,13 +255,13 @@ export function proposeDates(project) {
   for (const pr of order) {
     for (const m of pr.possible) {
       const iso = isoDate(m.date);
-      const gap = findGap(pr.group, m, pr.needs, booked.get(iso) || [], stages);
+      const gap = findGap(pr.needed, m, pr.needs, booked.get(iso) || [], stages);
       if (!gap) continue;
       pr.proposal = {
         date: m.date, iso, weekday: m.date.getDay(),
         from: clock(gap.from), to: clock(gap.to),
       };
-      book(iso, pr.group, gap.from, gap.to);
+      book(iso, pr.needed, gap.from, gap.to);
       break;
     }
     pr.alternatives = pr.possible
@@ -267,7 +280,7 @@ export function proposeDates(project) {
 
   const open = rehearsals.filter(p => !p.proposal).length;
   return {
-    rehearsals, until,
+    rehearsals, until, directors,
     hint: open ? { key: 'msg.without_date',
                    values: { open, total: rehearsals.length } } : null,
   };
@@ -287,11 +300,22 @@ export function proposeDates(project) {
      2  at least half of one rehearsal
      3  everyone else of one rehearsal - only I am missing
    --------------------------------------------------------------------- */
+/* Who is the director? Marked on the company page; there may be none,
+   and there may be two. The assistant director is not needed at every
+   rehearsal and so does not count here. */
+export function directorsOf(project) {
+  return (project?.personen || []).filter(x => x.regie).map(x => x.b);
+}
+
 export function dayStates(project, person, days) {
   const personByShort = new Map();
   for (const x of project.personen || []) personByShort.set(x.b, x);
 
-  const mine = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
+  const directors = directorsOf(project);
+  const isDirector = directors.includes(person.b);
+  // The director's own calendar: every rehearsal is theirs.
+  const mine = (project.plan?.proben || []).filter(pr =>
+    isDirector || pr.gruppe.includes(person.b));
   const fixed = new Map();
   for (const t of project.termine || [])
     if (t.bestaetigt && t.iso) fixed.set(t.probe_id, t);
@@ -313,7 +337,7 @@ export function dayStates(project, person, days) {
 
     let level = 0, best = null;
     for (const pr of mine) {
-      const others = pr.gruppe.filter(b => b !== person.b);
+      const others = [...new Set([...pr.gruppe, ...directors])].filter(b => b !== person.b);
       const here = others.filter(b => canOn(b, d));
       const share = others.length ? here.length / others.length : 1;
       const st = share >= 1 ? 3 : (share >= 0.5 ? 2 : (here.length ? 1 : 0));

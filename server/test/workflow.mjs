@@ -244,6 +244,22 @@ const planHtml = r.text;
 }
 
 /* ---- 7. the company page ---- */
+const target = planIds.find(id => groupOf(planHtml, id).length >= 2) || planIds[0];
+const cast = target ? groupOf(planHtml, target) : [];
+{
+  // The first person of the target rehearsal becomes the director: from
+  // then on the director's calendar counts for every date.
+  r = await call('GET', '/theater/leute');
+  const idx = r.text.indexOf('<span class="chip">' + esc(cast[0]) + '</span>');
+  const id = idx < 0 ? null : (/name="id" value="([^"]+)"/.exec(r.text.slice(idx)) || [])[1];
+  check('found ' + cast[0] + ' on the company page', !!id);
+  if (id) {
+    r = await post('/theater/leute', { action: 'aendern', id, name: 'The Director', regie: '1' });
+    check('mark ' + cast[0] + ' as the director', good(r) && /name="regie" value="1" checked/.test(r.text), say(r));
+  }
+  r = await post('/theater/projekt', { action: 'zeitraum', von: '', bis: '' });
+  check('save an empty rehearsal period', good(r), say(r));
+}
 r = await post('/theater/leute', { action: 'neu', b: 'TESTPERSON', name: 'Test Person' });
 check('add a person to the company', good(r), say(r));
 r = await post('/theater/leute', { action: 'neu', b: 'TESTPERSON', name: 'Twice' });
@@ -300,9 +316,21 @@ if (printBase) {
    dates page has to propose one of them - that is the calendar being
    counted, not merely stored. */
 const director = cookies;
-const target = planIds.find(id => groupOf(planHtml, id).length >= 2) || planIds[0];
-const cast = target ? groupOf(planHtml, target) : [];
 check('a rehearsal with a cast to enter times for', cast.length > 0, target + ': ' + cast.join(', '));
+{
+  // From the director's pages straight into somebody's calendar.
+  r = await post('/theater/als', { person: 'nobody' });
+  check('calendar for an unknown person is refused', errorNotice(r), say(r));
+  const page_ = await call('GET', '/theater/leute');
+  const idx = page_.text.indexOf('<span class="chip">' + esc(cast[1] || cast[0]) + '</span>');
+  const id = (/name="id" value="([^"]+)"/.exec(page_.text.slice(idx)) || [])[1];
+  r = await post('/theater/als', { person: id });
+  check('calendar for a person from the director pages', r.status === 303 &&
+        /\/theater\/mit\/zeiten/.test(r.res.headers.get('location') || ''), 'status ' + r.status);
+  r = await call('GET', '/theater/mit/zeiten');
+  check('that calendar opens', r.status === 200 && /class="overlay"/.test(r.text));
+  cookies = director;
+}
 let days = [];
 for (const b of cast) {
   cookies = '';
@@ -322,6 +350,21 @@ for (const b of cast) {
   check('member page counts the evenings (' + b + ')', me.status === 200 &&
         new RegExp('\\b' + days.length + ' ').test(me.text));
   clean('member page', me);
+  if (b === cast[0]) {
+    check('the director sees the project link', /href="\/theater\/projekt"/.test(me.text));
+    const pj = await call('GET', '/theater/projekt');
+    check('the director opens the project through the company link', pj.status === 200);
+    const all = await call('GET', '/theater/mit/termine?alle=1');
+    check('all rehearsals for a member', all.status === 200 &&
+          planIds.every(id => all.text.includes('>' + id + '<')), 'status ' + all.status);
+    clean('all rehearsals page', all);
+    const pg = await call('GET', '/theater/mit/plan/' + target);
+    check('passages of a rehearsal for a member', pg.status === 200 && /class="line/.test(pg.text)
+          && /\/theater\/mit\/termine/.test(pg.text));
+    clean('member passages page', pg);
+    const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
+    check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
+  }
 }
 
 /* ---- 10. dates: proposed, fixed from the company, place, released ---- */
@@ -334,8 +377,8 @@ for (const b of cast) {
     '[\\s\\S]*?name="from" value="([^"]*)"[\\s\\S]*?name="to" value="([^"]*)"').exec(d.text);
   check('a date is proposed for ' + target, !!mine, mine ? mine[1] + ' ' + mine[2] + '-' + mine[3] : 'none');
   if (mine) {
-    d = await post('/theater/mit/termine', { action: 'halten', rehearsal: target, iso: mine[1], from: mine[2], to: mine[3] });
-    check('confirm the date from the company', good(d), say(d));
+    d = await post('/theater/mit/termine', { action: 'halten', rehearsal: target, iso: mine[1], from: mine[2], to: mine[3], place: 'Attic <room>' });
+    check('confirm the date from the company, with a place', good(d) && /Attic &lt;room&gt;/.test(d.text), say(d));
     d = await post('/theater/mit/termine', { action: 'place', rehearsal: target, place: 'Stage <left>' });
     check('enter the place from the company', good(d) && /Stage &lt;left&gt;/.test(d.text), say(d));
     d = await post('/theater/mit/termine', { action: 'halten', rehearsal: 'P99', iso: mine[1], from: mine[2], to: mine[3] });
@@ -347,14 +390,15 @@ for (const b of cast) {
   check('dates page', d.status === 200, 'status ' + d.status);
   clean('dates page', d);
   check('the fixed date shows as fixed', /class="isfixed"/.test(d.text) && /Stage &lt;left&gt;/.test(d.text));
+  check('the director is shown at the rehearsals', /class="chip muted"/.test(d.text));
   d = await post('/theater/termine', { action: 'loesen', rehearsal: target });
   check('release the date', good(d), say(d));
   const m = /name="action" value="halten">([\s\S]*?)<\/form>/.exec(d.text);
   if (m) {
     const val = n => (new RegExp('name="' + n + '" value="([^"]*)"').exec(m[1]) || [])[1];
     d = await post('/theater/termine', { action: 'halten', rehearsal: val('rehearsal'),
-      iso: val('iso'), from: val('from'), to: val('to') });
-    check('fix a date as the director', good(d), say(d));
+      iso: val('iso'), from: val('from'), to: val('to'), place: 'Stage' });
+    check('fix a date as the director, with a place', good(d) && /value="Stage"/.test(d.text), say(d));
     d = await post('/theater/termine', { action: 'place', rehearsal: val('rehearsal'), place: 'Rehearsal room' });
     check('enter the place as the director', good(d) && /Rehearsal room/.test(d.text), say(d));
     d = await post('/theater/termine', { action: 'loesen', rehearsal: val('rehearsal') });

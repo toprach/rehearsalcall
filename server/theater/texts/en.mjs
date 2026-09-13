@@ -23,6 +23,8 @@ export const en = {
   'nav.print':     'Print',
   'nav.audiobook':    'Audiobook',
   'nav.signout':    'Sign out',
+  'nav.project':    'Project',
+  'nav.calendar_for': 'calendar for \u2026',
 
   /* ---------- wording used all over ---------- */
   'common.save':    'save',
@@ -83,6 +85,11 @@ export const en = {
                     + '\u2013 only my passages, printable in the browser',
   'mem.no_script':    '<span class="muted">no script yet</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">open</a>',
+  'mem.plan_book':   'Rehearsal plan in the script',
+  'mem.plan_open':   '<a href="{url}" target="_blank" rel="noopener">open</a> \u2013 the whole '
+                    + 'play with the rehearsals drawn in',
+  'mem.docs':        'All scripts and part books in one place: <a href="{url}">Scripts</a> \u2013 '
+                    + 'open one and print it in the browser.',
 
   /* ---------- the bar in a printed document ---------- */
   'bar.times':    'My times',
@@ -135,6 +142,12 @@ export const en = {
                     + 'here. So not into the group chat.',
   'proj.link_new':     'make a new one',
   'proj.link_new_confirm':'The old director link will stop working. Go on?',
+  'proj.period':        'Rehearsal period',
+  'proj.period_what':   'Dates are looked for in this window, and the company is offered these '
+                      + 'days in the calendar. Without an end, three months from today.',
+  'proj.period_from':   'from',
+  'proj.period_to':     'until',
+  'r.period_saved':     'Rehearsal period saved.',
   'proj.road':          'The road',
   'proj.road_1':        '<b>Upload the script</b> \u2013 Word or Markdown.',
   'proj.road_2':        '<b>Assign the casting</b> \u2013 who is a person, what is a stage '
@@ -187,6 +200,7 @@ export const en = {
   /* ---------- company navigation ---------- */
   'navm.times':    'My times',
   'navm.dates':   'Dates',
+  'navm.scripts': 'Scripts',
 
   /* ---------- casting ---------- */
   'cast.step':      'Step 2',
@@ -322,6 +336,7 @@ export const en = {
   'text.director_reads': '\u2013 director reads',
   'text.carries_on':      '\u2013 speech already running',
   'text.back_long':'\u2190 back to the rehearsal plan',
+  'text.back_member': '\u2190 Rehearsals',
 
   /* ---------- printing ---------- */
   'print.output':      'Output',
@@ -380,6 +395,11 @@ export const en = {
   'comp.entered':  'entered',
   'comp.still_missing':   'still missing',
   'comp.remove':    'remove',
+  'comp.director':  'director',
+  'comp.assistant': 'assistant director',
+  'comp.director_what': 'Director and assistant director may do everything on these pages once they '
+                    + 'are signed in through the company link. The director is needed at every '
+                    + 'rehearsal: a date is only proposed for an evening the director can make.',
   'comp.remove_confirm':'Really remove {who}? Times entered go with them.',
   'comp.comes_from':     'The company comes into being when the '
                     + '<a href="/theater/besetzung">casting</a> is taken over. It can be '
@@ -416,11 +436,16 @@ export const en = {
   'date.none_possible':       'no date possible',
   'date.none_yet':  'no date yet',
   'date.also':         'also possible: {days}',
+  'date.director':     'director',
   'date.scenes_min':   '{scenes} scenes, {min} min of playing time',
   'date.possible_n':   '{n} possible evenings',
 
   /* ---------- dates, the company\u2019s view ---------- */
-  'mdate.title':       'My dates',
+  'mdate.title':       'My rehearsals',
+  'mdate.mine':        'My rehearsals',
+  'mdate.all':         'All rehearsals',
+  'mdate.all_what':    'The whole plan, as the director sees it. A click on the identifier shows '
+                    + 'what is spoken in that rehearsal.',
   'mdate.none':       'No rehearsal is planned for you yet.',
   'mdate.alone':      'alone',
   'mdate.with':         'with {who}',

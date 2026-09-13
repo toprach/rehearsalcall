@@ -56,9 +56,12 @@ const diff = { equal: 100, changed: 1, added: 1, removed: 1, hunks: [{ items: [
   { kind: 'added', new: { nr: 13, who: 'TITANIA', text: 'New line <here>' } },
 ] }] };
 const byCue = new Map([[12, new Set(['P01'])], [13, new Set(['P01', 'P02'])]]);
+project.personen[2].regie = true;
+project.personen[1].assistenz = true;
+project.druck_token = 'abcdefghij12345678';
 const person = project.personen[0];
 const datesResult = {
-  until: new Date('2026-12-01'),
+  until: new Date('2026-12-01'), directors: ['TITANIA'],
   hint: { key: 'msg.without_date', values: { open: 1, total: 2 } },
   rehearsals: [
     { id: 'P01', group: ['OBERON', 'PUCK'], minutes: 12.4, needs: 60, scenes: [1], possible: [{}],
@@ -123,6 +126,9 @@ for (const { code } of LANGUAGES) {
     castPage: () => A.castPage(project, null, ['PUCK']),
     planPage: () => A.planPage(project, { kind: 'good', key: 'r.derived', values: { p1: 2, p2: { share: 0.93 } } }),
     passagesPage: () => A.passagesPage(project, passages, null),
+    passagesMember: () => A.passagesPage(project, passages, null, { member: person }),
+    myDatesAll: () => A.myDatesPage(project, person, datesResult, null, { all: true }),
+    memberDirector: () => A.memberPage(project, project.personen[2], null, null),
     audiobookPage: () => A.audiobookPage(project, audiobook, { kind: 'good', key: 'r.key_stored' }),
     audiobookDone: () => A.audiobookPage(project, { ...audiobook,
       jobState: { ...audiobook.jobState, running: false, error: 'boom' } }, null),

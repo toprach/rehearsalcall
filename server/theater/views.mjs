@@ -215,7 +215,10 @@ const entryPage = (m) => page({
 
 /* ---------- Regie ---------- */
 
-const navDirector = `<nav>
+/* The director's navigation. At the end a list of the company: pick a
+   name and you are in that person's calendar - the director enters
+   times for people who phone them, and their own. */
+const navDirector = (p) => `<nav>
   <a href="/theater/projekt">${t('nav.overview')}</a>
   <a href="/theater/leute">${t('nav.company')}</a>
   <a href="/theater/skript">${t('nav.script')}</a>
@@ -224,11 +227,17 @@ const navDirector = `<nav>
   <a href="/theater/termine">${t('nav.dates')}</a>
   <a href="/theater/drucken">${t('nav.print')}</a>
   <a href="/theater/hoerbuch">${t('nav.audiobook')}</a>
+  ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
+    <select name="person" onchange="this.form.submit()" aria-label="${h(t('nav.calendar_for'))}">
+      <option value="">${h(t('nav.calendar_for'))}</option>
+      ${[...p.personen].sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale))
+        .map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
+    </select></form>` : ''}
   <a href="/theater/abmelden">${t('nav.signout')}</a></nav>`;
 
 function printPage(p, m) {
   const d = p.drehbuch;
-  if (!d) return page({ title: t('print.print'), nav: navDirector, body: `
+  if (!d) return page({ title: t('print.print'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('print.output')}</p><h1>${t('print.title')}</h1>
     <div class="notice error">${t('print.no_script')}</div>` });
 
@@ -241,7 +250,7 @@ function printPage(p, m) {
     rel="noopener">${h(t('print.open'))}</a>
     <a class="btn quiet" href="/theater/datei/${datei}">${h(t('print.download_file'))}</a></p>`;
 
-  return page({ title: t('print.print'), nav: navDirector, body: `
+  return page({ title: t('print.print'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('print.output')}</p><h1>${t('print.title')}</h1>
     ${notice(m)}
     <p class="muted">${t('print.what')}</p>
@@ -317,7 +326,7 @@ function projectPage(p, m) {
   const unresolved = (text, target, goto) =>
     `<span class="open">${text}</span> \u2013 <a href="${goto}">${target}</a>`;
 
-  return page({ title: p.titel, nav: navDirector, body: `
+  return page({ title: p.titel, nav: navDirector(p), body: `
     <p class="eyebrow">${t('proj.project')}</p><h1>${h(p.titel)}</h1>
     ${notice(m)}
     <table>
@@ -344,6 +353,19 @@ function projectPage(p, m) {
         ? t('proj.dates_yes') : t('proj.dates_waits'))}
     </table>
 
+    <h2>${t('proj.period')}</h2>
+    <p class="small muted">${t('proj.period_what')}</p>
+    <form method="post" action="/theater/projekt">
+      <input type="hidden" name="action" value="zeitraum">
+      <div class="row">
+        <div><label for="von">${t('proj.period_from')}</label>
+          <input type="date" id="von" name="von" value="${h(p.einstellungen?.von || '')}"></div>
+        <div><label for="bis">${t('proj.period_to')}</label>
+          <input type="date" id="bis" name="bis" value="${h(p.einstellungen?.bis || '')}"></div>
+        <div><button type="submit" class="quiet" style="margin-top:0">${h(t('common.save'))}</button></div>
+      </div>
+    </form>
+
     ${folks ? `<h2>${t('proj.link_company')}</h2>
       <p class="small muted">${t('proj.link_company_what')}</p>
       <div class="box">${copyLink(p.gruppenlink || '')}</div>` : ''}
@@ -369,7 +391,7 @@ function projectPage(p, m) {
 function uploadPage(p, m) {
   const d = p.drehbuch;
   const u = p.skript_ueberblick;
-  return page({ title: t('proj.script'), nav: navDirector, body: `
+  return page({ title: t('proj.script'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('upl.step')}</p><h1>${t('upl.title')}</h1>
     ${notice(m)}
     <p class="muted">${t('upl.what')}</p>
@@ -478,7 +500,7 @@ function versionPage(p, v, before, diff, byCue) {
     </tr>`;
   const hunks = diff.hunks.map(hk => hk.items.map(row).join('')).join(
     `<tr class="gap"><td colspan="6"></td></tr>`);
-  return page({ title: t('ver.title', { nr: v.nr, before: before.nr }), nav: navDirector, body: `
+  return page({ title: t('ver.title', { nr: v.nr, before: before.nr }), nav: navDirector(p), body: `
     <p class="eyebrow"><a href="/theater/skript">${t('ver.back')}</a></p>
     <h1>${t('ver.title', { nr: v.nr, before: before.nr })}</h1>
     <p class="muted">${t('ver.files', { before: h(before.quelle || ''), now: h(v.quelle || '') })}</p>
@@ -495,7 +517,7 @@ function versionPage(p, v, before, diff, byCue) {
 function castPage(p, m, unresolved = []) {
   const unresolvedSet = new Set(unresolved);
   const d = p.drehbuch;
-  if (!d) return page({ title: t('cast.title'), nav: navDirector, body: `
+  if (!d) return page({ title: t('cast.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('cast.step')}</p><h1>${t('cast.title')}</h1>
     <div class="notice error">${t('cast.no_script')}</div>` });
 
@@ -536,7 +558,7 @@ function castPage(p, m, unresolved = []) {
     </tr>`;
   };
 
-  return page({ title: t('cast.title'), nav: navDirector, body: `
+  return page({ title: t('cast.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('cast.step')}</p><h1>${t('cast.title_long')}</h1>
     ${notice(m)}
     ${unresolved.length ? `<div class="notice error">
@@ -632,7 +654,7 @@ function planPage(p, m) {
     </tr>`;
   };
 
-  return page({ title: t('plan.title'), nav: navDirector, body: `
+  return page({ title: t('plan.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('plan.step')}</p><h1>${t('plan.title')}</h1>
     ${notice(m)}
     ${p.plan?.abgleich?.unsicher?.length ? `<div class="notice error">${
@@ -650,14 +672,11 @@ function planPage(p, m) {
                             [10, t('plan.sub_10')], [15, L.percent(0.15)],
                             [20, t('plan.sub_20')], [25, L.percent(0.25)],
                             [30, L.percent(0.30)]], substitution)}</div>
-        <div><label for="until">${t('plan.until')}</label>
-          <input type="date" id="until" name="until" value="${h(p.einstellungen?.bis || '')}"></div>
         <div><label for="maxgruppe">${t('plan.max_group')}</label>
           ${choose('maxgruppe', [[2, t('plan.people_n', { n: 2 })], [3, '3'], [4, '4'],
                                [5, '5'], [6, '6'], [7, '7']], maxG)}</div>
       </div>
-      <p class="small muted" style="margin-top:.8rem">${t('plan.period_what')}<br>
-      ${t('plan.sub_what')}</p>
+      <p class="small muted" style="margin-top:.8rem">${t('plan.sub_what')}</p>
       <button type="submit">${rehearsals.length
         ? t('plan.rederive') : t('plan.derive')}</button>
     </form>`}
@@ -693,8 +712,10 @@ function planPage(p, m) {
    good shows only in the text. In colour is whoever is present - all the
    pale parts are read out by the director.
    --------------------------------------------------------------------- */
-function passagesPage(p, d, m) {
+function passagesPage(p, d, m, opt = {}) {
   const pr = d.rehearsal;
+  const nav = opt.member ? navMember(p, opt.member) : navDirector(p);
+  const back = opt.member ? '/theater/mit/termine' : '/theater/plan';
 
   const speech = (b) => {
     const classes = ['line'];
@@ -736,8 +757,8 @@ function passagesPage(p, d, m) {
     ${sc.parts.length ? sc.parts.map(block).join('')
       : `<p class="muted">${t('text.no_text')}</p>`}`;
 
-  return page({ title: t('text.title', { id: pr.id }), nav: navDirector, body: `
-    <p class="eyebrow"><a href="/theater/plan">${t('text.back')}</a></p>
+  return page({ title: t('text.title', { id: pr.id }), nav, body: `
+    <p class="eyebrow"><a href="${back}">${opt.member ? t('text.back_member') : t('text.back')}</a></p>
     <h1>${t('text.title', { id: h(pr.id) })}</h1>
     ${notice(m)}
     <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
@@ -754,8 +775,8 @@ function passagesPage(p, d, m) {
       h(pr.notiz)}</div>` : ''}
     <p class="small muted">${t('text.legend')}</p>
     ${d.scenes.map(scene).join('')}
-    <p class="eyebrow" style="margin-top:2rem"><a href="/theater/plan">${
-      t('text.back_long')}</a></p>` });
+    <p class="eyebrow" style="margin-top:2rem"><a href="${back}">${
+      opt.member ? t('text.back_member') : t('text.back_long')}</a></p>` });
 }
 
 /* ---------------------------------------------------------------------
@@ -807,7 +828,7 @@ function audiobookPage(p, { voices, people, jobState, rehearsals, models, acts }
       }, 4000);
     <\/script>` : ''}` : '';
 
-  return page({ title: t('ab.title'), nav: navDirector, body: `
+  return page({ title: t('ab.title'), nav: navDirector(p), body: `
     <h1>${t('ab.title')}</h1>
     ${notice(m)}
     <p class="muted">${t('ab.what')}</p>
@@ -887,6 +908,10 @@ function companyPage(p, m, base) {
       <td>${actionForm('/theater/leute', 'aendern', { id: x.id },
         `<input type="text" name="name" value="${h(x.name || '')}"
                placeholder="${h(t('comp.name_hint'))}">
+        <label class="inline"><input type="checkbox" name="regie" value="1"${
+          x.regie ? ' checked' : ''}> ${h(t('comp.director'))}</label>
+        <label class="inline"><input type="checkbox" name="assistenz" value="1"${
+          x.assistenz ? ' checked' : ''}> ${h(t('comp.assistant'))}</label>
         <button class="quiet mini" type="submit">${h(t('common.save'))}</button>`)}</td>
       <td class="small">${evenings
         ? `<span style="color:var(--good)">${t('comp.evenings', { n: evenings })}</span>`
@@ -899,7 +924,7 @@ function companyPage(p, m, base) {
     </tr>`;
   };
 
-  return page({ title: t('comp.title'), nav: navDirector, body: `
+  return page({ title: t('comp.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('comp.who')}</p><h1>${t('comp.title')}</h1>
     ${notice(m)}
     ${link ? `<div class="box important">
@@ -916,7 +941,7 @@ function companyPage(p, m, base) {
       <table><tr><th>${t('comp.col_short')}</th><th>${t('comp.col_name')}</th>
         <th>${t('comp.col_available')}</th><th></th></tr>
       ${p.personen.map(row).join('')}</table>
-      <p class="small muted">${t('comp.comes_from')}</p>`
+      <p class="small muted">${t('comp.comes_from')} ${t('comp.director_what')}</p>`
       : `<p class="muted">${t('comp.nobody')}</p>`}
 
     <h2>${t('comp.add')}</h2>
@@ -972,6 +997,8 @@ const navMember = (project, person) => {
   ${picker}
   <a href="/theater/mit/zeiten">${t('navm.times')}</a>
   <a href="/theater/mit/termine">${t('navm.dates')}</a>
+  ${project.druck_token ? `<a href="/theater/druck/${h(project.druck_token)}">${t('navm.scripts')}</a>` : ''}
+  ${person.regie || person.assistenz ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
 };
 
@@ -1003,7 +1030,12 @@ function memberPage(project, person, m, realSelf) {
         ? t('mem.book_open') : t('mem.no_script')}</td></tr>
       <tr><th>${t('mem.full_script')}</th><td>${project.drehbuch
         ? t('mem.full_open') : '<span class="muted">\u2014</span>'}</td></tr>
-    </table>` });
+      ${project.drehbuch && project.plan?.proben?.length && project.druck_token
+        ? `<tr><th>${t('mem.plan_book')}</th><td>${t('mem.plan_open',
+            { url: '/theater/druck/' + h(project.druck_token) + '/probenplan' })}</td></tr>` : ''}
+    </table>
+    ${project.druck_token ? `<p class="small muted">${t('mem.docs',
+      { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1061,14 +1093,20 @@ function backBar(printToken, personShort, hasPlan) {
     <span class="hint">${h(t('bar.hint'))}</span>
   </div>`;
 }
-function myDatesPage(project, person, result, m) {
-  const mine = result.rehearsals.filter(pr => pr.group.includes(person.b));
+function myDatesPage(project, person, result, m, opt = {}) {
+  const showAll = !!opt.all;
+  const directors = result.directors || [];
+  const isDirector = directors.includes(person.b);
+  const mine = (showAll || isDirector) ? result.rehearsals
+             : result.rehearsals.filter(pr => pr.group.includes(person.b));
 
   const row = (pr) => {
-    const who = pr.group.filter(b => b !== person.b).map(b => {
+    const who = pr.group.filter(b => showAll || b !== person.b).map(b => {
       const x = (project.personen || []).find(y => y.b === b);
       return `<span class="chip" title="${h(x?.name || '')}">${h(b)}</span>`;
-    }).join('') || `<span class="small muted">${t('mdate.alone')}</span>`;
+    }).join('') + directors.filter(b => !pr.group.includes(b) && (showAll || b !== person.b)).map(b =>
+      `<span class="chip muted" title="${h(t('date.director'))}">${h(b)}</span>`).join('')
+      || `<span class="small muted">${t('mdate.alone')}</span>`;
 
     let date, button = '';
     if (pr.proposal && pr.fixed) {
@@ -1085,27 +1123,32 @@ function myDatesPage(project, person, result, m) {
       button = actionForm('/theater/mit/termine', 'halten',
         { rehearsal: pr.id, iso: pr.proposal.iso,
           from: pr.proposal.from, to: pr.proposal.to },
-        '<button class="mini" style="margin:.3rem 0 0">' +
+        `<input type="text" name="place" placeholder="${h(t('common.place_hint'))}"
+                style="max-width:12rem"><button class="mini">` +
         h(t('date.confirm')) + '</button>');
     } else {
       date = `<span class="open">${t('date.none_yet')}</span>
         <div class="small muted">${whyNot(pr)}</div>`;
     }
     return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
-      <td>${h(pr.id)}<div class="small muted">${t('common.minutes',
-        { n: Math.round(pr.minutes) })}</div></td>
-      <td>${t('mdate.with', { who })}</td>
+      <td><a href="/theater/mit/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
+        <div class="small muted">${t('common.minutes', { n: Math.round(pr.minutes) })}</div></td>
+      <td>${showAll ? who : t('mdate.with', { who })}</td>
       <td>${date}${button}</td></tr>`;
   };
 
-  const header = `<tr><th>${t('date.col_rehearsal')}</th><th>${t('mdate.col_with')}</th>
+  const header = `<tr><th>${t('date.col_rehearsal')}</th><th>${
+    showAll ? t('date.col_cast') : t('mdate.col_with')}</th>
     <th>${t('date.col_date')}</th></tr>`;
   const fixed = mine.filter(x => x.fixed);
   const unresolved = mine.filter(x => !x.fixed);
 
   return page({ title: t('date.title'), nav: navMember(project, person), body: `
-    <p class="eyebrow">${h(project.titel)}</p><h1>${t('mdate.title')}</h1>
+    <p class="eyebrow">${h(project.titel)}</p><h1>${showAll ? t('mdate.all') : t('mdate.title')}</h1>
+    <p class="tabs"><a href="/theater/mit/termine"${showAll ? '' : ' class="on"'}>${t('mdate.mine')}</a>
+      <a href="/theater/mit/termine?alle=1"${showAll ? ' class="on"' : ''}>${t('mdate.all')}</a></p>
     ${notice(m)}
+    ${showAll ? `<p class="small muted">${t('mdate.all_what')}</p>` : ''}
     ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
       <h2>${t('mdate.fixed')}${fixed.length ? ` (${fixed.length})` : ''}</h2>
       ${fixed.length ? `<p class="small muted">${t('mdate.fixed_place')}</p>` : ''}
@@ -1122,11 +1165,13 @@ function myDatesPage(project, person, result, m) {
 /* ---------- Termine ---------- */
 
 function datesPage(p, result, m) {
+  const directors = result.directors || [];
   const rows = result.rehearsals.map(pr => {
     const who = pr.group.map(b => {
       const x = (p.personen || []).find(y => y.b === b);
       return `<span class="chip" title="${h(x?.name || '')}">${h(b)}</span>`;
-    }).join('');
+    }).join('') + directors.filter(b => !pr.group.includes(b)).map(b =>
+      `<span class="chip muted" title="${h(t('date.director'))}">${h(b)}</span>`).join('');
 
     let date, button = '';
     if (pr.proposal && pr.fixed) {
@@ -1146,7 +1191,8 @@ function datesPage(p, result, m) {
       button = actionForm('/theater/termine', 'halten',
         { rehearsal: pr.id, iso: pr.proposal.iso,
           from: pr.proposal.from, to: pr.proposal.to },
-        '<button class="small" style="margin:.4rem 0 0; padding:.25rem .7rem">' +
+        `<input type="text" name="place" placeholder="${h(t('common.place_hint'))}"
+                style="max-width:12rem"><button class="small" style="padding:.25rem .7rem">` +
         h(t('date.fix')) + '</button>');
     } else {
       date = `<span class="open">${t('date.none_possible')}</span>`;
@@ -1170,7 +1216,7 @@ function datesPage(p, result, m) {
   }).join('');
 
   const fixedCount = result.rehearsals.filter(x => x.fixed).length;
-  return page({ title: t('date.title'), nav: navDirector, body: `
+  return page({ title: t('date.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('date.step')}</p><h1>${t('date.title_long')}</h1>
     ${notice(m)}
     <p class="muted">${t('date.until', { date: h(result.until
@@ -1307,7 +1353,7 @@ function myTimesPage(project, person, m, days, states) {
       </div>
 
       ${months.map(monthTable).join('')}
-      <div id="tafel" class="box" hidden></div>
+      <div id="schleier" class="overlay" hidden><div id="tafel" class="box"></div></div>
 
       <button type="submit">${t('my.save')}</button>
       <span class="small muted">${t('my.only_after')}</span>
@@ -1354,6 +1400,9 @@ function myTimesPage(project, person, m, days, states) {
           .map(function (b) { return names[b] || b; }).join(', ');
       }
       var tafel = document.getElementById('tafel');
+      var schleier = document.getElementById('schleier');
+      schleier.addEventListener('click', function (e) { if (e.target === schleier) schleier.hidden = true; });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') schleier.hidden = true; });
 
       function oeffne(td) {
         var iso = td.dataset.iso;
@@ -1362,7 +1411,7 @@ function myTimesPage(project, person, m, days, states) {
         var bI = td.querySelector('input[name^="b_"]');
         var tI = td.querySelector('input[name^="t_"]');
         var da = td.dataset.da, gesamt = td.dataset.gesamt;
-        tafel.hidden = false;
+        schleier.hidden = false;
         tafel.innerHTML =
           '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit',
               month: '2-digit', year: 'numeric' }) + '</b>' +
@@ -1394,13 +1443,13 @@ function myTimesPage(project, person, m, days, states) {
           td.classList.add('me');
           td.querySelector('.time').textContent = a + '\u2013' + b;
           preset = { von: a, bis: b };
-          tafel.hidden = true; zaehle();
+          schleier.hidden = true; zaehle();
         };
         document.getElementById('neint').onclick = function () {
           tI.value = ''; vI.value = ''; bI.value = '';
           td.classList.remove('me');
           td.querySelector('.time').textContent = '';
-          tafel.hidden = true; zaehle();
+          schleier.hidden = true; zaehle();
         };
       }
 
