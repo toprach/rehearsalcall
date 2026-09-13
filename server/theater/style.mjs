@@ -237,6 +237,13 @@ export const STYLE = `
   .pass .cue { color:var(--muted); margin:0 0 .4rem; padding-left:.6rem; border-left:3px solid var(--rule) }
   .pass .dir { color:var(--muted); font-style:italic; margin:.2rem 0 }
   .pass .say { margin:.25rem 0; font-size:1.05rem }
+  /* The book is for reading at arm's length: the type-size setting
+     counts for more here than on the other pages. */
+  html[data-font="gross"] .pass .say { font-size:1.3rem; line-height:1.5 }
+  html[data-font="gross"] .pass .cue, html[data-font="gross"] .pass .dir { font-size:1.1rem }
+  html[data-font="sehrgross"] .pass .say { font-size:1.7rem; line-height:1.45 }
+  html[data-font="sehrgross"] .pass .cue, html[data-font="sehrgross"] .pass .dir { font-size:1.25rem }
+  html[data-font="sehrgross"] .pass .reveal, html[data-font="sehrgross"] .bookstep #next { font-size:1.2rem }
   .pass .say.cut { text-decoration:line-through; opacity:.6 }
   .pass .reveal { display:none; margin:.3rem 0 }
   .pass.sits { border-color:var(--good) }
