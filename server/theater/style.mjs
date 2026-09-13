@@ -214,9 +214,11 @@ export const STYLE = `
   /* --- a member on a phone: the links move into a bar at the bottom --- */
   .tabbar { display:none }
   @media (max-width:700px) {
-    .head.member nav a { display:none }
+    body { overflow-x:hidden }
+    .head.member nav a, .head.member .whopick, .head.member .langpick,
+    .head.member .themepick, .head.member a.settings { display:none }
     .head.member nav { flex:0 1 auto; margin-left:0 }
-    .head.member .whopick select { max-width:38vw }
+    .tabbar a { min-width:0; overflow:hidden }
     .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40;
               background:var(--card); border-top:1px solid var(--rule);
               padding:.3rem 0 max(.3rem, env(safe-area-inset-bottom)) }
@@ -250,10 +252,27 @@ export const STYLE = `
   .pass .reveal { display:none; margin:.3rem 0 }
   .pass.sits { border-color:var(--good) }
   .pass.sits .pno { color:var(--good) }
-  body.learn .pass .mine { display:none }
-  body.learn .pass .reveal { display:inline-block }
-  body.learn .pass.shown .mine { display:block }
-  body.learn .pass.shown .reveal { display:none }
+  .heft-modes { display:flex; gap:.4rem; margin:.8rem 0 1rem; flex-wrap:wrap }
+  .heft-modes button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--field-edge) }
+  .heft-modes button.on { background:var(--accent); color:#fff; border-color:var(--accent) }
+  .pass .cue.own { border-left-color:var(--accent) }
+  .pass .ctxwrap .ctx-more { margin:.2rem 0 }
+  .pass .ctx .ctxline, .pass .ctx .dir { opacity:.7; font-size:.95rem }
+  .pass .intent { color:var(--muted); margin:.4rem 0 0 }
+  .pass.learn .speak { margin:.6rem 0 .2rem }
+  .pass.learn .hinted { color:var(--muted); letter-spacing:.02em }
+  .pass.learn .acts { margin-top:.6rem }
+  .pass.learn .acts button { margin:.2rem .3rem .2rem 0 }
+  .pass.learn .rate { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem }
+  .pass.learn .rate button { flex:1 1 6rem; margin:0 }
+  .pass.learn .intentbox input { width:100%; margin:.2rem 0 .4rem }
+  .pass.learn .batch { margin-left:auto }
+  .figures { margin:.4rem 0 .8rem }
+  .figures .steps { display:flex; height:.5rem; margin-top:.4rem; border-radius:3px; overflow:hidden; background:var(--rule) }
+  .figures .steps i { display:block; min-width:0 }
+  .figures .steps .s0 { background:#c9512f } .figures .steps .s1 { background:#d9962b } .figures .steps .s2 { background:#d7c22b }
+  .figures .steps .s3 { background:#9cc63a } .figures .steps .s4 { background:#5aa843 } .figures .steps .s5 { background:#1d7a3e }
+  .figures .steps .s- { background:transparent }
   .bookstep { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.6rem;
               align-items:center; justify-content:center; padding:.5rem .8rem;
               background:var(--card); border-top:1px solid var(--rule) }

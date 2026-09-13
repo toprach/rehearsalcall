@@ -445,8 +445,23 @@ for (const b of cast) {
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
     const bk = await call('GET', '/theater/mit/heft');
     check('the screen part book lists passages', bk.status === 200 && /class="pass"/.test(bk.text) &&
-          /id="learn"/.test(bk.text) && /class="tabbar"/.test(bk.text), 'status ' + bk.status);
+          /id="heft-data"/.test(bk.text) && /class="tabbar"/.test(bk.text), 'status ' + bk.status);
     clean('screen part book', bk);
+    const hd = JSON.parse((/<script id="heft-data" type="application\/json">([\s\S]*?)<\/script>/.exec(bk.text) || [])[1] || '{}');
+    const firstKey = hd.passages?.[0]?.chunks?.[0]?.key;
+    check('the book carries chunks with keys', !!firstKey, JSON.stringify(hd).slice(0, 80));
+    let lr = await post('/theater/mit/heft', { key: firstKey || 'x', antwort: 'kann', absicht: 'get <out>' });
+    let lj = {}; try { lj = JSON.parse(lr.text); } catch {}
+    check('an answer while learning is stored', lr.status === 200 && lj.ok && lj.rec.s === 1 && lj.rec.a === 'get <out>', lr.text.slice(0, 120));
+    lr = await post('/theater/mit/heft', { key: firstKey || 'x', antwort: 'nochmal' });
+    try { lj = JSON.parse(lr.text); } catch {}
+    check('"again" puts it back to step 0, due today', lj.ok && lj.rec.s === 0 && lj.rec.f === hd.today && lj.rec.l.length === 2, lr.text.slice(0, 120));
+    lr = await post('/theater/mit/heft', { key: 'nonsense', antwort: 'kann' });
+    check('an unknown chunk is refused', lr.status === 400, 'status ' + lr.status);
+    const bk2 = await call('GET', '/theater/mit/heft');
+    check('the state comes back with the page', new RegExp('"' + firstKey + '":\\{"s":0').test(bk2.text));
+    const js = await call('GET', '/theater/heft.js');
+    check('the book script is served', js.status === 200 && /heft-data/.test(js.text), 'status ' + js.status);
   }
 }
 

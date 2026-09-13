@@ -29,6 +29,10 @@ import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
          mappingProposal, buildDocument } from './script.mjs';
 import { compareSpeeches, realignPlan, rehearsalsByCue } from './versions.mjs';
 import { partBook, wordsOf } from './book.mjs';
+import * as Learn from './learn.mjs';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
 
 const MEMBER = 'mitglied';
@@ -479,6 +483,14 @@ export async function handle(request, response, path) {
     addCookie(response, 'schrift=' + font + '; Path=/theater; Max-Age=31536000; SameSite=Lax; HttpOnly');
     const back = String(fields.back || '');
     return redirect(response, own(back) ? back : (who ? '/theater/mit' : '/theater'));
+  }
+
+  /* --- the script of the part book: a file, so nothing is escaped --- */
+  if (first === 'heft.js') {
+    await drainBody(request);
+    const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', 'heft.js');
+    response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+    return response.end(fs.readFileSync(file));
   }
 
   /* --- about this installation: open to everyone --- */
@@ -932,11 +944,43 @@ export async function handle(request, response, path) {
     /* The part book for the screen: passage by passage, with the
        learning mode. The A4 document stays on the scripts page. */
     if (second === 'heft') {
-      await drainBody(request);
-      if (!project.skript) return html(response,
-        A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
+      if (!project.skript) { await drainBody(request); return html(response,
+        A.errorPage('f.no_structure_t', 'f.no_structure'), 404); }
       const passages = partBook(project.skript, person.b);
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), await bookLinkFor()));
+      const today = Learn.isoToday();
+
+      /* An answer while learning, or the note on a chunk. Stored with
+         the project under the person - it is theirs, and it moves with
+         their link from phone to computer. */
+      if (post) {
+        const { fields } = await readForm(request);
+        const answer = (obj, status = 200) => {
+          response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+          response.end(JSON.stringify(obj));
+        };
+        const key = String(fields.key || '');
+        if (!passages.some(p => p.chunks.some(c => c.key === key))) return answer({ ok: false, reason: 'key' }, 400);
+        project.lernen = project.lernen || {};
+        const mine = project.lernen[person.id] = project.lernen[person.id] || {};
+        let rec = mine[key] || null;
+        if (fields.antwort != null) {
+          rec = Learn.answer(rec, String(fields.antwort), today);
+          if (!rec) return answer({ ok: false, reason: 'antwort' }, 400);
+        }
+        if (fields.absicht != null) {
+          rec = rec || { s: 0, f: today, l: [] };
+          const a = String(fields.absicht).trim().slice(0, 200);
+          if (a) rec.a = a; else delete rec.a;
+        }
+        if (!rec) return answer({ ok: false, reason: 'nothing' }, 400);
+        mine[key] = rec;
+        await S.write(project);
+        return answer({ ok: true, rec });
+      }
+
+      await drainBody(request);
+      const state = project.lernen?.[person.id] || {};
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), await bookLinkFor(), state, today));
     }
 
     if (second === 'gesamt') {

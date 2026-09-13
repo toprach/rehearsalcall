@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
+import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -29,6 +30,12 @@ function readVersion() {
     return String(p.version || '');
   } catch { return ''; }
 }
+/* The book script is cached for an hour; its address changes with the file. */
+const HEFT_V = (() => {
+  try { return String(Math.round(fs.statSync(new URL('./static/heft.js', import.meta.url)).mtimeMs)); }
+  catch { return '0'; }
+})();
+
 export const ABOUT = {
   version: readVersion(),
   repository: 'https://github.com/toprach/rehearsalcall',
@@ -1078,7 +1085,7 @@ const navMember = (project, person) => {
    hidden. The current page is marked. */
 const memberTabbar = (project, person) => {
   const items = [
-    ['/theater/mit/zeiten', t('navm.times'), '\u25a6'],
+    ['/theater/mit/zeiten', t('navm.times_short'), '\u25a6'],
     ['/theater/mit/termine', t('navm.dates'), '\u2637'],
     ['/theater/mit/heft', t('navm.book'), '\u270e'],
     ['/theater/mit/kommentare', t('nav.comments'), '\u2709'],
@@ -1158,13 +1165,21 @@ function memberPage(project, person, m, realSelf, link = '') {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words, link = '') {
+function bookPage(project, person, passages, words, link = '', state = {}, today = '') {
   const who = person.name || person.b;
-  const card = (p) => `<section class="pass${p.cut ? ' cut' : ''}" id="pass-${p.i}" data-i="${p.i}">
+  const chunks = passages.flatMap(p => p.chunks);
+  const fig = summaryOf(state, chunks, today);
+  const line = (l) => l.dir
+    ? `<p class="dir">${h(l.text)}</p>`
+    : `<p class="say ctxline">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`;
+  const card = (p) => {
+    const notes = p.chunks.map(c => state[c.key]?.a).filter(Boolean);
+    return `<section class="pass${p.cut ? ' cut' : ''}" id="pass-${p.i}">
       <div class="passhead small muted"><span class="pno">${p.i}</span>
         ${p.chapter ? h(p.chapter) : ''}${p.nr != null ? ' \u00b7 ' + t('book.cue_nr', { nr: p.nr }) : ''}
-        ${p.role ? ' \u00b7 ' + h(p.role) : ''}
-        <button type="button" class="quiet mini sits" data-i="${p.i}">${h(t('book.sits'))}</button></div>
+        ${p.role ? ' \u00b7 ' + h(p.role) : ''}</div>
+      ${p.ctxBefore.length ? `<div class="ctxwrap"><button type="button" class="quiet mini ctx-more before">${h(t('book.more_before'))}</button>
+        <div class="ctx before">${[...p.ctxBefore].reverse().map(l => `<div hidden>${line(l)}</div>`).join('')}</div></div>` : ''}
       ${p.cue ? `<p class="cue"><b>${h(p.cue.who)}:</b> ${h(p.cue.text)}</p>` : `<p class="cue muted">${t('book.no_cue')}</p>`}
       ${p.before.map(d => `<p class="dir">${h(d)}</p>`).join('')}
       <div class="mine">
@@ -1172,9 +1187,31 @@ function bookPage(project, person, passages, words, link = '') {
           ? `<p class="dir">${h(l.direction)}</p>`
           : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`).join('')}
       </div>
-      <button type="button" class="reveal">${h(t('book.reveal'))}</button>
+      ${notes.length ? `<p class="intent small"><b>${t('book.intent')}:</b> ${notes.map(h).join(' \u00b7 ')}</p>` : ''}
       ${p.after.map(d => `<p class="dir after">${h(d)}</p>`).join('')}
+      ${p.ctxAfter.length ? `<div class="ctxwrap"><div class="ctx after">${p.ctxAfter.map(l => `<div hidden>${line(l)}</div>`).join('')}</div>
+        <button type="button" class="quiet mini ctx-more after">${h(t('book.more_after'))}</button></div>` : ''}
     </section>`;
+  };
+
+  const data = {
+    today,
+    state,
+    passages: passages.map(p => ({ i: p.i, chapter: p.chapter, nr: p.nr,
+      chunks: p.chunks.map(c => ({ key: c.key, cue: c.cue, lines: c.lines, before: c.before, after: c.after,
+                                   teil: c.teil, words: c.words })) })),
+    t: {
+      due: t('book.due'), fresh: t('book.fresh'), sitting: t('book.sitting'), steps: t('book.steps'),
+      step: t('book.step'), step_short: t('book.step_short'), new_: t('book.new'), part: t('book.part'),
+      progress: t('book.progress'), no_cue: t('book.no_cue'), own_before: t('book.own_before'),
+      first_time: t('book.first_time'), next: t('book.next'), say_aloud: t('book.say_aloud'),
+      hint: t('book.hint'), reveal: t('book.reveal'), intent: t('book.intent'), intent_hint: t('book.intent_hint'),
+      again: t('book.again'), with_help: t('book.with_help'), knew: t('book.knew'),
+      done_title: t('book.done_title'), done_text: t('book.done_text'), once_more: t('book.once_more'),
+      nothing_hard: t('book.nothing_hard'), nothing_hard_what: t('book.nothing_hard_what'),
+    },
+  };
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
 
   return page({ title: t('book.title'), nav: navMember(project, person),
                 tabbar: memberTabbar(project, person), narrow: true, body: `
@@ -1182,75 +1219,23 @@ function bookPage(project, person, passages, words, link = '') {
     <h1>${t('book.title_for', { name: h(who) })}</h1>
     <p class="small muted">${t('book.figures', { passages: passages.length, words })}
       ${project.druck_token ? `\u00b7 <a href="/theater/druck/${h(project.druck_token)}/rolle/${
-        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>` : ''}</p>
-    <p class="small muted">${t('book.what')}</p>
-    <div class="bookbar">
-      <label class="inline"><input type="checkbox" id="learn"> ${h(t('book.learn'))}</label>
-      <label class="inline"><input type="checkbox" id="openonly"> ${h(t('book.open_only'))}</label>
-      <button type="button" class="quiet mini" id="shuffle">${h(t('book.shuffle'))}</button>
-      <span class="cnt small muted" id="progress"></span>
+        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>
+        \u00b7 <a href="/theater/druck/${h(project.druck_token)}/probenplan" target="_blank" rel="noopener">${t('book.plan_doc')}</a>` : ''}</p>
+    <div class="heft-modes">
+      <button type="button" data-mode="lesen" class="on">${h(t('book.mode_read'))}</button>
+      <button type="button" data-mode="lernen">${h(t('book.mode_learn'))}</button>
+      <button type="button" data-mode="intensiv">${h(t('book.mode_hard'))} <span id="heft-hardcount">${fig.hard ? '(' + fig.hard + ')' : ''}</span></button>
     </div>
-    <div id="book">${passages.map(card).join('')}</div>
-    ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
+    <div id="heft-lesen">
+      <p class="small muted">${t('book.read_what')}</p>
+      <div id="book">${passages.map(card).join('')}</div>
+      ${passages.length ? '' : `<p class="muted">${t('book.none')}</p>`}
+    </div>
+    <div id="heft-lernen" hidden><p class="small muted">${t('book.learn_what')}</p></div>
+    <div id="heft-intensiv" hidden><p class="small muted">${t('book.hard_what')}</p></div>
     ${bookLinkBox(link)}
-    <div class="bookstep" id="bookstep" hidden>
-      <button type="button" id="prev" class="quiet">\u25c0</button>
-      <span id="pos" class="small"></span>
-      <button type="button" id="next">${h(t('book.next'))}</button>
-    </div>
-    <script>
-    (function () {
-      var KEY = ${JSON.stringify('heft:' + project.id + ':' + person.b)};
-      var book = document.getElementById('book');
-      var cards = function () { return [].slice.call(book.querySelectorAll('.pass')).filter(function (c) { return !c.hidden; }); };
-      var sits = {};
-      try { sits = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
-      var save = function () { try { localStorage.setItem(KEY, JSON.stringify(sits)); } catch (e) {} };
-      var learn = document.getElementById('learn'), openOnly = document.getElementById('openonly');
-      var step = document.getElementById('bookstep'), pos = document.getElementById('pos');
-      var W = { sits: ${JSON.stringify(t('book.sits'))}, again: ${JSON.stringify(t('book.again'))},
-                progress: ${JSON.stringify(t('book.progress'))} };
-      function paint() {
-        [].forEach.call(book.querySelectorAll('.pass'), function (c) {
-          var s = !!sits[c.dataset.i];
-          c.classList.toggle('sits', s);
-          c.querySelector('.sits').textContent = s ? W.again : W.sits;
-          c.hidden = openOnly.checked && s;
-          c.classList.remove('shown');
-        });
-        var all = book.querySelectorAll('.pass').length, done = Object.keys(sits).filter(function (k) { return sits[k]; }).length;
-        document.getElementById('progress').textContent = W.progress.replace('{done}', done).replace('{all}', all);
-        document.body.classList.toggle('learn', learn.checked);
-        step.hidden = !learn.checked;
-        if (learn.checked) current(0);
-      }
-      var cur = 0;
-      function current(i) {
-        var list = cards(); if (!list.length) { pos.textContent = ''; return; }
-        cur = Math.max(0, Math.min(list.length - 1, i));
-        list[cur].scrollIntoView({ block: 'start' });
-        window.scrollBy(0, -8);
-        pos.textContent = (cur + 1) + ' / ' + list.length;
-      }
-      book.addEventListener('click', function (e) {
-        var b = e.target.closest('button'); if (!b) return;
-        var c = b.closest('.pass');
-        if (b.classList.contains('reveal')) { c.classList.add('shown'); return; }
-        if (b.classList.contains('sits')) { sits[c.dataset.i] = !sits[c.dataset.i]; if (!sits[c.dataset.i]) delete sits[c.dataset.i]; save(); paint(); }
-      });
-      learn.addEventListener('change', paint);
-      openOnly.addEventListener('change', paint);
-      document.getElementById('shuffle').addEventListener('click', function () {
-        var list = [].slice.call(book.querySelectorAll('.pass'));
-        for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = list[i]; list[i] = list[j]; list[j] = t; }
-        list.forEach(function (c) { book.appendChild(c); });
-        paint();
-      });
-      document.getElementById('next').addEventListener('click', function () { current(cur + 1); });
-      document.getElementById('prev').addEventListener('click', function () { current(cur - 1); });
-      paint();
-    })();
-    <\/script>` });
+    <script id="heft-data" type="application/json">${json}</script>
+    <script src="/theater/heft.js?v=${HEFT_V}"></script>` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1262,10 +1247,22 @@ function settingsPage(current, back, m, who) {
       <input type="radio" name="${name}" value="${h(value)}"${checked ? ' checked' : ''}> ${h(label)}</label>`;
   const nav = who ? navMember(who.project, who.person) : '';
   const tabbar = who ? memberTabbar(who.project, who.person) : '';
+  const folks = who ? (who.project.personen || []).filter(x => x.id !== who.person.id)
+    .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale)) : [];
   return page({ title: t('set.title'), nav, tabbar, narrow: true, body: `
     <p class="eyebrow">${t('set.eyebrow')}</p>
     <h1>${t('set.title')}</h1>
     ${notice(m)}
+    ${who && folks.length ? `<h2>${t('set.person')}</h2>
+    <p class="small muted">${t('set.person_what', { name: h(who.person.name || who.person.b) })}</p>
+    <form method="post" action="/theater/mit" class="inline">
+      <input type="hidden" name="action" value="wechseln">
+      <select name="person" style="max-width:16rem">
+        ${folks.map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
+      </select>
+      <button type="submit" class="quiet mini">${h(t('set.switch'))}</button>
+    </form>` : ''}
+    <h2>${t('set.device')}</h2>
     <p class="muted">${t('set.what')}</p>
     <form method="post" action="/theater/einstellungen" class="settings">
       <input type="hidden" name="back" value="${h(back)}">
@@ -1843,6 +1840,7 @@ function docExtras(token, doc, me, comments, canSeeAll) {
       done: t('kd.done'), failed: t('kd.failed'),
       rehearsal: t('kd.rehearsal'), scene: t('kd.scene'), prev: t('kd.prev_comment'),
       next: t('kd.next_comment'), none: t('kd.no_comments'),
+      prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -1875,6 +1873,9 @@ function docExtras(token, doc, me, comments, canSeeAll) {
   .kmt-nav a.on { font-weight:700 }
   .kmt-nav .grp { margin-top:.8rem; font-weight:600; color:#6b655c; font-size:.85em; text-transform:uppercase; letter-spacing:.05em }
   main.plan .szkopf, main.plan p.szende { cursor:pointer }
+  p.speech.kmt-mine { border-left:3px solid #b3272d; padding-left:.5em; margin-left:-.5em; background:rgba(179,39,45,.05) }
+  mark.kmt-me { background:#ffe58a; color:inherit; font-weight:700; padding:0 .1em }
+  @media print { p.speech.kmt-mine { background:transparent } }
   .kmt-bar { position:fixed; top:0; left:0; right:0; z-index:45; display:flex; flex-wrap:wrap; gap:.4rem;
     align-items:center; padding:.35rem .8rem; background:#f6f4f1; border-bottom:1px solid #d8d3cc;
     font:13px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#1c1a18 }
@@ -2032,6 +2033,8 @@ function docExtras(token, doc, me, comments, canSeeAll) {
         probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></label>' +
         '<label>' + esc(T.scene) + ' <select id="kmt-scene"></select></label>';
     }
+    if (D.me) inner += '<button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '">\u25c0 ' + esc(D.me.b) + '</button>' +
+             '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '">' + esc(D.me.b) + ' \u25b6</button>';
     inner += '<button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
              '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button>' +
              '<span class="cnt" id="kmt-cnt"></span>';
@@ -2063,8 +2066,8 @@ function docExtras(token, doc, me, comments, canSeeAll) {
       bar.querySelector('#kmt-cnt').textContent = n ? '\u270e ' + n : T.none;
     };
     count();
-    var step = function (dir) {
-      var list = [].slice.call(document.querySelectorAll('.kmt-badge'));
+    var step = function (dir, selector) {
+      var list = [].slice.call(document.querySelectorAll(selector || '.kmt-badge'));
       var mid = window.innerHeight * 0.4;
       var pick = null;
       list.forEach(function (el) {
@@ -2076,6 +2079,37 @@ function docExtras(token, doc, me, comments, canSeeAll) {
     };
     bar.querySelector('#kmt-prev').onclick = function () { step(-1); };
     bar.querySelector('#kmt-next').onclick = function () { step(1); };
+
+    /* ---- reading as oneself: own lines marked, the own name in the
+       directions too, and two buttons that hop from one to the next ---- */
+    if (D.me) {
+      var name = D.me.b;
+      [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
+        if (p.dataset.ensemble === name) p.classList.add('kmt-mine');
+      });
+      var isWord = function (c) { return !!c && /[A-Za-z0-9\u00c0-\u024f]/.test(c); };
+      var markName = function (text) {
+        var out = '', i = 0, idx;
+        while ((idx = text.indexOf(name, i)) >= 0) {
+          var ok = !isWord(text.charAt(idx - 1)) && !isWord(text.charAt(idx + name.length));
+          out += esc(text.slice(i, idx)) + (ok ? '<mark class="kmt-me">' + esc(name) + '</mark>' : esc(name));
+          i = idx + name.length;
+        }
+        return out + esc(text.slice(i));
+      };
+      [].forEach.call(document.querySelectorAll('main .dir'), function (d) {
+        var walker = document.createTreeWalker(d, NodeFilter.SHOW_TEXT), nodes = [], n;
+        while ((n = walker.nextNode())) if (n.nodeValue.indexOf(name) >= 0) nodes.push(n);
+        nodes.forEach(function (tn) {
+          var html = markName(tn.nodeValue);
+          if (html.indexOf('<mark') < 0) return;
+          var span = document.createElement('span'); span.innerHTML = html;
+          tn.parentNode.replaceChild(span, tn);
+        });
+      });
+      bar.querySelector('#kmt-me-prev').onclick = function () { step(-1, 'p.speech.kmt-mine'); };
+      bar.querySelector('#kmt-me-next').onclick = function () { step(1, 'p.speech.kmt-mine'); };
+    }
     var oldBadge = badge;
     badge = function (nr) { oldBadge(nr); count(); };
   });
