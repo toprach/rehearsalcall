@@ -620,7 +620,7 @@ function castPage(p, m, unresolved = []) {
     <\/script>` });
 }
 
-function planPage(p, m) {
+function planPage(p, m, acts = []) {
   const rehearsals = p.plan?.proben || [];
   const hasStructure = !!p.skript_ueberblick;
   const substitution = Math.round((p.plan?.ersatzanteil ?? 0.2) * 100);
@@ -679,11 +679,11 @@ function planPage(p, m) {
       t('plan.unsure_notice', { ids: p.plan.abgleich.unsicher.map(h).join(', ') })}</div>` : ''}
     ${!hasStructure ? `<div class="notice error">${t('plan.no_cast')}</div>` : `
     <p class="muted">${t('plan.what')}</p>
-    <form method="post" action="/theater/plan"${rehearsals.length
-      ? ' onsubmit="return confirm(' + JSON.stringify(t('plan.rederive_confirm'))
-          .replace(/"/g, '&quot;') + ')"'
-      : ''}>
+    <form method="post" action="/theater/plan" id="ableiten">
       <input type="hidden" name="action" value="ableiten">
+      ${acts.length ? `<input type="hidden" name="akte" value="1"><label>${t('plan.acts')}</label>
+      <div class="acts">${acts.map(a => `<label class="inline"><input type="checkbox"
+        name="akt_${a.nr}" value="1" checked> ${h(a.name)}</label>`).join('')}</div>` : ''}
       <div class="row">
         <div><label for="substitution">${t('plan.substitution')}</label>
           ${choose('substitution', [[0, t('plan.sub_0')], [5, L.percent(0.05)],
@@ -695,9 +695,17 @@ function planPage(p, m) {
                                [5, '5'], [6, '6'], [7, '7']], maxG)}</div>
       </div>
       <p class="small muted" style="margin-top:.8rem">${t('plan.sub_what')}</p>
-      <button type="submit">${rehearsals.length
-        ? t('plan.rederive') : t('plan.derive')}</button>
-    </form>`}
+      ${rehearsals.length ? `
+      <button type="submit" name="modus" value="ergaenzen">${t('plan.derive_add')}</button>
+      <button type="submit" name="modus" value="ersetzen" class="quiet"
+        onclick="return confirm(${JSON.stringify(t('plan.replace_confirm')).replace(/"/g, '&quot;')})">${
+        t('plan.derive_replace')}</button>
+      <p class="small muted">${t('plan.modes_what')}</p>`
+      : `<button type="submit" name="modus" value="ersetzen">${t('plan.derive')}</button>`}
+    </form>
+    ${rehearsals.length ? actionForm('/theater/plan', 'zuruecksetzen', {},
+      '<button class="quiet mini" type="submit">' + h(t('plan.reset')) + '</button>',
+      { confirm: t('plan.reset_confirm') }) : ''}`}
 
     ${rehearsals.length ? `
       <h2>${t('plan.n_rehearsals', { n: rehearsals.length })}</h2>
@@ -939,7 +947,9 @@ function companyPage(p, m, base) {
       <td>${actionForm('/theater/leute', 'loeschen', { id: x.id },
         '<button class="quiet mini" type="submit">' + h(t('comp.remove')) + '</button>',
         { confirm: t('comp.remove_confirm', { who: x.b }) })}</td>
-    </tr>`;
+    </tr>${(x.regie || x.assistenz) && x.token ? `<tr class="personal"><td></td><td colspan="3" class="small">
+      ${t('comp.personal_link', { who: h(x.name || x.b) })}
+      ${copyLink((base || '') + '/theater/ich/' + x.token)}</td></tr>` : ''}`;
   };
 
   return page({ title: t('comp.title'), nav: navDirector(p), body: `
@@ -1016,7 +1026,7 @@ const navMember = (project, person) => {
   <a href="/theater/mit/zeiten">${t('navm.times')}</a>
   <a href="/theater/mit/termine">${t('navm.dates')}</a>
   ${project.druck_token ? `<a href="/theater/druck/${h(project.druck_token)}">${t('navm.scripts')}</a>` : ''}
-  ${person.regie || person.assistenz || ctx.directorProject === project.id
+  ${ctx.regieProject === project.id || ctx.directorProject === project.id
     ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
 };
@@ -1284,7 +1294,7 @@ function myTimesPage(project, person, m, days, states) {
   const mondayIndex = wtag => (wtag + 6) % 7;      // So=0 -> 6
 
   // Director and assistant director strike days for everyone.
-  const director = !!(person.regie || person.assistenz);
+  const director = ctx.regieProject === project.id || ctx.directorProject === project.id;
   const cell = (tg) => {
     const e = entered[tg.iso];
     const l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
@@ -1369,6 +1379,8 @@ function myTimesPage(project, person, m, days, states) {
       </div>
 
       <div class="legend small">
+        <span class="dot fixed"></span> ${t('my.fixed_with_me')}
+        <span class="dot level3 me"></span> ${t('my.all_with_me')}
         <span class="dot level3"></span> ${t('my.all_others')}
         <span class="dot level2"></span> ${t('my.half')}
         <span class="dot level1"></span> ${t('my.one')}

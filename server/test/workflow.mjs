@@ -132,6 +132,28 @@ clean('casting page', r);
 /* ---- 4. deriving the plan ---- */
 r = await post('/theater/plan', { action: 'ableiten', substitution: '20', maxgruppe: '5' });
 check('derive the plan', good(r), say(r));
+{
+  // Acts: derive for one act only, add for another, replace, reset.
+  const actFields = [...r.text.matchAll(/name="(akt_\d+)"/g)].map(m => m[1]);
+  check('the plan page offers the acts', actFields.length >= 2, actFields.length + ' acts');
+  const count = (html) => new Set([...html.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1])).size;
+  const full = count(r.text);
+  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', akte: '1' });
+  check('derive without any act is refused', errorNotice(r), say(r));
+  r = await post('/theater/plan', { action: 'zuruecksetzen' });
+  check('reset the plan', good(r) && count(r.text) === 0, say(r));
+  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[0]]: '1' });
+  check('derive for the first act only', good(r) && count(r.text) > 0 && count(r.text) < full, count(r.text) + ' of ' + full);
+  const one = count(r.text);
+  r = await post('/theater/plan', { action: 'ableiten', modus: 'ergaenzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[1]]: '1' });
+  check('add the second act', good(r) && count(r.text) > one, count(r.text));
+  const two = count(r.text);
+  r = await post('/theater/plan', { action: 'ableiten', modus: 'ergaenzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[0]]: '1' });
+  check('adding the first act again adds nothing', good(r) && count(r.text) === two, count(r.text));
+  const all = Object.fromEntries(actFields.map(a => [a, '1']));
+  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', ...all });
+  check('replace for all acts gives the full plan back', good(r) && count(r.text) === full, count(r.text) + ' of ' + full);
+}
 clean('plan page', r);
 const ids = [...new Set([...r.text.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1]))];
 check('the plan has rehearsals', ids.length > 0, ids.length + ' rehearsals');
@@ -339,6 +361,19 @@ for (const b of cast) {
   cookies = '';
   const m = await call('GET', printBase + '/mit/' + encodeURIComponent(b) + '?goto=zeiten');
   check('from the part book into the member area (' + b + ')', m.status === 303, 'status ' + m.status);
+  if (b === cast[0]) {
+    // Through the part book, the director is a member like any other.
+    const me0 = await call('GET', '/theater/mit');
+    check('no project link through the company link', !/href="\/theater\/projekt"/.test(me0.text));
+    const pj0 = await call('GET', '/theater/projekt');
+    check('no director rights through the company link', pj0.status === 401, 'status ' + pj0.status);
+    // The director strikes days - that needs the rights of the personal link.
+    cookies = director;
+    const comp = await call('GET', '/theater/leute');
+    const ich = (/\/theater\/ich\/([a-z0-9]{10,})/.exec(comp.text) || [])[0];
+    cookies = '';
+    await call('GET', ich || '/theater/ich/x');
+  }
   const cal = await call('GET', '/theater/mit/zeiten');
   check('calendar for ' + b, cal.status === 200 && /class="day /.test(cal.text));
   if (b === cast[0]) {
@@ -361,9 +396,20 @@ for (const b of cast) {
         new RegExp('\\b' + days.length + ' ').test(me.text));
   clean('member page', me);
   if (b === cast[0]) {
-    check('the director sees the project link', /href="\/theater\/projekt"/.test(me.text));
-    const pj = await call('GET', '/theater/projekt');
-    check('the director opens the project through the company link', pj.status === 200);
+    // Through the personal link (shown on the company page), the rights.
+    let pj;
+    const saved = cookies; cookies = director;
+    const comp = await call('GET', '/theater/leute');
+    const ich = (/\/theater\/ich\/([a-z0-9]{10,})/.exec(comp.text) || [])[0];
+    check('the company page shows the director\u2019s personal link', !!ich);
+    cookies = '';
+    pj = await call('GET', ich || '/theater/ich/x');
+    check('the personal link signs the director in', pj.status === 303, 'status ' + pj.status);
+    pj = await call('GET', '/theater/projekt');
+    check('and opens the project', pj.status === 200, 'status ' + pj.status);
+    const me2 = await call('GET', '/theater/mit');
+    check('the director sees the project link', /href="\/theater\/projekt"/.test(me2.text));
+    cookies = saved;
     check('the company page comes in the project language', /Meine Verfügbarkeit/.test(me.text) && /lang="de"/.test(me.text));
     const all = await call('GET', '/theater/mit/termine?alle=1');
     check('all rehearsals for a member', all.status === 200 &&
@@ -411,6 +457,13 @@ for (const b of cast) {
     d = await post('/theater/termine', { action: 'halten', rehearsal: val('rehearsal'),
       iso: val('iso'), from: val('from'), to: val('to'), place: 'Stage' });
     check('fix a date as the director, with a place', good(d) && /value="Stage"/.test(d.text), say(d));
+    // Deriving afresh leaves the fixed rehearsal and its date alone.
+    const pl = await call('GET', '/theater/plan');
+    const all = Object.fromEntries([...pl.text.matchAll(/name="(akt_\d+)"/g)].map(m => [m[1], '1']));
+    const re = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', ...all });
+    check('replace keeps the fixed rehearsal', good(re) && new RegExp('>' + val('rehearsal') + '</b>').test(re.text), say(re));
+    d = await call('GET', '/theater/termine');
+    check('and its date is still fixed', new RegExp('name="rehearsal" value="' + val('rehearsal') + '"[\\s\\S]{0,400}?value="loesen"').test(d.text) && /value="Stage"/.test(d.text));
     d = await post('/theater/termine', { action: 'place', rehearsal: val('rehearsal'), place: 'Rehearsal room' });
     check('enter the place as the director', good(d) && /Rehearsal room/.test(d.text), say(d));
     d = await post('/theater/termine', { action: 'loesen', rehearsal: val('rehearsal') });

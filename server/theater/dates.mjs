@@ -357,7 +357,10 @@ export function dayStates(project, person, days) {
     }
     states[t.iso] = {
       level, best, canCome,
-      fixed: [...fixed.values()].filter(x => x.iso === t.iso)
+      // Fixed dates of MY rehearsals (the director's: all of them).
+      fixed: [...fixed.values()].filter(x => x.iso === t.iso &&
+          (isDirector || (x.gruppe || []).includes(person.b) ||
+           mine.some(pr => pr.id === x.probe_id)))
         .map(x => ({ rehearsal: x.probe_id, from: x.von, to: x.bis,
                      place: x.ort || '' })),
     };

@@ -259,6 +259,23 @@ export const de = {
                     + 'proben lassen, und bündelt sie zu Terminen. Gewählt wird nicht eine '
                     + 'Szene, sondern eine <b>Besetzung</b> – steht der Termin ohnehin an, '
                     + 'kostet jede weitere Stelle für dieselben Leute nichts mehr.',
+  'plan.acts':          'Akte',
+  'plan.derive_add':    'Neu ableiten (ergänzen)',
+  'plan.derive_replace': 'Neu ableiten (ersetzen)',
+  'plan.modes_what':    '<b>Ergänzen</b> behält jede Probe und leitet für die gewählten Akte '
+                      + 'weitere ab, nur für Text, den noch keine Probe abdeckt. <b>Ersetzen</b> '
+                      + 'verwirft die Proben der gewählten Akte und leitet sie neu ab. Eine Probe '
+                      + 'mit festem Termin bleibt in beiden Fällen unberührt.',
+  'plan.replace_confirm': 'Die Proben der gewählten Akte ersetzen? Handarbeit dort geht verloren; '
+                      + 'Proben mit festem Termin bleiben.',
+  'plan.reset':         'Plan zurücksetzen',
+  'plan.reset_confirm': 'Alle Proben und alle festen Termine dieses Plans löschen? Drehbuch und '
+                      + 'Ensemble bleiben.',
+  'r.plan_reset':       'Plan zurückgesetzt: {p1} Proben und {p2} feste Termine gelöscht.',
+  'r.no_acts':          'Mindestens einen Akt wählen.',
+  'r.derived_added':    '{p1} Proben für {acts} ergänzt; der Plan hat jetzt {total}, Abdeckung {p2}.',
+  'r.derived_replaced': 'Proben für {acts} neu abgeleitet: {p1} neu, {p3} wegen festem Termin '
+                      + 'behalten; der Plan hat jetzt {total}, Abdeckung {p2}.',
   'plan.rederive_confirm':   'Neu ableiten wirft alle Änderungen von Hand weg. Fortfahren?',
   'plan.substitution':      'Ersatzanteil höchstens',
   'plan.sub_0':    '0\u202f% – kein fremder Text',
@@ -403,9 +420,12 @@ export const de = {
   'comp.remove':    'entfernen',
   'comp.director':  'Regie',
   'comp.assistant': 'Regieassistenz',
-  'comp.director_what': 'Regie und Regieassistenz d\u00fcrfen alles auf diesen Seiten, sobald sie \u00fcber '
-                    + 'den Ensemble-Link angemeldet sind. Die Regie ist bei jeder Probe dabei: ein '
-                    + 'Termin wird nur f\u00fcr Abende vorgeschlagen, an denen die Regie kann.',
+  'comp.director_what': 'Regie und Regieassistenz d\u00fcrfen alles auf diesen Seiten \u2013 \u00fcber ihren '
+                    + '<b>pers\u00f6nlichen Link</b> unter ihrer Zeile, nicht \u00fcber den Ensemble-Link, '
+                    + 'auf dem jeder jeden Namen w\u00e4hlen kann. Die Regie ist bei jeder Probe dabei: '
+                    + 'ein Termin wird nur f\u00fcr Abende vorgeschlagen, an denen die Regie kann.',
+  'comp.personal_link': 'Pers\u00f6nlicher Link f\u00fcr {who} \u2013 tr\u00e4gt die Regie-Rechte, also '
+                    + 'nicht weitergeben:',
   'comp.remove_confirm':'{who} wirklich entfernen? Eingetragene Zeiten gehen mit.',
   'comp.comes_from':     'Das Ensemble entsteht beim Übernehmen der '
                     + '<a href="/theater/besetzung">Besetzung</a>. Hier lässt es sich '
@@ -474,7 +494,9 @@ export const de = {
   'my.needed_for':    'Sie werden für {n} Proben gebraucht: ',
   'my.with':          'mit {who}',
   'my.evenings_n':     '{n} Abend(e)',
-  'my.all_others':  'alle anderen können',
+  'my.fixed_with_me': 'fester Termin einer meiner Proben',
+  'my.all_with_me': 'alle Benötigten können, ich auch',
+  'my.all_others':  'alle anderen können \u2013 nur mein Ja fehlt',
   'my.half':      'mindestens die Hälfte',
   'my.one':        'einer',
   'my.me':          'ich habe zugesagt',

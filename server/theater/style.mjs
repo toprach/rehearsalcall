@@ -129,8 +129,12 @@ export const STYLE = `
      specific than "td.level3" - the cells would otherwise stay white.
      Hence table.cal in front here as well. */
   table.cal td.level1, .dot.level1 { background:#fbe6a8; border-color:#e0c274 }
-  table.cal td.level2, .dot.level2 { background:#f7c890; border-color:#d9a35f }
-  table.cal td.level3, .dot.level3 { background:#a8dfbb; border-color:#75bc90 }
+  table.cal td.level2, .dot.level2 { background:#f3cf6f; border-color:#d3ad48 }
+  /* Orange: everyone else can, only my yes is missing - that is the
+     signal that I make the rehearsal possible. */
+  table.cal td.level3, .dot.level3 { background:#f5a45a; border-color:#d9822e }
+  /* Light green: everyone needed can, me included. */
+  table.cal td.level3.me, .dot.level3.me { background:#a8dfbb; border-color:#75bc90 }
   table.cal td.me { outline:3px solid var(--accent); outline-offset:-3px }
   /* Struck by the director: no rehearsal that day, whoever could. */
   table.cal td.blocked, .dot.blocked {
@@ -138,7 +142,9 @@ export const STYLE = `
     border-color:var(--field-edge) }
   table.cal td.blocked .num { text-decoration:line-through }
   .dot.me { background:transparent; border:2px solid var(--accent) }
-  td.fixed { box-shadow:inset 0 -4px 0 var(--good) }
+  /* Dark green: a fixed date of one of my rehearsals. */
+  table.cal td.fixed, .dot.fixed { background:#2f8a4f; border-color:#256d3f; color:#fff }
+  table.cal td.fixed .num, table.cal td.fixed .time { color:#fff }
   table.cal td:hover { border-color:var(--accent) }
   .copyable { display:inline-flex; gap:.5rem; align-items:center; flex-wrap:wrap }
   .copyable code { user-select:all }
@@ -160,6 +166,8 @@ export const STYLE = `
   label.inline { display:inline-flex; gap:.3rem; align-items:center; font-weight:400;
                  font-size:.82rem; margin:0 .2rem; white-space:nowrap }
   label.inline input { margin:0 }
+  .acts { display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin:.2rem 0 .6rem }
+  .acts label.inline { font-size:.9rem }
   .chip.muted { opacity:.6; font-weight:500 }
   .tabs a { margin-right:1.2rem; text-decoration:none; padding-bottom:.15rem }
   .tabs a.on { font-weight:700; border-bottom:2px solid var(--accent) }
@@ -221,8 +229,10 @@ export const STYLE = `
     table.diff del { background:#3a1d1f } table.diff ins { background:#16301f }
     .box.important { background:var(--card) }
     table.cal td.level1, .dot.level1 { background:#5c5026; border-color:#7a6c39 }
-    table.cal td.level2, .dot.level2 { background:#6e4522; border-color:#8d5c33 }
-    table.cal td.level3, .dot.level3 { background:#255c39; border-color:#39794f }
+    table.cal td.level2, .dot.level2 { background:#6e5a22; border-color:#8d7533 }
+    table.cal td.level3, .dot.level3 { background:#8a4a14; border-color:#b3651f }
+    table.cal td.level3.me, .dot.level3.me { background:#255c39; border-color:#39794f }
+    table.cal td.fixed, .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
     button.quiet, .btn.quiet { background:var(--card); border-color:var(--field-edge);
                                color:var(--ink) }
   }

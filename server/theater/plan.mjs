@@ -13,7 +13,8 @@
    --------------------------------------------------------------------- */
 
 import { findScenes, WPM, score } from './scenes.mjs';
-import { SILENT_WEIGHT } from './timeline.mjs';
+import { SILENT_WEIGHT, loadTimeline } from './timeline.mjs';
+import { unitsOf, recompute, sortPlan } from './revise.mjs';
 
 /* As in scenes.mjs: split one unit into own and foreign words. */
 function weigh(u, G) {
@@ -23,17 +24,24 @@ function weigh(u, G) {
   return { own, foreign };
 }
 
+/* opt.acts     which acts to derive for (numbers); default all
+   opt.covered  unit indexes already covered by rehearsals that stay -
+                nothing is derived for them a second time            */
 export function derivePlan(structure, opt = {}) {
   const substitution = Math.min(0.4, Math.max(0, Number(opt.substitution ?? 0.20)));
   const maxGroup = Math.min(9, Math.max(2, Number(opt.maxGroup ?? 5)));
   const minValue = Number(opt.minValue ?? 40);
+  const acts = Array.isArray(opt.acts) && opt.acts.length ? new Set(opt.acts.map(Number)) : null;
+  const covered = opt.covered instanceof Set ? opt.covered : new Set();
 
   const { scenes, units, s } = findScenes(structure, {
     shares: [substitution],
     sizes: [2, 3, 4, 5, 6, 7, 8, 9].filter(k => k <= maxGroup),
   });
 
-  const open = units.map(u => u.ownWords);
+  /* What is there to cover: the selected acts, minus what stays covered. */
+  const wanted = u => (!acts || acts.has(Number(u.act))) && !covered.has(u.i);
+  const open = units.map(u => wanted(u) ? u.ownWords : 0);
   const totalWords = open.reduce((a, b) => a + b, 0) || 1;
   const newIn = z => { let n = 0; for (let i = z.from; i <= z.to; i++) n += open[i]; return n; };
   const remainingValue = z => score(z, s) * (z.own ? newIn(z) / z.own : 0);
@@ -215,6 +223,48 @@ export function derivePlan(structure, opt = {}) {
       })),
     })),
   };
+}
+
+/* The acts of a structure with their headings, for the plan page. */
+export function actsIn(structure) {
+  const out = [];
+  for (const s of structure?.sequenz || []) {
+    const m = s.typ === 'kapitel' && /^(\d+)\.$/.exec(s.kapitel || '');
+    if (m) out.push({ nr: Number(m[1]), name: s.text || ('Akt ' + m[1]) });
+  }
+  return out;
+}
+
+/* Which units does a rehearsal cover, on this structure? For carrying
+   fixed rehearsals through a new derivation. */
+export function unitsCoveredBy(structure, rehearsals) {
+  const { units } = loadTimeline(structure);
+  const covered = new Set();
+  for (const pr of rehearsals)
+    for (const sz of pr.szenen || []) {
+      const span = unitsOf(units, sz);
+      if (span) for (let i = span[0]; i <= span[1]; i++) covered.add(i);
+    }
+  return covered;
+}
+
+/* Merge freshly derived rehearsals into a plan that stays: new
+   identifiers continue after the highest one there, scene numbers are
+   given afresh in text order, the figures are recomputed. */
+export function mergeInto(structure, plan, fresh, settings) {
+  let max = 0;
+  for (const pr of plan.proben) { const n = Number((/^P(\d+)$/.exec(pr.id) || [])[1]); if (n > max) max = n; }
+  for (const pr of fresh.proben) pr.id = 'P' + String(++max).padStart(2, '0');
+  plan.proben.push(...fresh.proben);
+  const all = plan.proben.flatMap(pr => pr.szenen || []).sort((a, b) => (a.von ?? 0) - (b.von ?? 0));
+  all.forEach((sz, i) => { sz.szene = i + 1; });
+  plan.ersatzanteil = settings.substitution;
+  plan.max_gruppe = settings.maxGroup;
+  plan.woerter_je_minute = fresh.woerter_je_minute;
+  plan.nachlese_proben = plan.proben.filter(p => p.nachlese).length;
+  recompute(structure, plan);
+  sortPlan(plan);
+  return plan;
 }
 
 /* Pull the people (level B) out of the structure - so the director does

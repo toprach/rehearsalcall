@@ -19,7 +19,7 @@ import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage } from './texts.mjs';
 import { proposeDates, calendarDays, dayStates, directorsOf } from './dates.mjs';
-import { derivePlan, peopleOf, summaryOf } from './plan.mjs';
+import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
 import { passagesOf } from './passages.mjs';
@@ -53,6 +53,30 @@ function clearCookie(response) {
    who is being entered for. This second one is set at the first switch
    and cleared as soon as one is back at oneself.                    */
 const REALSELF = 'theater_ich';
+/* The director's or assistant director's rights as a member.
+
+   The company link lets anyone pick any name, so a name alone can carry
+   no rights. This cookie is set only on the personal link
+   (/theater/ich/<token>), which the director keeps to themselves; it
+   survives switching to somebody else's calendar.                   */
+const REGIE = 'theater_regie';
+
+function setRegieCookie(response, projectId, personId) {
+  const value = projectId + ':' + personId;
+  addCookie(response, `${REGIE}=${value}.${seal(value)}; Path=/theater; HttpOnly; SameSite=Lax; ` +
+    `Max-Age=${60 * 60 * 24 * 180}; Secure`);
+}
+/* The project the regie cookie opens - only while the person still has
+   the flag on the company page. */
+async function regieFrom(request, project) {
+  const value = sealedCookie(request, REGIE);
+  if (!value) return null;
+  const [projectId, personId] = value.split(':');
+  const p = project && project.id === projectId ? project : await S.read(projectId);
+  if (!p) return null;
+  const person = (p.personen || []).find(x => x.id === personId);
+  return person && (person.regie || person.assistenz) ? { project: p, person } : null;
+}
 /* The administrator's session - see the admin branch below. */
 const ADMIN_COOKIE = 'theater_admin';
 
@@ -376,7 +400,8 @@ export async function handle(request, response, path) {
   const chosen = plainCookie(request, 'sprache');
   let L = isLanguage(chosen) ? chosen
         : fromHeader(request.headers['accept-language']);
-  const ctx = { directorProject: projectIdFromCookie(request) };
+  const regie = await regieFrom(request, null);
+  const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null };
   let A = views(L, path, ctx);
   /* A project may set the language for its company. It counts as long
      as the visitor has not switched in the page head themselves. */
@@ -502,7 +527,9 @@ export async function handle(request, response, path) {
     projectLanguage(hit.project);
     setMemberCookie(response, hit.project.id, hit.person.id);
     setRealSelfCookie(response, null);
-    return redirect(response, '/theater/mit/zeiten');
+    // The personal link is the one way to the director's rights.
+    if (hit.person.regie || hit.person.assistenz) setRegieCookie(response, hit.project.id, hit.person.id);
+    return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');
   }
 
   /* --- printable documents behind a fixed address ---
@@ -651,6 +678,8 @@ export async function handle(request, response, path) {
     const second = parts[1] || '';
     if (second === 'abmelden') {
       response.setHeader('Set-Cookie', `${MEMBER}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
+      addCookie(response, `${REGIE}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
+      addCookie(response, `${REALSELF}=; Path=/theater; HttpOnly; SameSite=Lax; Max-Age=0`);
       return redirect(response, '/theater');
     }
     const who = await memberFrom(request);
@@ -725,7 +754,7 @@ export async function handle(request, response, path) {
       project.verfuegbar[person.id] = { tage: entered, stand: new Date().toISOString() };
       // The director strikes days for everyone; the flags travel in the
       // same form as the times.
-      if (person.regie || person.assistenz) {
+      if (ctx.regieProject === project.id || ctx.directorProject === project.id) {
         project.einstellungen = project.einstellungen || {};
         project.einstellungen.gesperrt = days.filter(t => fields['g_' + t.iso] === '1').map(t => t.iso);
       }
@@ -741,8 +770,8 @@ export async function handle(request, response, path) {
       const { fields } = await readForm(request);
       const rehearsal = String(fields.rehearsal || '');
       const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
-      const allowed = mine && (mine.gruppe.includes(person.b) || person.regie || person.assistenz ||
-                               directorsOf(project).includes(person.b));
+      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const allowed = mine && (mine.gruppe.includes(person.b) || mayDirect);
       if (!allowed)
         return html(response, A.myDatesPage(project, person, proposeDates(project), {
           kind: 'error', key: 'r.not_yours' }, view));
@@ -853,12 +882,9 @@ export async function handle(request, response, path) {
     const projectId = projectIdFromCookie(request);
     project = projectId ? await S.read(projectId) : null;
   }
-  /* The director and the assistant director, signed in through the
-     company link, may do everything the access code allows. */
-  if (!project) {
-    const who = await memberFrom(request);
-    if (who && (who.person.regie || who.person.assistenz)) project = who.project;
-  }
+  /* The director and the assistant director, signed in through their
+     personal link, may do everything the access code allows. */
+  if (!project && regie) project = regie.project;
   if (!project) {
     await drainBody(request);
     return html(response, A.entryPage({ kind: 'error',
@@ -1183,11 +1209,21 @@ export async function handle(request, response, path) {
       if (!d) return html(response, A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404);
       return html(response, A.passagesPage(project, d, null));
     }
-    if (!post) return html(response, A.planPage(project, null));
+    if (!post) return html(response, A.planPage(project, null, actsIn(project.skript)));
     if (!project.skript) return html(response, A.planPage(project, {
       kind: 'error', key: 'r.without_cast' }));
     const { fields } = await readForm(request);
     const action = String(fields.action || 'ableiten');
+    const acts = actsIn(project.skript);
+    const show = (m) => html(response, A.planPage(project, m, acts));
+
+    /* --- reset: every rehearsal goes, and with them the fixed dates --- */
+    if (action === 'zuruecksetzen') {
+      const n = project.plan?.proben?.length || 0, d = (project.termine || []).length;
+      project.plan = null; project.termine = [];
+      await S.write(project);
+      return show({ kind: 'good', key: 'r.plan_reset', values: { p1: n, p2: d } });
+    }
 
     /* --- from Hand nachbessern --- */
     if (action !== 'ableiten') {
@@ -1212,30 +1248,55 @@ export async function handle(request, response, path) {
       return html(response, A.planPage(project, m));
     }
 
-    /* --- fresh ableiten --- */
+    /* --- derive: for the chosen acts, adding to or replacing what is
+           there. Rehearsals with a fixed date are never touched.     --- */
     const substitution = Math.min(40, Math.max(0, Number(fields.substitution ?? 20))) / 100;
     const maxGroup = Math.min(7, Math.max(2, Number(fields.maxgruppe ?? 5)));
-    project.einstellungen = project.einstellungen || {};
-    if (date(fields.until)) project.einstellungen.bis = fields.until;
-    let plan;
-    try { plan = derivePlan(project.skript, { substitution, maxGroup }); }
-    catch (e) {
-      console.error('[Ableitung] ' + (e && e.stack || e));
-      return html(response, A.planPage(project, { kind: 'error',
-        key: 'r.derive_failed', values: { reason: reasonOf(e) } }));
+    const mode = String(fields.modus || 'ersetzen');
+    // A form without the act section (a script, an old client) means all acts.
+    const offered = fields.akte === '1';
+    const chosenActs = offered ? acts.map(a => a.nr).filter(nr => fields['akt_' + nr] === '1')
+                               : acts.map(a => a.nr);
+    const allActs = !acts.length || chosenActs.length === acts.length;
+    if (offered && acts.length && !chosenActs.length) return show({ kind: 'error', key: 'r.no_acts' });
+    const actList = allActs ? [] : chosenActs;
+
+    const had = project.plan?.proben?.length ? project.plan : null;
+    const fixedIds = new Set((project.termine || []).filter(t => t.bestaetigt).map(t => t.probe_id));
+    let kept = [];
+    if (had) {
+      if (mode === 'ergaenzen') kept = had.proben;
+      else kept = had.proben.filter(pr => fixedIds.has(pr.id) ||
+        (!allActs && !(pr.szenen || []).some(sz => chosenActs.includes(Number(sz.akt)))));
     }
-    if (!plan.proben.length) return html(response, A.planPage(project, {
-      kind: 'error', key: 'r.no_rehearsal_found' }));
+    let fresh;
+    try {
+      fresh = derivePlan(project.skript, { substitution, maxGroup, acts: actList,
+        covered: kept.length ? unitsCoveredBy(project.skript, kept) : new Set() });
+    } catch (e) {
+      console.error('[Ableitung] ' + (e && e.stack || e));
+      return show({ kind: 'error', key: 'r.derive_failed', values: { reason: reasonOf(e) } });
+    }
+    if (!fresh.proben.length && !kept.length) return show({ kind: 'error', key: 'r.no_rehearsal_found' });
+
+    const droppedFixed = 0;
+    let plan;
+    if (!had) plan = fresh;
+    else {
+      plan = { ...had, proben: kept, erzeugt: fresh.erzeugt };
+      mergeInto(project.skript, plan, fresh, { substitution, maxGroup });
+    }
     project.plan = plan;
-    // Fixed dates no longer match the new rehearsal identifiers
-    const before = (project.termine || []).length;
-    project.termine = [];
+    // Dates of rehearsals that are gone go with them; fixed ones stayed.
+    const keptIds = new Set(plan.proben.map(pr => pr.id));
+    project.termine = (project.termine || []).filter(t => keptIds.has(t.probe_id));
     await S.write(project);
-    return html(response, A.planPage(project, { kind: 'good',
-      key: before ? 'r.derived_released' : 'r.derived',
-      values: { p1: plan.proben.length,
-               p2: { share: plan.abdeckung },
-               p3: before } }));
+    const actNames = (allActs ? acts : acts.filter(a => chosenActs.includes(a.nr))).map(a => h(a.name)).join(', ');
+    return show({ kind: 'good',
+      key: !had ? 'r.derived' : mode === 'ergaenzen' ? 'r.derived_added' : 'r.derived_replaced',
+      values: { p1: fresh.proben.length, p2: { share: plan.abdeckung },
+                p3: kept.filter(pr => fixedIds.has(pr.id)).length, acts: actNames || '\u2013',
+                total: plan.proben.length } });
   }
 
   if (first === 'leute') {

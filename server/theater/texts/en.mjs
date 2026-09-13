@@ -263,6 +263,23 @@ export const en = {
                     + 'groups and bundles them into evenings. What gets chosen is not a '
                     + 'scene but a <b>cast</b> \u2013 if the evening is happening anyway, '
                     + 'every further passage for the same people costs nothing more.',
+  'plan.acts':          'Acts',
+  'plan.derive_add':    'Derive (add)',
+  'plan.derive_replace': 'Derive (replace)',
+  'plan.modes_what':    '<b>Add</b> keeps every rehearsal and derives more for the chosen acts, '
+                      + 'only for text no rehearsal covers yet. <b>Replace</b> throws away the '
+                      + 'rehearsals of the chosen acts and derives them afresh. A rehearsal '
+                      + 'with a fixed date is never touched either way.',
+  'plan.replace_confirm': 'Replace the rehearsals of the chosen acts? Changes made by hand there '
+                      + 'are lost; rehearsals with a fixed date stay.',
+  'plan.reset':         'reset the plan',
+  'plan.reset_confirm': 'Delete every rehearsal and every fixed date of this plan? The script '
+                      + 'and the company stay.',
+  'r.plan_reset':       'Plan reset: {p1} rehearsals and {p2} fixed dates deleted.',
+  'r.no_acts':          'Choose at least one act.',
+  'r.derived_added':    '{p1} rehearsals added for {acts}; the plan now has {total}, coverage {p2}.',
+  'r.derived_replaced': 'Rehearsals for {acts} derived afresh: {p1} new, {p3} kept because of a '
+                      + 'fixed date; the plan now has {total}, coverage {p2}.',
   'plan.rederive_confirm':   'Deriving again throws away every change made by hand. Go on?',
   'plan.substitution':      'Substitution share at most',
   'plan.sub_0':    '0% \u2013 no foreign text',
@@ -405,9 +422,12 @@ export const en = {
   'comp.remove':    'remove',
   'comp.director':  'director',
   'comp.assistant': 'assistant director',
-  'comp.director_what': 'Director and assistant director may do everything on these pages once they '
-                    + 'are signed in through the company link. The director is needed at every '
-                    + 'rehearsal: a date is only proposed for an evening the director can make.',
+  'comp.director_what': 'Director and assistant director may do everything on these pages \u2013 '
+                    + 'through their <b>personal link</b>, shown below their row, not through the '
+                    + 'company link, which lets anyone pick any name. The director is needed at '
+                    + 'every rehearsal: a date is only proposed for an evening the director can make.',
+  'comp.personal_link': 'Personal link for {who} \u2013 carries the director\u2019s rights, so '
+                    + 'keep it to yourself:',
   'comp.remove_confirm':'Really remove {who}? Times entered go with them.',
   'comp.comes_from':     'The company comes into being when the '
                     + '<a href="/theater/besetzung">casting</a> is taken over. It can be '
@@ -476,7 +496,9 @@ export const en = {
   'my.needed_for':    'You are needed for {n} rehearsals: ',
   'my.with':          'with {who}',
   'my.evenings_n':     '{n} evening(s)',
-  'my.all_others':  'everyone else can',
+  'my.fixed_with_me': 'fixed date of one of my rehearsals',
+  'my.all_with_me': 'everyone needed can, me included',
+  'my.all_others':  'everyone else can \u2013 only my yes is missing',
   'my.half':      'at least half',
   'my.one':        'one person',
   'my.me':          'I have said yes',
