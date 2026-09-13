@@ -77,6 +77,36 @@ export const STYLE = `
   .head nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:.35rem 1.1rem;
               justify-content:flex-end; flex:1 1 0; min-width:0 }
   .head nav a { font-size:.88rem; text-decoration:none; color:var(--muted) }
+  .head nav a.on { color:var(--ink); font-weight:700 }
+  .head nav .grp { display:inline-flex; gap:.7rem; padding-left:.9rem; border-left:1px solid var(--rule) }
+  .head nav .grp:first-child { padding-left:0; border-left:0 }
+  /* --- the overview: the road as a strip of steps --- */
+  .steps { display:grid; grid-template-columns:repeat(5, 1fr); gap:.6rem; margin:1rem 0 .4rem }
+  .step { display:flex; flex-direction:column; gap:.2rem; text-decoration:none; color:var(--ink);
+          border:1px solid var(--rule); border-radius:6px; background:var(--card); padding:.7rem .8rem }
+  .step .num { display:inline-flex; align-items:center; justify-content:center; width:1.6rem; height:1.6rem;
+               border-radius:50%; background:var(--chip); color:var(--chip-ink); font-weight:700; font-size:.85rem }
+  .step .name { font-weight:700 }
+  .step .detail { color:var(--muted) }
+  .step.done { border-color:var(--good) }
+  .step.done .num { background:var(--good); color:#fff }
+  .step.open .num { background:var(--accent); color:#fff }
+  .step.waits { opacity:.6 }
+  @media (max-width:900px) { .steps { grid-template-columns:repeat(2, 1fr) } }
+  @media (max-width:520px) { .steps { grid-template-columns:1fr } }
+  /* --- the plan: editing behind a pencil --- */
+  table.plan td.actions { width:auto; white-space:nowrap }
+  table.plan tr.editor[hidden] { display:none }
+  table.plan tr.editor td { padding:0; border:0 }
+  table.plan .overlay .box form.inline { margin-bottom:.4rem }
+  table.plan .overlay .box select, table.plan .overlay .box input[type=text] { padding:.25rem .4rem; font-size:.88rem }
+  /* --- the dates: alternatives as chips --- */
+  .alts { margin-top:.3rem; line-height:1.9 }
+  /* --- the company: name, role and the link in one cell --- */
+  form.person { flex-wrap:wrap; gap:.3rem .6rem }
+  form.person .role { display:inline-flex; gap:.6rem; white-space:nowrap }
+  details.personal { margin-top:.3rem }
+  details.personal summary { cursor:pointer; color:var(--muted) }
   .chip { display:inline-block; background:var(--chip);
           color:var(--chip-ink); border-radius:3px;
           padding:.1rem .45rem; font-size:.82rem; font-weight:600; margin-right:.3rem }

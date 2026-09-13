@@ -232,16 +232,17 @@ const entryPage = (m) => page({
 /* The director's navigation. At the end a list of the company: pick a
    name and you are in that person's calendar - the director enters
    times for people who phone them, and their own. */
-const navDirector = (p) => `<nav>
-  <a href="/theater/projekt">${t('nav.overview')}</a>
-  <a href="/theater/leute">${t('nav.company')}</a>
-  <a href="/theater/skript">${t('nav.script')}</a>
-  <a href="/theater/besetzung">${t('nav.casting')}</a>
-  <a href="/theater/plan">${t('nav.rehearsals')}</a>
-  <a href="/theater/termine">${t('nav.dates')}</a>
-  <a href="/theater/drucken">${t('nav.print')}</a>
-  <a href="/theater/hoerbuch">${t('nav.audiobook')}</a>
-  <a href="/theater/kommentare">${t('nav.comments')}</a>
+/* The director's links in four groups: the project, the road from the
+   script to the plan, what runs during rehearsals, the output. The
+   page being shown is marked. */
+const navDirector = (p) => {
+  const a = (href, key) => `<a href="${href}"${pfad === href || pfad.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
+  const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
+  return `<nav>
+  ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
+  ${grp(a('/theater/skript', 'nav.script'), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
+  ${grp(a('/theater/termine', 'nav.dates'), a('/theater/kommentare', 'nav.comments'))}
+  ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
     <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('nav.calendar_for'))}">
       <option value="">${h(t('nav.calendar_for'))}</option>
@@ -249,6 +250,7 @@ const navDirector = (p) => `<nav>
         .map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
     </select></form>` : ''}
   <a href="/theater/abmelden">${t('nav.signout')}</a></nav>`;
+};
 
 function printPage(p, m) {
   const d = p.drehbuch;
@@ -337,36 +339,39 @@ function projectPage(p, m) {
   const takenOver = !!p.skript_ueberblick;
   const u = p.skript_ueberblick;
 
-  const row = (action, body) => `<tr><th>${action}</th><td>${body}</td></tr>`;
   const unresolved = (text, target, goto) =>
     `<span class="open">${text}</span> \u2013 <a href="${goto}">${target}</a>`;
+  const ids = new Set((p.plan?.proben || []).map(x => x.id));
+  const fixedCount = (p.termine || []).filter(x => ids.has(x.probe_id)).length;
+
+  /* The road as a strip: one card per step, ticked when done. The
+     detail below each says where it stands and, when open, what to do. */
+  const step = (n, state, href, title, detail) => `<a class="step ${state}" href="${href}">
+      <span class="num">${state === 'done' ? '\u2713' : n}</span>
+      <span class="name">${h(title)}</span>
+      <span class="small detail">${detail}</span></a>`;
+  const steps = [
+    step(1, hasScript ? 'done' : 'open', '/theater/skript', t('proj.script'), hasScript
+      ? t('proj.script_yes', { source: h(p.drehbuch.quelle), n: (p.drehbuch.sprecher || []).length })
+      : t('proj.script_no')),
+    step(2, takenOver ? 'done' : (hasScript ? 'open' : 'waits'), '/theater/besetzung', t('proj.casting'), takenOver
+      ? t('proj.cast_yes', { speeches: u.repliken, people: u.personen, roles: u.rollen })
+      : (hasScript ? t('proj.cast_open') : t('proj.cast_waits'))),
+    step(3, rehearsalCount ? 'done' : (takenOver ? 'open' : 'waits'), '/theater/plan', t('proj.rehearsals'), rehearsalCount
+      ? t('proj.plan_yes', { n: rehearsalCount, substitution: L.percent(p.plan.ersatzanteil || 0),
+                             coverage: L.percent(p.plan.abdeckung || 0) })
+      : (takenOver ? t('proj.plan_no') : t('proj.plan_waits'))),
+    step(4, folks && withEntry === folks ? 'done' : (folks ? 'open' : 'waits'), '/theater/leute', t('proj.availability'),
+      folks ? t('proj.avail_n', { m: withEntry, n: folks }) : t('proj.people_no')),
+    step(5, rehearsalCount && fixedCount === rehearsalCount ? 'done' : (rehearsalCount ? 'open' : 'waits'), '/theater/termine', t('proj.dates'),
+      rehearsalCount ? t('proj.dates_n', { n: fixedCount, m: rehearsalCount }) : t('proj.dates_waits')),
+  ];
 
   return page({ title: p.titel, nav: navDirector(p), body: `
     <p class="eyebrow">${t('proj.project')}</p><h1>${h(p.titel)}</h1>
     ${notice(m)}
-    <table>
-      ${row(t('proj.company'), folks
-        ? t('proj.people_yes', { n: folks, m: withEntry })
-        : t('proj.people_no'))}
-      ${row(t('proj.script'), hasScript
-        ? t('proj.script_yes', { source: h(p.drehbuch.quelle),
-                             n: (p.drehbuch.sprecher || []).length })
-        : unresolved(t('proj.script_no'), t('proj.script_upload'), '/theater/skript'))}
-      ${row(t('proj.casting'), takenOver
-        ? t('proj.cast_yes', { speeches: u.repliken, people: u.personen, roles: u.rollen })
-        : (hasScript
-            ? unresolved(t('proj.cast_open'), t('proj.cast_assign'), '/theater/besetzung')
-            : t('proj.cast_waits')))}
-      ${row(t('proj.rehearsals'), rehearsalCount
-        ? t('proj.plan_yes', { n: rehearsalCount,
-                             substitution: L.percent(p.plan.ersatzanteil || 0),
-                             coverage: L.percent(p.plan.abdeckung || 0) })
-        : (takenOver
-            ? unresolved(t('proj.plan_no'), t('proj.plan_derive'), '/theater/plan')
-            : t('proj.plan_waits')))}
-      ${row(t('proj.dates'), rehearsalCount
-        ? t('proj.dates_yes') : t('proj.dates_waits'))}
-    </table>
+    <div class="steps">${steps.join('')}</div>
+    <p class="small muted">${t('proj.steps_what')}</p>
 
     <h2>${t('proj.language')}</h2>
     <p class="small muted">${t('proj.language_what')}</p>
@@ -403,16 +408,7 @@ function projectPage(p, m) {
         ${actionForm('/theater/leute', 'neuerregielink', {},
           '<button class="quiet mini" type="submit">' + h(t('proj.link_new')) + '</button>',
           { confirm: t('proj.link_new_confirm') })}
-      </div>` : ''}
-
-    <h2>${t('proj.road')}</h2>
-    <ol class="small muted">
-      <li>${t('proj.road_1')}</li>
-      <li>${t('proj.road_2')}</li>
-      <li>${t('proj.road_3')}</li>
-      <li>${t('proj.road_4')}</li>
-      <li>${t('proj.road_5')}</li>
-    </ol>` });
+      </div>` : ''}` });
 }
 
 function uploadPage(p, m) {
@@ -645,6 +641,7 @@ function planPage(p, m, acts = []) {
       actionForm('/theater/plan', action, { rehearsal: pr.id }, body, { confirm });
 
     const rebuilt = (pr.szenen || []).some(s => s.umgebaut);
+    const ov = 'ov-' + pr.id.replace(/[^A-Za-z0-9_-]/g, '_');
     return `<tr class="${pr.unsicher ? 'unsure' : (pr.nachlese ? 'gleaning' : '')}">
       <td><a href="/theater/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
         ${pr.nachlese ? '<div class="small muted">' + h(t('plan.the_rest')) + '</div>' : ''}
@@ -656,7 +653,13 @@ function planPage(p, m, acts = []) {
           min: Math.round(pr.minuten || 0),
           substitution: L.percent(pr.ersatz_anteil || 0) })}</div>
         ${pr.notiz ? `<div class="small"><i>${h(pr.notiz)}</i></div>` : ''}</td>
-      <td class="actions">
+      <td class="actions"><button type="button" class="quiet mini edit" data-for="${ov}"
+          title="${h(t('plan.edit', { id: pr.id }))}" aria-label="${h(t('plan.edit', { id: pr.id }))}">\u270e</button></td>
+    </tr>
+    <tr class="editor" hidden><td colspan="3">
+      <div class="overlay" id="${ov}" hidden><div class="box">
+        <p class="eyebrow" style="margin-top:0">${h(t('plan.edit_title', { id: pr.id }))}</p>
+        <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
         ${act('dazu', `<select name="person"><option value="">${
             h(t('plan.add'))}</option>
           ${absent.map(x => `<option value="${h(x)}">${h(x)}</option>`).join('')}</select>
@@ -676,8 +679,9 @@ function planPage(p, m, acts = []) {
             h(t('common.save'))}</button>`)}
         ${act('streichen', '<button class="quiet mini">' + h(t('plan.drop')) +
           '</button>', t('plan.drop_confirm', { id: pr.id }))}
-      </td>
-    </tr>`;
+        <p style="margin:.8rem 0 0"><button type="button" class="quiet mini close">${h(t('common.close'))}</button></p>
+      </div></div>
+    </td></tr>`;
   };
 
   return page({ title: t('plan.title'), nav: navDirector(p), body: `
@@ -724,8 +728,20 @@ function planPage(p, m, acts = []) {
       ${p.plan.bearbeitet ? t('plan.revised',
         { when: h(L.date(p.plan.bearbeitet)) }) : ''}</p>
       <table class="plan"><tr><th>${t('plan.col_rehearsal')}</th>
-        <th>${t('plan.col_cast')}</th><th>${t('plan.col_revise')}</th></tr>
+        <th>${t('plan.col_cast')}</th><th></th></tr>
       ${rehearsals.map(row).join('')}</table>
+      <script>
+      (function () {
+        var open = null;
+        function show(id) { var o = document.getElementById(id); if (!o) return; o.closest('tr.editor').hidden = false; o.hidden = false; open = o; }
+        function hide() { if (!open) return; open.hidden = true; open.closest('tr.editor').hidden = true; open = null; }
+        document.addEventListener('click', function (e) {
+          var b = e.target.closest('button.edit'); if (b) { hide(); show(b.dataset.for); return; }
+          if (e.target.closest('button.close') || e.target.classList.contains('overlay')) hide();
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+      })();
+      <\/script>
       ${rehearsals.some(pr => pr.nachlese)
         ? `<p class="small muted">${t('plan.gleaning_what')}</p>` : ''}
       <div class="box small">
@@ -943,11 +959,17 @@ function companyPage(p, m, base) {
       <td>${actionForm('/theater/leute', 'aendern', { id: x.id },
         `<input type="text" name="name" value="${h(x.name || '')}"
                placeholder="${h(t('comp.name_hint'))}">
+        <span class="role">
         <label class="inline"><input type="checkbox" name="regie" value="1"${
           x.regie ? ' checked' : ''}> ${h(t('comp.director'))}</label>
         <label class="inline"><input type="checkbox" name="assistenz" value="1"${
           x.assistenz ? ' checked' : ''}> ${h(t('comp.assistant'))}</label>
-        <button class="quiet mini" type="submit">${h(t('common.save'))}</button>`)}</td>
+        </span>
+        <button class="quiet mini" type="submit">${h(t('common.save'))}</button>`, { cssClass: 'person' })}
+        ${(x.regie || x.assistenz) && x.token ? `<details class="small personal">
+          <summary>${h(t('comp.show_link'))}</summary>
+          ${t('comp.personal_link', { who: h(x.name || x.b) })}
+          ${copyLink((base || '') + '/theater/ich/' + x.token)}</details>` : ''}</td>
       <td class="small">${evenings
         ? `<span style="color:var(--good)">${t('comp.evenings', { n: evenings })}</span>`
         : (wochentags
@@ -956,9 +978,7 @@ function companyPage(p, m, base) {
       <td>${actionForm('/theater/leute', 'loeschen', { id: x.id },
         '<button class="quiet mini" type="submit">' + h(t('comp.remove')) + '</button>',
         { confirm: t('comp.remove_confirm', { who: x.b }) })}</td>
-    </tr>${(x.regie || x.assistenz) && x.token ? `<tr class="personal"><td></td><td colspan="3" class="small">
-      ${t('comp.personal_link', { who: h(x.name || x.b) })}
-      ${copyLink((base || '') + '/theater/ich/' + x.token)}</td></tr>` : ''}`;
+    </tr>`;
   };
 
   return page({ title: t('comp.title'), nav: navDirector(p), body: `
@@ -975,7 +995,7 @@ function companyPage(p, m, base) {
     ${missing.length ? `<div class="notice error">${t('comp.missing',
       { folks: missing.map(h).join(', ') })}</div>` : ''}
     ${(p.personen || []).length ? `
-      <table><tr><th>${t('comp.col_short')}</th><th>${t('comp.col_name')}</th>
+      <table class="company"><tr><th>${t('comp.col_short')}</th><th>${t('comp.col_name')} \u00b7 ${t('comp.col_role')}</th>
         <th>${t('comp.col_available')}</th><th></th></tr>
       ${p.personen.map(row).join('')}</table>
       <p class="small muted">${t('comp.comes_from')} ${t('comp.director_what')}</p>`
@@ -1361,18 +1381,16 @@ function datesPage(p, result, m) {
 
     const reason = pr.proposal ? '' : `<div class="small muted">${whyNot(pr)}</div>`;
     const alternatives = (!pr.fixed && pr.alternatives?.length)
-      ? `<div class="small muted">${t('date.also', { days: pr.alternatives.map(x =>
-          h(L.weekday(x.weekday, 'short')) + ' ' +
-          h(L.date(x.date, { day: '2-digit', month: '2-digit' }))
-          ).join(' · ') })}</div>` : '';
+      ? `<div class="small muted alts"><span>${t('date.also_short')}</span> ${pr.alternatives.map(x =>
+          `<span class="chip muted">${h(L.weekday(x.weekday, 'short'))} ${
+          h(L.date(x.date, { day: '2-digit', month: '2-digit' }))}</span>`).join('')}</div>` : '';
 
     return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
       <td>${h(pr.id)}</td>
       <td>${who}<div class="small muted">${t('date.scenes_min', {
           scenes: (pr.scenes || []).length, min: Math.round(pr.minutes) })}</div></td>
-      <td>${date}${reason}${alternatives}</td>
-      <td>${button}<div class="small muted">${t('date.possible_n',
-          { n: pr.possible.length })}</div></td>
+      <td title="${h(t('date.possible_n', { n: pr.possible.length }))}">${date}${reason}${alternatives}</td>
+      <td>${button}</td>
     </tr>`;
   }).join('');
 

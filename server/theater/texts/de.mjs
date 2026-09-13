@@ -27,6 +27,7 @@ export const de = {
   'nav.calendar_for': 'Kalender f\u00fcr \u2026',
 
   /* ---------- wording used all over ---------- */
+  'common.close':   'schlie\u00dfen',
   'common.save':    'sichern',
   'common.copy':   'kopieren',
   'common.copied':    'kopiert',
@@ -117,6 +118,10 @@ export const de = {
   'proj.script':     'Drehbuch',
   'proj.casting':    'Besetzung',
   'proj.rehearsals':         'Probenplan',
+  'proj.availability': 'Verf\u00fcgbarkeit',
+  'proj.avail_n':    '{m} von {n} eingetragen',
+  'proj.dates_n':    '{n} von {m} fixiert',
+  'proj.steps_what': 'Jede Karte f\u00fchrt auf ihre Seite; die Terminvorschl\u00e4ge werden bei jedem Besuch neu berechnet.',
   'proj.dates':      'Termine',
   'proj.people_yes':     '{n} Personen, davon {m} mit eingetragener Verfügbarkeit – '
                     + '<a href="/theater/leute">ansehen</a>',
@@ -309,6 +314,8 @@ export const de = {
                     + 'das weg.',
   'plan.col_rehearsal':    'Probe',
   'plan.col_cast':'Besetzung',
+  'plan.edit':       'Probe {id} bearbeiten',
+  'plan.edit_title': 'Probe {id}',
   'plan.col_revise':      'Nachbessern',
   'plan.the_rest':     'alles Übrige',
   'plan.scenes_min':  '{scenes} Szenen \u00b7 {min} min \u00b7 Regie liest {substitution}',
@@ -419,6 +426,8 @@ export const de = {
   'comp.missing':       'Im Probenplan kommen Kürzel vor, zu denen niemand angelegt ist: '
                     + '{folks}',
   'comp.col_short':   'Name im Drehbuch',
+  'comp.col_role':      'Rolle',
+  'comp.show_link':     'pers\u00f6nlichen Link zeigen',
   'comp.col_name':      'Name',
   'comp.col_available':      'Verfügbarkeit',
   'comp.name_hint':   'Name der Schauspielerin / des Schauspielers',
@@ -468,6 +477,7 @@ export const de = {
   'date.confirm':  'bestätigen',
   'date.none_possible':       'kein Termin möglich',
   'date.none_yet':  'noch kein Termin',
+  'date.also_short':   'auch:',
   'date.also':         'auch möglich: {days}',
   'date.director':     'Regie',
   'date.scenes_min':   '{scenes} Szenen, {min} min Spielzeit',
