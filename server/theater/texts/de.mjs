@@ -74,6 +74,10 @@ export const de = {
   'mem.part_book':   'Rollenheft',
   'mem.full_script': 'Gesamtskript',
   'mem.evenings_yes':    '{n} Abende eingetragen – <a href="/theater/mit/zeiten">ändern</a>',
+  'mem.call_title':  'Ihre Verf\u00fcgbarkeit fehlt noch',
+  'mem.call_what':   'Termine f\u00fcr Ihre Proben lassen sich erst finden, wenn Sie gesagt haben, '
+                   + 'an welchen Abenden Sie k\u00f6nnen. Das dauert f\u00fcnf Minuten.',
+  'mem.call_go':     'Jetzt Verf\u00fcgbarkeit eintragen',
   'mem.evenings_no': '<span class="open">noch nichts</span> – '
                     + '<a href="/theater/mit/zeiten">jetzt eintragen</a>',
   'mem.rehearsals_yes':    '{n}, davon {fixed} mit festem Termin – '

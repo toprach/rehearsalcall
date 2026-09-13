@@ -1050,6 +1050,11 @@ function memberPage(project, person, m, realSelf) {
         '<button class="quiet mini">' +
         t('mem.back_to', { name: h(realSelf.name || realSelf.b) }) + '</button>')}
       </div>` : ''}
+    ${!evenings ? `<div class="box important callout">
+      <p><b>${t('mem.call_title')}</b></p>
+      <p class="small muted">${t('mem.call_what')}</p>
+      <a class="btn big" href="/theater/mit/zeiten">${t('mem.call_go')}</a>
+    </div>` : ''}
     <table>
       <tr><th>${t('mem.my_times')}</th><td>${evenings
         ? t('mem.evenings_yes', { n: evenings })

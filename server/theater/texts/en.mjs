@@ -77,6 +77,10 @@ export const en = {
   'mem.part_book':   'Part book',
   'mem.full_script': 'Full script',
   'mem.evenings_yes':    '{n} evenings entered \u2013 <a href="/theater/mit/zeiten">change</a>',
+  'mem.call_title':  'Your availability is still missing',
+  'mem.call_what':   'The dates for your rehearsals can only be found once you have said '
+                   + 'which evenings you can make. It takes five minutes.',
+  'mem.call_go':     'Enter my availability now',
   'mem.evenings_no': '<span class="open">nothing yet</span> \u2013 '
                     + '<a href="/theater/mit/zeiten">enter them now</a>',
   'mem.rehearsals_yes':    '{n}, {fixed} of them with a fixed date \u2013 '
