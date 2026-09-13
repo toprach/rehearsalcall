@@ -119,7 +119,8 @@ const seams = (html) => {
 
 let failures = 0;
 for (const { code } of LANGUAGES) {
-  const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', demo: code === 'en' ? { until: new Date() } : null });
+  const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', demo: code === 'en' ? { until: new Date() } : null,
+                                        share: code === 'de' ? 'https://x.example/theater/ich/abc/heft' : '' });
   const pages = {
     entryPage: () => A.entryPage({ kind: 'error', key: 'r.code_unknown' }),
     entryDemos: () => A.entryPage(null, [{ key: 'midsummer', title: 'A <Dream>' }]),
@@ -141,7 +142,7 @@ for (const { code } of LANGUAGES) {
       jobState: { ...audiobook.jobState, running: false, error: 'boom' } }, null),
     companyPage: () => A.companyPage(project, null, 'https://x'),
     pickNamePage: () => A.pickNamePage(project, 'tok', { kind: 'error', key: 'r.name_gone' }),
-    memberPage: () => A.memberPage(project, person, null, project.personen[1], 'https://x.example/theater/ich/abc/heft'),
+    memberPage: () => A.memberPage(project, person, null, project.personen[1]),
     switchPage: () => A.switchPage(project, person, project.personen[1], '/theater/druck/t/mit/PUCK', '/theater/mit'),
     backBar: () => A.backBar('tok', 'OBERON', true),
     myDatesPage: () => A.myDatesPage(project, person, datesResult, { kind: 'good', key: 'r.now_fixed', values: { p1: 'P01' } }),
@@ -178,8 +179,8 @@ for (const { code } of LANGUAGES) {
                    before: [], after: ['Exit.'], teil: [2, 2], words: 1 }] },
       { i: 2, nr: null, act: '', chapter: '', cue: null, before: [], lines: [{ who: 'OBERON', text: 'x', cut: true }], after: [], cut: true, role: 'KING',
         ctxBefore: [], ctxAfter: [], chunks: [{ key: 'k3.c', cue: null, lines: [{ who: 'OBERON', text: 'x', cut: true }], before: [], after: [], teil: null, words: 1 }] },
-    ], 12, 'https://x.example/theater/ich/abc/heft', { 'k1.a': { s: 3, f: '2026-09-10', l: [2, 2, 0], a: 'win <her>' } }, '2026-09-14'),
-    bookEmpty: () => A.bookPage(project, person, [], 0, '', {}, '2026-09-14'),
+    ], 12, { 'k1.a': { s: 3, f: '2026-09-10', l: [2, 2, 0], a: 'win <her>' } }, '2026-09-14'),
+    bookEmpty: () => A.bookPage(project, person, [], 0, {}, '2026-09-14'),
     adminLoginPage: () => A.adminLoginPage({ kind: 'error', key: 'r.admin_wrong' }),
     adminPage: () => A.adminPage([
       { id: 'abcd1234', titel: 'One <play>', angelegt: '2026-09-01T10:00:00Z', email: 'a@b.c',

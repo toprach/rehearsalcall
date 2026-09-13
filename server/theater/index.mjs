@@ -853,7 +853,10 @@ export async function handle(request, response, path) {
     // exists; if not, make it now.
     if (!project.druck_token) { project.druck_token = S.randomId(18); await S.write(project); }
 
-    if (second === '') return html(response, A.memberPage(project, person, null, realSelf, await bookLinkFor()));
+    /* The share button in the head carries the link to this person's
+       part book on every page of the member area. */
+    ctx.share = await bookLinkFor();
+    if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
 
     /* The passages of one rehearsal, for a member: the same page as
        the director's, with the member's navigation. */
@@ -980,7 +983,7 @@ export async function handle(request, response, path) {
 
       await drainBody(request);
       const state = project.lernen?.[person.id] || {};
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), await bookLinkFor(), state, today));
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today));
     }
 
     if (second === 'gesamt') {

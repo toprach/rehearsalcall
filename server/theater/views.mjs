@@ -57,6 +57,17 @@ export function views(code, pfad = '/theater', ctx = {}) {
 
 
 
+const ICONS = {
+  share: '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+  person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
 function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
   const name = t('app.name');
   /* The name in the head leads home - and home is where the visitor
@@ -79,7 +90,24 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
   </form>
   <a class="settings" href="/theater/einstellungen?z=${encodeURIComponent(pfad)}" title="${h(t('nav.settings'))}"
      aria-label="${h(t('nav.settings'))}">\u2699</a>
+  ${ctx.share ? `<button type="button" class="share" data-url="${h(ctx.share)}" data-title="${h(t('book.title'))}"
+     data-copied="${h(t('nav.copied'))}" title="${h(t('nav.share'))}" aria-label="${h(t('nav.share'))}">${icon('share')}</button>` : ''}
 </div></header>
+${ctx.share ? `<script>
+(function () {
+  var b = document.querySelector('.head button.share'); if (!b) return;
+  b.addEventListener('click', function () {
+    var url = b.dataset.url;
+    if (navigator.share) { navigator.share({ title: b.dataset.title, url: url }).catch(function () {}); return; }
+    var done = function () {
+      var m = document.createElement('div'); m.className = 'toast'; m.textContent = b.dataset.copied;
+      document.body.appendChild(m); setTimeout(function () { m.parentNode && m.parentNode.removeChild(m); }, 2200);
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function () { window.prompt(b.dataset.title, url); });
+    else window.prompt(b.dataset.title, url);
+  });
+})();
+<\/script>` : ''}
 <div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${ctx.demo
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
       { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${body}</div>
@@ -1083,16 +1111,6 @@ const navMember = (project, person) => {
 /* The bar at the bottom of a phone screen: the four places a member
    goes. On a desk the links in the head do the same, and the bar is
    hidden. The current page is marked. */
-const ICONS = {
-  person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
-  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-  book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
-  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
-  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
-};
-const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
-
 const memberTabbar = (project, person) => {
   const items = [
     ['/theater/mit/zeiten', t('navm.tab_avail'), 'person'],
@@ -1107,26 +1125,7 @@ const memberTabbar = (project, person) => {
       ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
 };
 
-/* The link that opens somebody's part book on any device. Copy, and
-   share where the browser offers it. */
-const bookLinkBox = (link) => !link ? '' : `<div class="box small" style="margin-top:1.5rem">
-      <b>${t('book.link_title')}</b>
-      <p class="muted" style="margin:.3rem 0 .6rem">${t('book.link_what')}</p>
-      ${copyLink(link)}
-      <button type="button" class="quiet mini sharelink" hidden>${h(t('book.share'))}</button>
-      <script>
-      (function () {
-        var s = document.currentScript, b = s.parentNode.querySelector('.sharelink');
-        if (!navigator.share || !b) return;
-        b.hidden = false;
-        b.addEventListener('click', function () {
-          navigator.share({ title: ${JSON.stringify(t('book.title'))}, url: ${JSON.stringify(link)} }).catch(function () {});
-        });
-      })();
-      <\/script>
-    </div>`;
-
-function memberPage(project, person, m, realSelf, link = '') {
+function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
   const evenings = Object.keys(v.tage || {}).length;
   const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
@@ -1165,7 +1164,7 @@ function memberPage(project, person, m, realSelf, link = '') {
     </table>
     ${project.druck_token ? `<p class="small muted">${t('mem.docs',
       { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}
-    ${bookLinkBox(link)}` });
+` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1176,7 +1175,7 @@ function memberPage(project, person, m, realSelf, link = '') {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words, link = '', state = {}, today = '') {
+function bookPage(project, person, passages, words, state = {}, today = '') {
   const who = person.name || person.b;
   const chunks = passages.flatMap(p => p.chunks);
   const fig = summaryOf(state, chunks, today);
@@ -1244,7 +1243,6 @@ function bookPage(project, person, passages, words, link = '', state = {}, today
     </div>
     <div id="heft-lernen" hidden><p class="small muted">${t('book.learn_what')}</p></div>
     <div id="heft-intensiv" hidden><p class="small muted">${t('book.hard_what')}</p></div>
-    ${bookLinkBox(link)}
     <script id="heft-data" type="application/json">${json}</script>
     <script src="/theater/heft.js?v=${HEFT_V}"></script>` });
 }

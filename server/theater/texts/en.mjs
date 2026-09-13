@@ -15,6 +15,8 @@ export const en = {
   'app.for':        'For theatre groups',
   'nav.dark':     'Dark page',
   'nav.settings': 'Settings',
+  'nav.share':    'share the link to my part book',
+  'nav.copied':   'Link copied',
   'nav.light':    'Light page',
   'nav.language':     'Language',
   'nav.overview':  'Overview',

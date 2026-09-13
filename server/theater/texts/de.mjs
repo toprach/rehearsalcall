@@ -12,6 +12,8 @@ export const de = {
   'app.for':        'Für Theatergruppen',
   'nav.dark':     'Dunkle Seite',
   'nav.settings': 'Einstellungen',
+  'nav.share':    'Link zu meinem Rollenheft teilen',
+  'nav.copied':   'Link kopiert',
   'nav.light':    'Helle Seite',
   'nav.language':     'Sprache',
   'nav.overview':  'Übersicht',

@@ -206,6 +206,12 @@ export const STYLE = `
   .head a.settings { flex:0 0 auto; order:3; margin-left:.5rem; text-decoration:none; color:var(--muted);
                      font-size:1.15rem; line-height:1 }
   .head a.settings:hover { color:var(--ink) }
+  .head button.share { flex:0 0 auto; order:4; margin:0 0 0 .5rem; padding:.2rem; background:none; border:0;
+                       color:var(--muted); cursor:pointer; line-height:0 }
+  .head button.share svg { width:1.3rem; height:1.3rem }
+  .head button.share:hover { color:var(--ink) }
+  .toast { position:fixed; left:50%; bottom:5rem; transform:translateX(-50%); background:var(--ink); color:var(--ground);
+           padding:.5rem 1rem; border-radius:6px; font-size:.9rem; z-index:70; box-shadow:0 6px 20px rgba(0,0,0,.3) }
   form.settings .choices { display:flex; flex-wrap:wrap; gap:.4rem 1.2rem; margin:.2rem 0 .6rem }
   form.settings label.choice { font-weight:400; font-size:1rem; margin:0 }
   .themepick button { margin:0; padding:.25rem .5rem; line-height:1; font-size:1rem;
@@ -221,6 +227,8 @@ export const STYLE = `
   @media (max-width:700px) {
     .head.member nav a, .head.member .whopick, .head.member .langpick,
     .head.member .themepick, .head.member a.settings { display:none }
+    .head.member button.share { margin-left:auto }
+    .head.member button.share svg { width:22px; height:22px }
     .head.member nav { flex:0 1 auto; margin-left:0 }
     .tabbar a { min-width:0; overflow:hidden }
     .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40;
