@@ -150,6 +150,8 @@ export const STYLE = `
   /* --- the language picker in the head --- */
   .langpick { display:flex; align-items:center; flex:0 0 auto; order:1;
               margin:0 0 0 .8rem }
+  .whopick { display:inline-block; margin:0 }
+  .whopick select,
   .langpick select { padding:.15rem .3rem; font-size:.82rem; margin:0;
                      background:var(--field); color:var(--field-ink);
                      border:1px solid var(--field-edge); border-radius:.25rem }

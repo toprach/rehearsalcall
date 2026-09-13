@@ -67,13 +67,8 @@ export const en = {
   'mem.hello':        'Hello {name}',
   'mem.for_other':  'You are working <b>for {name}</b>, not for yourself.',
   'mem.back_to':   'back to {name}',
-  'mem.switch':     'Someone else sitting with you?',
-  'mem.switch_what': 'Pick a name and you will enter times and see dates for that '
-                    + 'person. Everyone in the company can do this \u2013 it is meant '
-                    + 'for the evening when two of you sort out dates together.',
   'mem.switch_who': 'work for \u2026',
   'mem.switch_go': 'switch',
-  'mem.switch_confirm': 'From now on you will be entering times for {name}. Go on?',
   'mem.my_times': 'Times',
   'mem.my_rehearsals': 'Rehearsals',
   'mem.part_book':   'Part book',

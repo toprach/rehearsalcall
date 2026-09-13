@@ -954,11 +954,26 @@ function pickNamePage(project, token, m) {
     </div>` : `<p class="muted">${t('pick.nobody')}</p>`}` });
 }
 
-const navMember = (person) => `<nav>
-  <a href="/theater/mit">${h(person.name || person.b)}</a>
+/* The member's navigation. The first entry is the person one is
+   working for - as a list of everyone in the company, so that two
+   people sitting together can switch without a word of explanation. */
+const navMember = (project, person) => {
+  const folks = [...(project.personen || [])]
+    .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale));
+  const picker = folks.length > 1 ? `<form method="post" action="/theater/mit" class="whopick">
+    <input type="hidden" name="action" value="wechseln">
+    <select name="person" onchange="this.form.submit()" aria-label="${h(t('mem.switch_who'))}">
+      ${folks.map(x => `<option value="${h(x.id)}"${x.id === person.id ? ' selected' : ''}>${
+        h(x.name || x.b)}</option>`).join('')}
+    </select>
+    <noscript><button class="quiet mini">${h(t('mem.switch_go'))}</button></noscript>
+  </form>` : `<a href="/theater/mit">${h(person.name || person.b)}</a>`;
+  return `<nav>
+  ${picker}
   <a href="/theater/mit/zeiten">${t('navm.times')}</a>
   <a href="/theater/mit/termine">${t('navm.dates')}</a>
   <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
+};
 
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
@@ -968,11 +983,7 @@ function memberPage(project, person, m, realSelf) {
     rehearsals.some(pr => pr.id === x.probe_id)).length;
   const who = person.name || person.b;
 
-  /* The others one can switch to. Somebody with a task and no lines still
-     enters times - so everyone is listed.                            */
-  const others = (project.personen || []).filter(x => x.id !== person.id);
-
-  return page({ title: who, nav: navMember(person), narrow: true, body: `
+  return page({ title: who, nav: navMember(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p>
     <h1>${t('mem.hello', { name: h(who) })}</h1>
     ${notice(m)}
@@ -992,20 +1003,7 @@ function memberPage(project, person, m, realSelf) {
         ? t('mem.book_open') : t('mem.no_script')}</td></tr>
       <tr><th>${t('mem.full_script')}</th><td>${project.drehbuch
         ? t('mem.full_open') : '<span class="muted">\u2014</span>'}</td></tr>
-    </table>
-
-    ${others.length ? `<div class="box">
-      <p><b>${t('mem.switch')}</b></p>
-      <p class="small muted">${t('mem.switch_what')}</p>
-      ${actionForm('/theater/mit', 'wechseln', {},
-        `<select name="person">
-          <option value="">${h(t('mem.switch_who'))}</option>
-          ${others.map(x => `<option value="${h(x.id)}">${
-            h(x.name || x.b)}</option>`).join('')}
-        </select>
-        <button class="quiet mini">${h(t('mem.switch_go'))}</button>`,
-        { confirm: t('mem.switch_confirm', { name: '\u2026' }) })}
-      </div>` : ''}` });
+    </table>` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1105,7 +1103,7 @@ function myDatesPage(project, person, result, m) {
   const fixed = mine.filter(x => x.fixed);
   const unresolved = mine.filter(x => !x.fixed);
 
-  return page({ title: t('date.title'), nav: navMember(person), body: `
+  return page({ title: t('date.title'), nav: navMember(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${t('mdate.title')}</h1>
     ${notice(m)}
     ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
@@ -1273,7 +1271,7 @@ function myTimesPage(project, person, m, days, states) {
   const preset = Object.values(entered)[0] || { von: '19:00', bis: '22:00' };
   const js = (schluessel, werte) => JSON.stringify(t(schluessel, werte));
 
-  return page({ title: t('my.title'), nav: navMember(person), body: `
+  return page({ title: t('my.title'), nav: navMember(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p>
     <h1>${t('my.title')}</h1>
     ${notice(m)}

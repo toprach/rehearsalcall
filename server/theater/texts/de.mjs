@@ -64,14 +64,8 @@ export const de = {
   'mem.hello':        'Hallo {name}',
   'mem.for_other':  'Sie arbeiten <b>für {name}</b>, nicht für sich selbst.',
   'mem.back_to':   'zurück zu {name}',
-  'mem.switch':     'Sitzt jemand mit Ihnen beisammen?',
-  'mem.switch_what': 'Wählen Sie einen Namen, dann tragen Sie Zeiten für diese '
-                    + 'Person ein und sehen deren Termine. Das kann jeder im '
-                    + 'Ensemble – es ist für den Abend gedacht, an dem zwei '
-                    + 'gemeinsam Termine ausmachen.',
   'mem.switch_who': 'arbeiten für \u2026',
   'mem.switch_go': 'umschalten',
-  'mem.switch_confirm': 'Sie tragen ab jetzt für {name} ein. Fortfahren?',
   'mem.my_times': 'Meine Zeiten',
   'mem.my_rehearsals': 'Meine Proben',
   'mem.part_book':   'Rollenheft',
