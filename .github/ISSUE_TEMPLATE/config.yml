@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ideas / Ideen (Discussions)
+    url: https://github.com/toprach/rehearsalcall/discussions/categories/ideas
+    about: Not a concrete wish yet? Talk it over here first. / Noch kein konkreter Wunsch? Hier zuerst besprechen.
+  - name: Questions / Fragen (Discussions)
+    url: https://github.com/toprach/rehearsalcall/discussions/categories/q-a
+    about: How do I ...? / Wie mache ich ...?

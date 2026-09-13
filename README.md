@@ -231,6 +231,14 @@ The example play and the words used in access codes are German too —
 they are content, not code.
 
 
+## Ideas, questions, bugs
+
+Ideas and questions go to [Discussions](https://github.com/toprach/rehearsalcall/discussions)
+(categories *Ideas* and *Q&A*); a concrete wish or a bug becomes an
+[issue](https://github.com/toprach/rehearsalcall/issues/new/choose) - the
+templates ask the few questions that make it understandable without you
+in the room. German or English, as you like.
+
 ## Licence
 
 MIT, see [LICENSE](LICENSE).

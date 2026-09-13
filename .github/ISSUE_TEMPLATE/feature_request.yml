@@ -1,0 +1,65 @@
+name: Feature request / Verbesserungswunsch
+description: Something the rehearsal planner should do, or do better. / Etwas, das die Probenplanung können sollte.
+title: "[Wish] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. A few questions so that it can be understood without you in the room. English or German, as you like.
+        Danke für die Idee. Ein paar Fragen, damit sie auch ohne dich im Raum verständlich ist. Deutsch oder Englisch, wie es dir lieber ist.
+
+        Not sure yet whether it is a concrete wish? Then start a thread under **Discussions → Ideas** instead.
+        Noch nicht sicher, ob es ein konkreter Wunsch ist? Dann lieber unter **Discussions → Ideas** anfangen.
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who are you? / Wer bist du?
+      options:
+        - Director / Regie
+        - Assistant director / Regieassistenz
+        - Cast member / Spielende(r)
+        - Running the software for a company / Betreibe die Software für eine Gruppe
+        - Other / Sonstiges
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing or awkward today? / Was fehlt heute oder ist umständlich?
+      description: Describe the situation, not the solution. / Die Situation beschreiben, nicht die Lösung.
+      placeholder: "When I ..., I have to ... / Wenn ich ..., muss ich ..."
+    validations:
+      required: true
+  - type: textarea
+    id: wish
+    attributes:
+      label: What should happen instead? / Was soll stattdessen passieren?
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you get by today? / Wie behilfst du dir heute?
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where in the program? / Wo im Programm?
+      multiple: true
+      options:
+        - Script upload and versions / Drehbuch und Fassungen
+        - Casting / Besetzung
+        - Rehearsal plan / Probenplan
+        - Availability calendar / Verfügbarkeit
+        - Dates / Termine
+        - Printed scripts and part books / Skripte und Rollenhefte
+        - Comments / Kommentare
+        - Audiobook / Hörbuch
+        - Administration / Verwaltung
+        - Somewhere else / Woanders
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending / Vor dem Absenden
+      options:
+        - label: I looked whether an issue or discussion for this already exists. / Ich habe geschaut, ob es das schon als Issue oder Discussion gibt.
