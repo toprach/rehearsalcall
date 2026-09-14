@@ -95,6 +95,10 @@ export const en = {
   'mem.call_what':   'The dates for your rehearsals can only be found once you have said '
                    + 'which evenings you can make. It takes five minutes.',
   'mem.call_go':     'Enter my availability now',
+  'mem.director_note': 'As the director you enter no evenings: you count as free on every evening. '
+                   + 'Strike the days in the calendar on which no rehearsal can take place - that holds for everyone.',
+  'mem.director_go': 'Strike days',
+  'mem.director_always': 'always, as the director \u2013 except on struck days',
   'mem.evenings_no': '<span class="open">nothing yet</span> \u2013 '
                     + '<a href="/theater/mit/zeiten">enter them now</a>',
   'mem.rehearsals_yes':    '{n}, {fixed} of them with a fixed date \u2013 '
@@ -452,6 +456,7 @@ export const en = {
   'comp.evenings':       '{n} evenings',
   'comp.entered':  'entered',
   'comp.still_missing':   'still missing',
+  'comp.director_always': 'director: always there, except on struck days',
   'comp.remove':    'remove',
   'comp.director':  'director',
   'comp.assistant': 'assistant director',
@@ -527,6 +532,8 @@ export const en = {
   'my.holds_1':       'This is what currently holds for you: one evening',
   'my.last_saved':      'Last saved: {when}',
   'my.nothing':       'You have not entered any evenings yet. Tap a day in the calendar.',
+  'my.director_note': 'You are the director: for the dates you count as free on every evening, nothing to enter. '
+                   + 'Days on which nothing can happen you strike for everyone \u2013 tap the day, then \u201cstruck by the director\u201d.',
   'my.needed_for':    'You are needed for {n} rehearsals: ',
   'my.with':          'with {who}',
   'my.evenings_n':     '{n} evening(s)',

@@ -123,12 +123,19 @@ export function rehearsalLength(playingMinutes) {
 
 /* Intersection of a group's time windows on one evening.
    Returns not-ok as soon as a single person cannot.                    */
+/* The director plans by striking days, not by entering evenings: they
+   count as free the whole evening on every day that is not struck.
+   (Struck days never reach here - evenings() leaves them out.) */
+const ALWAYS = { from: 0, to: 24 * 60 };
+const windowOfPerson = (person, available, date) =>
+  !person ? null : person.regie ? ALWAYS : windowOn(available?.[person.id], date);
+
 function windowFor(group, date, available, personByShort) {
   let from = -Infinity, to = Infinity;
   const missing = [];
   for (const b of group) {
     const person = personByShort.get(b);
-    const w = person ? windowOn(available[person.id], date) : null;
+    const w = windowOfPerson(person, available, date);
     if (!w) { missing.push(b); continue; }
     if (w.from > from) from = w.from;
     if (w.to < to) to = w.to;
@@ -196,7 +203,7 @@ export function proposeDates(project) {
     const needed = needing(pr.gruppe);
     const withoutEntry = needed.filter(b => {
       const person = personByShort.get(b);
-      return !person || !entered.has(person.id);
+      return !person || (!person.regie && !entered.has(person.id));
     });
     const needs = rehearsalLength(playing);
     const possible = [];
@@ -326,10 +333,7 @@ export function dayStates(project, person, days) {
   for (const t of project.termine || [])
     if (t.bestaetigt && t.iso) fixed.set(t.probe_id, t);
 
-  const canOn = (b, date) => {
-    const x = personByShort.get(b);
-    return x ? !!windowOn(project.verfuegbar?.[x.id], date) : false;
-  };
+  const canOn = (b, date) => !!windowOfPerson(personByShort.get(b), project.verfuegbar, date);
 
   const blocked = blockedOf(project);
   const states = {};
@@ -340,7 +344,7 @@ export function dayStates(project, person, days) {
 
     // Who can make this day at all?
     const canCome = (project.personen || [])
-      .filter(x => windowOn(project.verfuegbar?.[x.id], d))
+      .filter(x => windowOfPerson(x, project.verfuegbar, d))
       .map(x => x.b);
 
     let level = 0, best = null;

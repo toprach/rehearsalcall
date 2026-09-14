@@ -93,6 +93,10 @@ export const de = {
   'mem.call_what':   'Termine f\u00fcr Ihre Proben lassen sich erst finden, wenn Sie gesagt haben, '
                    + 'an welchen Abenden Sie k\u00f6nnen. Das dauert f\u00fcnf Minuten.',
   'mem.call_go':     'Jetzt Verf\u00fcgbarkeit eintragen',
+  'mem.director_note': 'Als Regie tragen Sie keine Abende ein: Sie gelten an jedem Abend als verf\u00fcgbar. '
+                   + 'Streichen Sie im Kalender die Tage, an denen keine Probe stattfinden kann \u2013 das gilt f\u00fcr alle.',
+  'mem.director_go': 'Tage streichen',
+  'mem.director_always': 'immer, als Regie \u2013 au\u00dfer an gestrichenen Tagen',
   'mem.evenings_no': '<span class="open">noch nichts</span> – '
                     + '<a href="/theater/mit/zeiten">jetzt eintragen</a>',
   'mem.rehearsals_yes':    '{n}, davon {fixed} mit festem Termin – '
@@ -451,6 +455,7 @@ export const de = {
   'comp.evenings':       '{n} Abende',
   'comp.entered':  'eingetragen',
   'comp.still_missing':   'fehlt noch',
+  'comp.director_always': 'Regie: immer da, au\u00dfer an gestrichenen Tagen',
   'comp.remove':    'entfernen',
   'comp.director':  'Regie',
   'comp.assistant': 'Regieassistenz',
@@ -524,6 +529,8 @@ export const de = {
   'my.holds':         'Das gilt derzeit für Sie: {n} Abende',
   'my.holds_1':       'Das gilt derzeit für Sie: ein Abend',
   'my.last_saved':      'Zuletzt gespeichert: {when}',
+  'my.director_note': 'Sie sind Regie: F\u00fcr die Terminsuche gelten Sie an jedem Abend als verf\u00fcgbar, eintragen m\u00fcssen Sie nichts. '
+                   + 'Tage, an denen nichts geht, streichen Sie f\u00fcr alle \u2013 Tag antippen, dann \u201evon der Regie gestrichen\u201c.',
   'my.nothing':       'Sie haben noch keine Abende eingetragen. Tippen Sie im Kalender auf '
                     + 'einen Tag.',
   'my.needed_for':    'Sie werden für {n} Proben gebraucht: ',

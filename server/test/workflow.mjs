@@ -393,7 +393,10 @@ for (const b of cast) {
   if (b === cast[0]) check('the struck day shows as struck', new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(e.text));
   else check('a member sees the struck day but cannot strike', new RegExp('blocked[^"]*" data-iso="' + days[0] + '"').test(e.text) && !/name="g_/.test(e.text));
   const me = await call('GET', '/theater/mit');
-  check('member page counts the evenings (' + b + ')', me.status === 200 &&
+  // The director enters nothing that counts: their page says so instead of a number.
+  if (b === cast[0]) check('the director\u2019s page says they count as always free', me.status === 200 &&
+        /always, as the director|immer, als Regie/.test(me.text));
+  else check('member page counts the evenings (' + b + ')', me.status === 200 &&
         new RegExp('\\b' + days.length + ' ').test(me.text));
   clean('member page', me);
   if (b === cast[0]) {

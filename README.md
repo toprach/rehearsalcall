@@ -87,7 +87,9 @@ tool and the server cannot drift apart.
 The heart of it is the date arithmetic in `theater/dates.mjs`. Each person
 enters **once** when they are generally free and when they are away; from
 that follows, for every evening, who can come. A rehearsal fits when its
-whole cast can. Dates are assigned **by scarcity** — the rehearsal with the
+whole cast can. The director enters nothing: they count as free on every
+evening and strike, for everyone, the days on which nothing can happen.
+Dates are assigned **by scarcity** — the rehearsal with the
 fewest possible evenings first. Otherwise the small groups, which are easy to
 schedule, take exactly the evenings that were the only ones on which the big
 scene would have been possible.

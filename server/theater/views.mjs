@@ -388,9 +388,13 @@ function docsPage(project, base) {
 
 function projectPage(p, m) {
   const rehearsalCount = p.plan?.proben?.length || 0;
-  const withEntry = Object.values(p.verfuegbar || {})
-    .filter(v => Object.keys(v.tage || {}).length || (v.wochentage || []).length).length;
-  const folks = (p.personen || []).length;
+  // The director needs no entries: they count as free except on struck days.
+  const cast = (p.personen || []).filter(x => !x.regie);
+  const withEntry = cast.filter(x => {
+    const v = p.verfuegbar?.[x.id];
+    return v && (Object.keys(v.tage || {}).length || (v.wochentage || []).length);
+  }).length;
+  const folks = cast.length;
   const hasScript = !!p.drehbuch;
   const takenOver = !!p.skript_ueberblick;
   const u = p.skript_ueberblick;
@@ -1026,7 +1030,9 @@ function companyPage(p, m, base) {
           <summary>${h(t('comp.show_link'))}</summary>
           ${t('comp.personal_link', { who: h(x.name || x.b) })}
           ${copyLink((base || '') + '/theater/ich/' + x.token)}</details>` : ''}</td>
-      <td class="small">${evenings
+      <td class="small">${x.regie
+        ? `<span class="muted">${t('comp.director_always')}</span>`
+        : evenings
         ? `<span style="color:var(--good)">${t('comp.evenings', { n: evenings })}</span>`
         : (wochentags
             ? `<span style="color:var(--good)">${t('comp.entered')}</span>`
@@ -1192,13 +1198,18 @@ function memberPage(project, person, m, realSelf) {
         '<button class="quiet mini">' +
         t('mem.back_to', { name: h(realSelf.name || realSelf.b) }) + '</button>')}
       </div>` : ''}
-    ${!evenings ? `<div class="box important callout">
+    ${person.regie ? `<div class="box">
+      <p class="small muted" style="margin:0 0 .6rem">${t('mem.director_note')}</p>
+      <a class="btn quiet" href="/theater/mit/zeiten">${t('mem.director_go')}</a>
+    </div>` : !evenings ? `<div class="box important callout">
       <p><b>${t('mem.call_title')}</b></p>
       <p class="small muted">${t('mem.call_what')}</p>
       <a class="btn big" href="/theater/mit/zeiten">${t('mem.call_go')}</a>
     </div>` : ''}
     <table>
-      <tr><th>${t('mem.my_times')}</th><td>${evenings
+      <tr><th>${t('mem.my_times')}</th><td>${person.regie
+        ? t('mem.director_always')
+        : evenings
         ? t('mem.evenings_yes', { n: evenings })
         : t('mem.evenings_no')}</td></tr>
       <tr><th>${t('mem.my_rehearsals')}</th><td>${rehearsals.length
@@ -1725,7 +1736,7 @@ function myTimesPage(project, person, m, days, states) {
     <h1>${t('my.title')}</h1>
     ${notice(m)}
 
-    ${count ? '' : `<p class="muted">${t('my.nothing')}</p>`}
+    ${person.regie ? `<div class="notice">${t('my.director_note')}</div>` : count ? '' : `<p class="muted">${t('my.nothing')}</p>`}
 
     <form method="post" action="/theater/mit/zeiten" id="formular">
       <div class="calhead">
