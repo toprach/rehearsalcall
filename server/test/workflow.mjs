@@ -413,6 +413,16 @@ for (const b of cast) {
     check('and opens the project', pj.status === 200, 'status ' + pj.status);
     cookies = '';
     pj = await call('GET', ich + '/heft');
+    const ics = await call('GET', ich + '/kalender.ics');
+    check('the personal link serves a calendar feed', ics.status === 200 && /^BEGIN:VCALENDAR/.test(ics.text) &&
+          /text\/calendar/.test(ics.res.headers.get('content-type') || '') && /BEGIN:VEVENT/.test(ics.text) &&
+          /\/theater\/ich\/[a-z0-9]+\//.test(ics.text),
+          'status ' + ics.status + ' type ' + ics.res.headers.get('content-type') + ' events ' + (ics.text.match(/BEGIN:VEVENT/g) || []).length);
+    const pl2 = await call('GET', ich + '/plan/P01');
+    check('the personal link opens the passages of a rehearsal', pl2.status === 303 &&
+          /\/theater\/mit\/plan\//.test(pl2.res.headers.get('location') || ''), 'status ' + pl2.status);
+    const kj = await call('GET', '/theater/kalender.js'), vj = await call('GET', '/theater/vendor/ical.min.js');
+    check('the calendar script and its library are served', kj.status === 200 && vj.status === 200 && /ICAL/.test(vj.text));
     check('the personal link with /heft leads to the part book', pj.status === 303 &&
           /\/theater\/mit\/heft$/.test(pj.res.headers.get('location') || ''), 'status ' + pj.status);
     pj = await call('GET', '/theater/mit/heft');

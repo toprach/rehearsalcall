@@ -236,6 +236,16 @@ The same goes for the scene search: `probenplan/` calls the server's
 modules rather than holding a second implementation of it.
 
 
+## Calendars
+
+Every member has a calendar feed at `/theater/ich/<token>/kalender.ics`:
+fixed rehearsals ("Rehearsal P04: me + ANNA"), proposals as tentative,
+the own evenings as transparent events, each linking into the app. On the
+availability page a member can add their own calendars (ICS addresses or
+a downloaded .ics file); those stay in the browser and are never sent to
+the server. Reading them uses [ical.js](https://github.com/kewisch/ical.js)
+(Mozilla Public License 2.0), vendored under `server/theater/static/vendor/`.
+
 ## A note on language
 
 The interface speaks English by default and German as the first

@@ -336,6 +336,13 @@ export const STYLE = `
   .applause button { margin:.6rem .3rem 0 }
   body.learning .frame { padding-bottom:9rem }
   @media (max-width:700px) { body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem } }
+  /* --- other calendars in the availability page --- */
+  table.cal td.day { position:relative }
+  table.cal td.day .ics-dot { position:absolute; right:.2rem; top:.2rem; font-size:.62rem; line-height:1.4;
+                              background:#4a6fd0; color:#fff; border-radius:1em; padding:0 .35em; font-weight:700 }
+  #kalender-quellen .quelle { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.3rem 0 }
+  #kalender-quellen .row input { margin:0 }
+  .ics-ev { margin:.15rem 0 }
   .figures { margin:.4rem 0 .8rem }
   .remind { margin:.4rem 0 1.2rem; border:1px solid var(--rule); border-radius:4px; padding:.5rem .9rem; background:var(--card) }
   .remind summary { cursor:pointer; font-weight:600 }

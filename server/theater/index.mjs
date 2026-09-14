@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
 import * as PWA from './pwa.mjs';
+import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
 
@@ -489,11 +490,18 @@ export async function handle(request, response, path) {
   }
 
   /* --- the script of the part book: a file, so nothing is escaped --- */
-  if (first === 'heft.js' || first === 'sw.js') {
+  if (first === 'heft.js' || first === 'sw.js' || first === 'kalender.js') {
     await drainBody(request);
     const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', first);
     response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8',
       'Cache-Control': first === 'sw.js' ? 'no-cache' : 'public, max-age=3600' });
+    return response.end(fs.readFileSync(file));
+  }
+  /* A library we ship: ical.js (Mozilla, MPL 2.0) reads calendars in the browser. */
+  if (first === 'vendor' && parts[1] === 'ical.min.js') {
+    await drainBody(request);
+    const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', 'vendor', 'ical.min.js');
+    response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=604800' });
     return response.end(fs.readFileSync(file));
   }
 
@@ -632,12 +640,19 @@ export async function handle(request, response, path) {
     const hit = await S.findByPersonToken(parts[1]);
     if (!hit) return html(response, A.errorPage('f.link_gone_t', 'f.link_gone'), 404);
     projectLanguage(hit.project);
+    /* The calendar feed: no cookie, no page - a calendar app fetches it. */
+    if (parts[2] === 'kalender.ics') {
+      response.writeHead(200, { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache',
+                               'Content-Disposition': 'inline; filename="proben.ics"' });
+      return response.end(feedFor(hit.project, hit.person, baseOf(request)));
+    }
     setMemberCookie(response, hit.project.id, hit.person.id);
     setRealSelfCookie(response, null);
     // The personal link is the one way to the director's rights.
     if (hit.person.regie || hit.person.assistenz) setRegieCookie(response, hit.project.id, hit.person.id);
     /* A page may be named after the token - the part book, say, saved
        on a phone - and then that is where the link leads. */
+    if (parts[2] === 'plan' && parts[3]) return redirect(response, '/theater/mit/plan/' + encodeURIComponent(parts[3]));
     const target = ['heft', 'zeiten', 'termine', 'kommentare', 'mit'].includes(parts[2]) ? parts[2] : '';
     if (target) return redirect(response, target === 'mit' ? '/theater/mit' : '/theater/mit/' + target);
     return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');
@@ -916,7 +931,8 @@ export async function handle(request, response, path) {
     if (second === 'zeiten') {
       const days = calendarDays(project);
       const states = () => dayStates(project, person, days);
-      if (!post) return html(response, A.myTimesPage(project, person, null, days, states()));
+      const ics = person.token ? baseOf(request) + '/theater/ich/' + person.token + '/kalender.ics' : '';
+      if (!post) return html(response, A.myTimesPage(project, person, null, days, states(), ics));
       const { fields } = await readForm(request, 4_000_000);
       const entered = {};
       for (const t of days) {
@@ -936,7 +952,7 @@ export async function handle(request, response, path) {
       }
       await S.write(project);
       const n = Object.keys(entered).length;
-      return html(response, A.myTimesPage(project, person, timesSaved(n), days, states()));
+      return html(response, A.myTimesPage(project, person, timesSaved(n), days, states(), ics));
     }
 
     if (second === 'termine') {

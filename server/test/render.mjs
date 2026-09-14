@@ -150,7 +150,7 @@ for (const { code } of LANGUAGES) {
     myDatesPage: () => A.myDatesPage(project, person, datesResult, { kind: 'good', key: 'r.now_fixed', values: { p1: 'P01' } }),
     datesPage: () => A.datesPage(project, datesResult, null),
     datesEmpty: () => A.datesPage(project, { rehearsals: [], hint: { key: 'msg.no_plan' } }, null),
-    myTimesPage: () => A.myTimesPage(project, person, { kind: 'good', key: 'r.times_saved', values: { n: 3 } }, days, states),
+    myTimesPage: () => A.myTimesPage(project, person, { kind: 'good', key: 'r.times_saved', values: { n: 3 } }, days, states, 'https://x.example/theater/ich/abc/kalender.ics'),
     myTimesDirector: () => A.myTimesPage(project, project.personen[2], null, days, states),
     printPage: () => A.printPage(project, null),
     docsPage: () => A.docsPage(project, 'https://x/theater/druck/abc'),

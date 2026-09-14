@@ -31,10 +31,12 @@ function readVersion() {
   } catch { return ''; }
 }
 /* The book script is cached for an hour; its address changes with the file. */
-const HEFT_V = (() => {
-  try { return String(Math.round(fs.statSync(new URL('./static/heft.js', import.meta.url)).mtimeMs)); }
+const fileV = (name) => {
+  try { return String(Math.round(fs.statSync(new URL('./static/' + name, import.meta.url)).mtimeMs)); }
   catch { return '0'; }
-})();
+};
+const HEFT_V = fileV('heft.js');
+const KAL_V = fileV('kalender.js');
 
 export const ABOUT = {
   version: readVersion(),
@@ -1643,7 +1645,7 @@ function datesPage(p, result, m) {
 
 /* ---------- Ensemble-Mitglied ---------- */
 
-function myTimesPage(project, person, m, days, states) {
+function myTimesPage(project, person, m, days, states, ics = '') {
   const v = project.verfuegbar?.[person.id] || {};
   const entered = v.tage || {};
   const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
@@ -1760,8 +1762,8 @@ function myTimesPage(project, person, m, days, states) {
       ${months.map(monthTable).join('')}
       <div id="schleier" class="overlay" hidden><div id="tafel" class="box"></div></div>
 
-      <button type="submit">${t('my.save')}</button>
-      <span class="small muted">${t('my.only_after')}</span>
+      <button type="submit" id="speichern">${t('my.save')}</button>
+      <span class="small muted" id="autosave">${t('my.only_after')}</span>
     </form>
 
     ${count ? `<details class="box small" style="margin-top:1.2rem">
@@ -1776,6 +1778,28 @@ function myTimesPage(project, person, m, days, states) {
       { n: rehearsals.length })}${rehearsals.map(pr => `<span class="chip"
       title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
       >${h(pr.id)}</span>`).join('')}</p>` : ''}
+
+    <div class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
+      remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
+      n_events: t('my.source_n', { n: '#' }), day_title: t('my.day_title'), day_free: t('my.day_free'), allday: t('my.allday'),
+      bad_url: t('my.bad_url'), bad_file: t('my.bad_file') }))}">
+      <b>${t('my.sources_title')}</b>
+      <p class="muted">${t('my.sources_what')}</p>
+      <div class="quellen"></div>
+      <div class="row">
+        <div><label for="quelle-name">${t('my.source_name')}</label><input type="text" id="quelle-name" maxlength="40"></div>
+        <div style="flex:2"><label for="quelle-url">${t('my.source_url')}</label><input type="url" id="quelle-url" placeholder="https://\u2026/basic.ics"></div>
+        <div><button type="button" class="quiet" id="quelle-add" style="margin-top:0">${h(t('my.source_add'))}</button></div>
+      </div>
+      <p style="margin:.6rem 0 0"><label class="btn quiet mini" style="cursor:pointer">${h(t('my.source_file'))}
+        <input type="file" id="quelle-file" accept=".ics,text/calendar" hidden></label></p>
+    </div>
+    ${ics ? `<div class="box small">
+      <b>${t('my.ics_title')}</b>
+      <p class="muted">${t('my.ics_what')}</p>
+      ${copyLink(ics)}
+    </div>` : ''}
+    <script type="module" src="/theater/kalender.js?v=${KAL_V}"></script>
 
     <script>
     (function () {
@@ -1794,6 +1818,8 @@ function myTimesPage(project, person, m, days, states) {
                 von: ${js('my.from')}, bis: ${js('my.to')},
                 ja: ${js('my.can')}, nein: ${js('my.cannot')},
                 falsch: ${js('my.time_wrong')},
+                autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
+                saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
                 von_n: ${JSON.stringify(t('my.best', { rehearsal: '', here: '#DA#',
                   total: '#GESAMT#' }).replace(/^:\s*/, ''))} };
       var current = 0;
@@ -1813,6 +1839,21 @@ function myTimesPage(project, person, m, days, states) {
       function zaehle() {
         var n = document.querySelectorAll('.month td.me').length;
         document.getElementById('zaehler').textContent = W.evenings.replace('#', n);
+      }
+      /* Every entry goes to the server at once; the button stays for
+         browsers without script. */
+      var formular = document.getElementById('formular'), stand = document.getElementById('autosave');
+      document.getElementById('speichern').hidden = true;
+      stand.textContent = W.autosave;
+      var pending = null;
+      function speichere() {
+        stand.textContent = W.saving;
+        var body = new URLSearchParams(new FormData(formular)).toString();
+        pending = fetch(formular.action, { method: 'POST', credentials: 'same-origin',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
+          .then(function (r) {
+            stand.textContent = r.ok ? W.saved.replace('#', new Date().toLocaleTimeString(place, { hour: '2-digit', minute: '2-digit' })) : W.save_failed;
+          }).catch(function () { stand.textContent = W.save_failed; });
       }
       function liste(s) {
         if (!s) return '\u2014';
@@ -1837,6 +1878,7 @@ function myTimesPage(project, person, m, days, states) {
         tafel.innerHTML =
           '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit',
               month: '2-digit', year: 'numeric' }) + '</b>' +
+          '<div id="tafel-ics" class="small" style="margin:.4rem 0" hidden></div>' +
           (blocked ? '<div class="notice error small" style="margin:.5rem 0">' + W.blocked + '</div>' : '') +
           (td.dataset.fixed ? '<div class="notice good small" style="margin:.5rem 0">' +
               W.fixed + td.dataset.fixed + '</div>' : '') +
@@ -1861,10 +1903,12 @@ function myTimesPage(project, person, m, days, states) {
           (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
              (blocked ? W.unblock : W.block) + '</button>' : '');
 
+        document.dispatchEvent(new CustomEvent('tag-geoeffnet', { detail: iso }));
+
         if (regie && gI) document.getElementById('sperrt').onclick = function () {
           gI.value = blocked ? '' : '1';
           td.classList.toggle('blocked', !blocked);
-          schleier.hidden = true;
+          schleier.hidden = true; speichere();
         };
 
         document.getElementById('jat').onclick = function () {
@@ -1874,13 +1918,13 @@ function myTimesPage(project, person, m, days, states) {
           td.classList.add('me');
           td.querySelector('.time').textContent = a + '\u2013' + b;
           preset = { von: a, bis: b };
-          schleier.hidden = true; zaehle();
+          schleier.hidden = true; zaehle(); speichere();
         };
         document.getElementById('neint').onclick = function () {
           tI.value = ''; vI.value = ''; bI.value = '';
           td.classList.remove('me');
           td.querySelector('.time').textContent = '';
-          schleier.hidden = true; zaehle();
+          schleier.hidden = true; zaehle(); speichere();
         };
       }
 
