@@ -931,7 +931,7 @@ export async function handle(request, response, path) {
     /* A calendar feed fetched on the member's behalf: most calendar
        services refuse a browser on another site (CORS). The address
        comes with the request and goes nowhere; the text goes back and
-       is not kept. Only public hosts, only http(s), ten seconds, 2 MB. */
+       is not kept. Only public hosts, only http(s), ten seconds, 15 MB. */
     if (second === 'kalender-abruf' && post) {
       const { fields } = await readForm(request, 20_000);
       const plain = (status, text) => { response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(text); };
@@ -947,7 +947,7 @@ export async function handle(request, response, path) {
         const r = await fetch(target, { signal: ctl.signal, redirect: 'follow', headers: { accept: 'text/calendar, */*' } });
         if (!r.ok) return plain(502, 'status ' + r.status);
         const text = await r.text();
-        if (text.length > 2_000_000) return plain(502, 'too big');
+        if (text.length > 15_000_000) return plain(502, 'too big');
         if (!/BEGIN:VCALENDAR/.test(text.slice(0, 2000))) return plain(502, 'not a calendar');
         response.writeHead(200, { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-store' });
         return response.end(text);
