@@ -525,7 +525,7 @@ for (const b of cast) {
       const hd3 = JSON.parse((/<script id="heft-data" type="application\/json">([\s\S]*?)<\/script>/.exec(bk3.text) || [])[1] || '{}');
       check('the book page carries the subscription and the time', hd3.push && hd3.push.zeit === '07:15' && (hd3.push.endpoints || [])[0] === ep && typeof hd3.push.key === 'string', JSON.stringify(hd3.push));
       clean('the book page with a reminder', bk3);
-      // the clock: due at 07:15 Vienna time, sent once, not twice
+      // the clock: due from 07:15 Vienna time on, sent once, not twice
       const Rem = await import('../theater/reminders.mjs');
       const entry = { zeit: '07:15', zone: 'Europe/Vienna', abos: [{ endpoint: ep, p256dh, auth }] };
       const at = new Date('2026-09-14T05:15:10Z').getTime();

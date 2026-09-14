@@ -115,8 +115,8 @@ them dark.
 
 The part book can also **remind** a member every day at a time of their
 choosing: the phone subscribes to push messages, and the server sends
-the figures of the day (due, new) at that minute on the phone's own
-clock. Web Push is done with nothing but `node:crypto` (RFC 8291 and
+the figures of the day (due, new) at the next quarter hour on the
+phone's own clock - a clock inside the service, no cron entry. Web Push is done with nothing but `node:crypto` (RFC 8291 and
 8292); the server needs a key pair in `.env`, made once with
 `node theater-code.mjs push-keys` (`THEATER_PUSH_PUBLIC`,
 `THEATER_PUSH_PRIVATE`). Without it the page does not offer reminders.

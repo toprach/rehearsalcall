@@ -966,7 +966,7 @@ export const en = {
   'book.share':      'share \u2026',
   /* the daily reminder */
   'book.remind':     'Reminder',
-  'book.remind_what': 'The phone speaks up every day at the chosen time with the figures of the day.',
+  'book.remind_what': 'The phone speaks up every day at the chosen quarter hour with the figures of the day.',
   'book.remind_time': 'Time',
   'book.remind_on':  'Turn on',
   'book.remind_off': 'Turn off',

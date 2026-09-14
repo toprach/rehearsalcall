@@ -1322,7 +1322,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       <p class="small muted">${t('book.remind_what')}</p>
       <div class="row">
         <div><label for="remind-time">${h(t('book.remind_time'))}</label>
-          <input type="time" id="remind-time" value="${h(remind.zeit || '19:00')}" step="300"></div>
+          <input type="time" id="remind-time" value="${h(remind.zeit || '19:00')}" step="900"></div>
         <div><button type="button" class="mini" id="remind-toggle" hidden>${h(t('book.remind_on'))}</button>
           <button type="button" class="quiet mini" id="remind-test" hidden>${h(t('book.remind_test'))}</button></div>
       </div>

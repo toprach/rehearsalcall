@@ -10,13 +10,15 @@
        abos: [{ endpoint, p256dh, auth, seit }]
      }
 
-   Once a minute the clock looks at every entry: when the wall clock in
-   the person's time zone shows the chosen minute and nothing was sent
-   that day, the message goes out to each subscription - with the
+   Every quarter of an hour the clock looks at every entry: when the
+   wall clock in the person's time zone has passed the chosen time - by
+   less than two hours, so a service that was down at that moment still
+   catches up, but yesterday's is not sent at dawn - and nothing was
+   sent that day, the message goes out to each subscription: with the
    figures of the day, due and new, so it is worth opening. What is
-   looked at every minute is a small index in memory, filled at start
-   and kept up to date by the route; the project itself is read only
-   when something is to be sent.
+   looked at is a small index in memory, filled at start and kept up to
+   date by the route; the project itself is read only when something is
+   to be sent. No cron entry is needed.
    --------------------------------------------------------------------- */
 
 import * as S from './storage.mjs';
@@ -42,11 +44,15 @@ export function localParts(zone, nowMs = Date.now()) {
 export const validZone = zone => { try { new Intl.DateTimeFormat('en-GB', { timeZone: zone }); return true; } catch { return false; } };
 export const validTime = t => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t || ''));
 
-/* The local date if the entry is due this minute, else null. */
+/* The local date if the entry is due now, else null: the chosen time
+   has passed today by less than the window, and nothing went out. */
+export const WINDOW_MIN = 120;
+const minutesOf = hm => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
 export function dueNow(entry, nowMs = Date.now()) {
   if (!entry || !validTime(entry.zeit)) return null;
   const { date, hm } = localParts(entry.zone, nowMs);
-  if (hm !== entry.zeit) return null;
+  const late = minutesOf(hm) - minutesOf(entry.zeit);
+  if (late < 0 || late >= WINDOW_MIN) return null;
   if (entry.zuletzt === date) return null;
   return date;
 }
@@ -145,11 +151,13 @@ export async function start() {
   if (!Push.enabled()) { console.log('[' + new Date().toISOString() + '] push: off (no THEATER_PUSH_* keys)'); return; }
   const n = await load();
   console.log('[' + new Date().toISOString() + '] push: on, reminders in ' + n + ' project(s)');
+  const QUARTER = 15 * 60 * 1000;
   const schedule = () => {
-    const ms = 60000 - (Date.now() % 60000) + 500;      // just after the full minute
+    const ms = QUARTER - (Date.now() % QUARTER) + 2000;    // just after the quarter hour
     timer = setTimeout(async () => { await tick(); schedule(); }, ms);
     timer.unref();
   };
+  tick();                                                  // what was missed while down
   schedule();
 }
 export function stop() { if (timer) clearTimeout(timer); timer = null; }

@@ -969,7 +969,7 @@ export const de = {
   'book.share':      'teilen \u2026',
   /* die t\u00e4gliche Erinnerung */
   'book.remind':     'Erinnerung',
-  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Zeit mit dem Stand des Tages.',
+  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Viertelstunde mit dem Stand des Tages.',
   'book.remind_time': 'Uhrzeit',
   'book.remind_on':  'Einschalten',
   'book.remind_off': 'Ausschalten',

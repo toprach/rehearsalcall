@@ -62,6 +62,8 @@ const at = (iso) => new Date(iso).getTime();
 const e = { zeit: '19:00', zone: 'Europe/Vienna' };
 check('due at 19:00 Vienna time (17:00 UTC in summer)', dueNow(e, at('2026-09-13T17:00:30Z')) === '2026-09-13');
 check('not due a minute earlier', dueNow(e, at('2026-09-13T16:59:30Z')) === null);
+check('still due 40 minutes later when nothing went out', dueNow(e, at('2026-09-13T17:40:00Z')) === '2026-09-13');
+check('no longer due two hours later', dueNow(e, at('2026-09-13T19:00:00Z')) === null);
 check('not due twice the same day', dueNow({ ...e, zuletzt: '2026-09-13' }, at('2026-09-13T17:00:30Z')) === null);
 check('due again the next day', dueNow({ ...e, zuletzt: '2026-09-13' }, at('2026-09-14T17:00:30Z')) === '2026-09-14');
 check('a bad zone falls back to UTC', dueNow({ zeit: '17:00', zone: 'Mars/Olympus' }, at('2026-09-13T17:00:30Z')) === '2026-09-13');
