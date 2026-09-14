@@ -421,6 +421,11 @@ for (const b of cast) {
     const pl2 = await call('GET', ich + '/plan/P01');
     check('the personal link opens the passages of a rehearsal', pl2.status === 303 &&
           /\/theater\/mit\/plan\//.test(pl2.res.headers.get('location') || ''), 'status ' + pl2.status);
+    // the feed fetched through the server, for the browser: own feed as the target
+    const px = await post('/theater/mit/kalender-abruf', { url: BASE + ich + '/kalender.ics' });
+    check('the server fetches a calendar for the browser', px.status === 200 && /^BEGIN:VCALENDAR/.test(px.text), 'status ' + px.status + ' ' + px.text.slice(0, 40));
+    const px2 = await post('/theater/mit/kalender-abruf', { url: 'ftp://example.org/x.ics' });
+    check('and refuses anything but http(s)', px2.status === 400, 'status ' + px2.status);
     const kj = await call('GET', '/theater/kalender.js'), vj = await call('GET', '/theater/vendor/ical.min.js');
     check('the calendar script and its library are served', kj.status === 200 && vj.status === 200 && /ICAL/.test(vj.text));
     check('the personal link with /heft leads to the part book', pj.status === 303 &&

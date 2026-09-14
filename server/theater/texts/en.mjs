@@ -551,16 +551,31 @@ export const en = {
   'my.save_failed':   'Saving failed \u2013 please try again.',
   /* other calendars, kept in this browser only */
   'my.sources_title': 'Show my own calendars',
-  'my.sources_what':  'ICS addresses (the private link of a Google calendar, say) stay on this device and are never sent to '
-                    + 'the server. Tapping a day then shows what is already on. If a calendar refuses to be read from the '
-                    + 'browser, load its .ics file instead.',
+  'my.sources_what':  'Add the addresses of your own calendars (the private ICS link of a Google calendar, say) or load '
+                    + 'an .ics file; several at once are fine. The server fetches a feed for you and forgets it at once; '
+                    + 'the addresses and the entries are kept on this device only, encrypted with a four-digit PIN, and '
+                    + 'tapping a day shows them only once the PIN has been entered.',
+  'my.pin':           'PIN',
+  'my.pin_repeat':    'PIN again',
+  'my.pin_ok':        'Set',
+  'my.pin_set_title': 'Set a PIN first',
+  'my.pin_set_what':  'Four digits. Your calendars are encrypted with it on this device; without it the page shows no entries.',
+  'my.pin_enter':     'Enter the PIN to see your calendars.',
+  'my.pin_unlock':    'Unlock',
+  'my.pin_wrong':     'Wrong PIN.',
+  'my.pin_lock':      'Lock',
+  'my.pin_mismatch':  'The two entries differ.',
+  'my.pin_format':    'Four digits, please.',
+  'my.pin_forget':    'Forgot the PIN?',
+  'my.pin_forget_what': 'Removes the calendars from this device; add them again afterwards.',
+  'my.pin_forget_confirm': 'Remove all calendars from this device?',
   'my.source_name':   'Name',
   'my.source_url':    'ICS address',
   'my.source_add':    'Add',
   'my.source_file':   'Load an .ics file',
   'my.source_remove': 'remove',
   'my.source_none':   'No calendar added yet.',
-  'my.source_unreachable': 'cannot be fetched \u2013 this calendar does not allow access from the browser; load the file instead',
+  'my.source_unreachable': 'cannot be fetched \u2013 check the address, or load the .ics file instead',
   'my.source_n':      '{n} entries in this period',
   'my.day_title':     'From my calendars:',
   'my.day_free':      'nothing on',

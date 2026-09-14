@@ -1782,17 +1782,25 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     <div class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
       remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
       n_events: t('my.source_n', { n: '#' }), day_title: t('my.day_title'), day_free: t('my.day_free'), allday: t('my.allday'),
-      bad_url: t('my.bad_url'), bad_file: t('my.bad_file') }))}">
+      bad_url: t('my.bad_url'), bad_file: t('my.bad_file'),
+      pin: t('my.pin'), pin_repeat: t('my.pin_repeat'), pin_ok: t('my.pin_ok'), pin_set_title: t('my.pin_set_title'),
+      pin_set_what: t('my.pin_set_what'), pin_enter: t('my.pin_enter'), pin_unlock: t('my.pin_unlock'), pin_wrong: t('my.pin_wrong'),
+      pin_lock: t('my.pin_lock'), pin_mismatch: t('my.pin_mismatch'), pin_format: t('my.pin_format'),
+      pin_forget: t('my.pin_forget'), pin_forget_what: t('my.pin_forget_what'), pin_forget_confirm: t('my.pin_forget_confirm') }))}"
+      data-person="${h(person.id)}">
       <b>${t('my.sources_title')}</b>
       <p class="muted">${t('my.sources_what')}</p>
+      <div class="pin"></div>
       <div class="quellen"></div>
-      <div class="row">
-        <div><label for="quelle-name">${t('my.source_name')}</label><input type="text" id="quelle-name" maxlength="40"></div>
-        <div style="flex:2"><label for="quelle-url">${t('my.source_url')}</label><input type="url" id="quelle-url" placeholder="https://\u2026/basic.ics"></div>
-        <div><button type="button" class="quiet" id="quelle-add" style="margin-top:0">${h(t('my.source_add'))}</button></div>
+      <div class="hinzu">
+        <div class="row">
+          <div><label for="quelle-name">${t('my.source_name')}</label><input type="text" id="quelle-name" maxlength="40"></div>
+          <div style="flex:2"><label for="quelle-url">${t('my.source_url')}</label><input type="url" id="quelle-url" placeholder="https://\u2026/basic.ics"></div>
+          <div><button type="button" class="quiet" id="quelle-add" style="margin-top:0">${h(t('my.source_add'))}</button></div>
+        </div>
+        <p style="margin:.6rem 0 0"><label class="btn quiet mini" style="cursor:pointer">${h(t('my.source_file'))}
+          <input type="file" id="quelle-file" accept=".ics,text/calendar" hidden></label></p>
       </div>
-      <p style="margin:.6rem 0 0"><label class="btn quiet mini" style="cursor:pointer">${h(t('my.source_file'))}
-        <input type="file" id="quelle-file" accept=".ics,text/calendar" hidden></label></p>
     </div>
     ${ics ? `<div class="box small">
       <b>${t('my.ics_title')}</b>

@@ -550,16 +550,31 @@ export const de = {
   'my.save_failed':   'Speichern fehlgeschlagen \u2013 bitte noch einmal.',
   /* fremde Kalender, nur in diesem Browser */
   'my.sources_title': 'Meine Kalender einblenden',
-  'my.sources_what':  'ICS-Adressen (etwa der private Link eines Google-Kalenders) bleiben auf diesem Ger\u00e4t und gehen '
-                    + 'nie an den Server. Beim Tippen auf einen Tag sehen Sie dann, was dort schon ansteht. L\u00e4sst ein '
-                    + 'Kalender den Abruf aus dem Browser nicht zu, laden Sie stattdessen seine .ics-Datei.',
+  'my.sources_what':  'Adressen eigener Kalender eintragen (etwa der private ICS-Link eines Google-Kalenders) oder eine '
+                    + '.ics-Datei laden, gern mehrere. Der Server holt einen Kalender f\u00fcr Sie ab und vergisst ihn '
+                    + 'sofort; Adressen und Termine liegen nur auf diesem Ger\u00e4t, mit einem vierstelligen PIN '
+                    + 'verschl\u00fcsselt, und beim Tippen auf einen Tag erscheinen sie erst nach dem PIN.',
+  'my.pin':           'PIN',
+  'my.pin_repeat':    'PIN wiederholen',
+  'my.pin_ok':        'Festlegen',
+  'my.pin_set_title': 'Zuerst einen PIN festlegen',
+  'my.pin_set_what':  'Vier Ziffern. Damit werden Ihre Kalender auf diesem Ger\u00e4t verschl\u00fcsselt; ohne PIN zeigt die Seite keine Termine.',
+  'my.pin_enter':     'PIN eingeben, um die Kalender zu sehen.',
+  'my.pin_unlock':    'Entsperren',
+  'my.pin_wrong':     'Falscher PIN.',
+  'my.pin_lock':      'Sperren',
+  'my.pin_mismatch':  'Die beiden Eingaben sind verschieden.',
+  'my.pin_format':    'Vier Ziffern, bitte.',
+  'my.pin_forget':    'PIN vergessen?',
+  'my.pin_forget_what': 'Entfernt die Kalender von diesem Ger\u00e4t; danach neu einbinden.',
+  'my.pin_forget_confirm': 'Alle Kalender von diesem Ger\u00e4t entfernen?',
   'my.source_name':   'Name',
   'my.source_url':    'ICS-Adresse',
   'my.source_add':    'Hinzuf\u00fcgen',
   'my.source_file':   '.ics-Datei laden',
   'my.source_remove': 'entfernen',
   'my.source_none':   'Noch kein Kalender eingebunden.',
-  'my.source_unreachable': 'nicht abrufbar \u2013 dieser Kalender erlaubt keinen Zugriff aus dem Browser; die Datei laden',
+  'my.source_unreachable': 'nicht abrufbar \u2013 Adresse pr\u00fcfen oder die .ics-Datei laden',
   'my.source_n':      '{n} Termine im Zeitraum',
   'my.day_title':     'Aus meinen Kalendern:',
   'my.day_free':      'nichts eingetragen',
