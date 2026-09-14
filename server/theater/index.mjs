@@ -979,6 +979,7 @@ export async function handle(request, response, path) {
         m = { kind: 'good', key: 'r.released', values: { p1: h(rehearsal) } };
       }
       await S.write(project);
+      Reminders.refresh(project);
       return html(response, A.myDatesPage(project, person, proposeDates(project), m));
     }
 
@@ -1539,6 +1540,7 @@ export async function handle(request, response, path) {
       const n = project.plan?.proben?.length || 0, d = (project.termine || []).length;
       project.plan = null; project.termine = [];
       await S.write(project);
+      Reminders.refresh(project);
       return show({ kind: 'good', key: 'r.plan_reset', values: { p1: n, p2: d } });
     }
 
@@ -1766,6 +1768,7 @@ export async function handle(request, response, path) {
       m = { kind: 'good', key: 'r.released2', values: { p1: h(rehearsal) } };
     }
     await S.write(project);
+    Reminders.refresh(project);
     return html(response, A.datesPage(project, proposeDates(project), m));
   }
 

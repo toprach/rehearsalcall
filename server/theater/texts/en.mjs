@@ -966,7 +966,7 @@ export const en = {
   'book.share':      'share \u2026',
   /* the daily reminder */
   'book.remind':     'Reminder',
-  'book.remind_what': 'The phone speaks up every day at the chosen quarter hour with the figures of the day.',
+  'book.remind_what': 'The phone speaks up daily at the chosen time with the state of the day \u2013 and an hour before every fixed rehearsal you are in.',
   'book.remind_time': 'Time',
   'book.remind_on':  'Turn on',
   'book.remind_off': 'Turn off',
@@ -983,6 +983,12 @@ export const en = {
   'push.body':       'Due today: {due} \u00b7 new: {fresh}. A short round will do.',
   'push.body_done':  'Everything sits \u2013 a round of review keeps it warm.',
   'push.body_none':  'No lines in the book yet \u2013 check whether the script is there.',
+  'push.next_rehearsal': 'Next rehearsal {id}: {when} at {von}.',
+  'push.today':      'today',
+  'push.tomorrow':   'tomorrow',
+  'push.rehearsal_title': '{title}: rehearsal {id} in an hour',
+  'push.rehearsal_body':  'At {von}{bis}{ort}{with}.',
+  'push.with':       'with {who}',
   'push.test_title': 'Test notification',
   'push.test_body':  'This is what the reminder looks like. It comes daily at {zeit}.',
 

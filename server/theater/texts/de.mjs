@@ -969,7 +969,7 @@ export const de = {
   'book.share':      'teilen \u2026',
   /* die t\u00e4gliche Erinnerung */
   'book.remind':     'Erinnerung',
-  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Viertelstunde mit dem Stand des Tages.',
+  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Zeit mit dem Stand des Tages \u2013 und eine Stunde vor jeder fixierten Probe, bei der du dabei bist.',
   'book.remind_time': 'Uhrzeit',
   'book.remind_on':  'Einschalten',
   'book.remind_off': 'Ausschalten',
@@ -986,6 +986,12 @@ export const de = {
   'push.body':       'Heute f\u00e4llig: {due} \u00b7 neu: {fresh}. Eine kurze Runde reicht.',
   'push.body_done':  'Alles sitzt \u2013 eine Runde Wiederholen h\u00e4lt es warm.',
   'push.body_none':  'Noch kein Text im Heft \u2013 schau nach, ob das Drehbuch schon da ist.',
+  'push.next_rehearsal': 'N\u00e4chste Probe {id}: {when} {von}.',
+  'push.today':      'heute',
+  'push.tomorrow':   'morgen',
+  'push.rehearsal_title': '{title}: Probe {id} in einer Stunde',
+  'push.rehearsal_body':  'Um {von}{bis}{ort}{with}.',
+  'push.with':       'mit {who}',
   'push.test_title': 'Probe-Mitteilung',
   'push.test_body':  'So sieht die Erinnerung aus. Sie kommt t\u00e4glich um {zeit}.',
 

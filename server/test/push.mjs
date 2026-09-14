@@ -5,7 +5,7 @@
 */
 import crypto from 'node:crypto';
 import * as P from '../theater/push.mjs';
-import { dueNow } from '../theater/reminders.mjs';
+import { dueNow, rehearsalsDue, rehearsalsOf, messageForRehearsal } from '../theater/reminders.mjs';
 
 let failed = 0;
 const check = (name, ok, detail = '') => {
@@ -68,6 +68,27 @@ check('not due twice the same day', dueNow({ ...e, zuletzt: '2026-09-13' }, at('
 check('due again the next day', dueNow({ ...e, zuletzt: '2026-09-13' }, at('2026-09-14T17:00:30Z')) === '2026-09-14');
 check('a bad zone falls back to UTC', dueNow({ zeit: '17:00', zone: 'Mars/Olympus' }, at('2026-09-13T17:00:30Z')) === '2026-09-13');
 check('no time, never due', dueNow({ zone: 'Europe/Vienna' }, at('2026-09-13T17:00:30Z')) === null);
+
+// --- an hour before a rehearsal ---
+const project = {
+  titel: 'Play', einstellungen: { sprache: 'en' },
+  personen: [{ id: 'a', b: 'ANNA' }, { id: 'r', b: 'RITA', regie: true }, { id: 'x', b: 'XAVER' }],
+  plan: { proben: [{ id: 'P01', gruppe: ['ANNA', 'BOB'] }] },
+  termine: [{ probe_id: 'P01', iso: '2026-09-20', von: '19:00', bis: '21:30', ort: 'Hall', gruppe: ['ANNA', 'BOB'], bestaetigt: true },
+            { probe_id: 'P02', iso: '2026-09-21', von: '18:00', bestaetigt: false, gruppe: ['ANNA'] }],
+};
+const anna = rehearsalsOf(project, project.personen[0]);
+check('a member sees her fixed rehearsals only', anna.length === 1 && anna[0].id === 'P01', JSON.stringify(anna));
+check('the director sees every fixed rehearsal', rehearsalsOf(project, project.personen[1]).length === 1);
+check('somebody not in the cast sees none', rehearsalsOf(project, project.personen[2]).length === 0);
+const re = { zone: 'Europe/Vienna', termine: anna, gesendet: [] };
+check('due 60 minutes before the start', rehearsalsDue(re, at('2026-09-20T16:00:30Z')).length === 1);
+check('not due 61 minutes before', rehearsalsDue(re, at('2026-09-20T15:59:00Z')).length === 0);
+check('still due 20 minutes before', rehearsalsDue(re, at('2026-09-20T16:40:00Z')).length === 1);
+check('not once it has started', rehearsalsDue(re, at('2026-09-20T17:00:30Z')).length === 0);
+check('not twice', rehearsalsDue({ ...re, gesendet: ['P01@2026-09-20'] }, at('2026-09-20T16:00:30Z')).length === 0);
+const rm = messageForRehearsal(project, project.personen[0], anna[0]);
+check('the message says when, where and with whom', /in an hour/.test(rm.title) && /19:00/.test(rm.body) && /Hall/.test(rm.body) && /BOB/.test(rm.body), rm.body);
 
 console.log('');
 console.log(failed ? failed + ' check(s) failed' : 'push: all checks passed');
