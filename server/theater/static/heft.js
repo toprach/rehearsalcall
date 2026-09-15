@@ -33,7 +33,8 @@
   var inFilter = function (p) {
     if (!D.filter || !p) return !D.filter;
     if (D.filter.ranges && !(p.nr != null && D.filter.ranges.some(function (r) { return p.nr >= r[0] && p.nr <= r[1]; }))) return false;
-    if (D.filter.mit && !(p.cue && p.cue.b && D.filter.mit.indexOf(p.cue.b) >= 0)) return false;
+    var cue = p.chunks && p.chunks[0] ? p.chunks[0].cue : null;   // the passage's cue sits on its first chunk
+    if (D.filter.mit && !(cue && cue.b && D.filter.mit.indexOf(cue.b) >= 0)) return false;
     return true;
   };
   var items = [];
