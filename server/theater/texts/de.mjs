@@ -105,9 +105,9 @@ export const de = {
   'mem.book_open':     '<a href="/theater/mit/heft">öffnen</a> – meine Passagen, mit Lernmodus; '
                     + 'die Druckfassung liegt auf der Skripte-Seite',
   'mem.no_script':    '<span class="muted">noch kein Drehbuch</span>',
-  'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">öffnen</a>',
+  'mem.full_open':   '<a href="/theater/mit/gesamt">öffnen</a>',
   'mem.plan_book':   'Probenplan im Drehbuch',
-  'mem.plan_open':   '<a href="{url}" target="_blank" rel="noopener">öffnen</a> \u2013 das ganze '
+  'mem.plan_open':   '<a href="{url}">öffnen</a> \u2013 das ganze '
                     + 'St\u00fcck mit eingezeichneten Proben',
   'mem.docs':        'Alle Skripte und Rollenhefte an einer Stelle: <a href="{url}">Skripte</a> \u2013 '
                     + '\u00f6ffnen und im Browser drucken.',

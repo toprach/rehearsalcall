@@ -107,9 +107,9 @@ export const en = {
   'mem.book_open':     '<a href="/theater/mit/heft">open</a> \u2013 my passages, with a learning '
                     + 'mode; the printable version is on the scripts page',
   'mem.no_script':    '<span class="muted">no script yet</span>',
-  'mem.full_open':   '<a href="/theater/mit/gesamt" target="_blank" rel="noopener">open</a>',
+  'mem.full_open':   '<a href="/theater/mit/gesamt">open</a>',
   'mem.plan_book':   'Rehearsal plan in the script',
-  'mem.plan_open':   '<a href="{url}" target="_blank" rel="noopener">open</a> \u2013 the whole '
+  'mem.plan_open':   '<a href="{url}">open</a> \u2013 the whole '
                     + 'play with the rehearsals drawn in',
   'mem.docs':        'All scripts and part books in one place: <a href="{url}">Scripts</a> \u2013 '
                     + 'open one and print it in the browser.',

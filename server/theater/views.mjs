@@ -321,7 +321,7 @@ function printPage(p, m) {
   const hasPlan = !!p.plan?.proben?.length;
   /* Open in the browser (the print link, valid for the company too), or
      take it away as a file. */
-  const auf = (weg, datei) => `<p><a class="btn" href="${h(base)}${weg}" target="_blank"
+  const auf = (weg, datei) => `<p><a class="btn" href="${h(base)}${weg}"
     rel="noopener">${h(t('print.open'))}</a>
     <a class="btn quiet" href="/theater/datei/${datei}">${h(t('print.download_file'))}</a></p>`;
 
@@ -349,7 +349,7 @@ function printPage(p, m) {
       ${folks.map(x => `<tr>
         <td><span class="chip">${h(x.b)}</span> ${h(x.name || '')}</td>
         <td class="small"><code>${h(base)}/rolle/${h(encodeURIComponent(x.b))}</code></td>
-        <td><a class="btn quiet mini" target="_blank" rel="noopener"
+        <td><a class="btn quiet mini"
                href="${h(base)}/rolle/${h(encodeURIComponent(x.b))}">${
                h(t('print.open_small'))}</a></td>
       </tr>`).join('')}</table>
@@ -494,10 +494,10 @@ function uploadPage(p, m) {
                <tr><th>${t('upl.people')}</th><td>${u.personen}</td></tr>` : ''}
       </table>
       <a class="btn quiet" href="/theater/besetzung">${t('upl.to_casting')}</a>
-      ${p.drucklink ? `<a class="btn quiet" href="${h(p.drucklink)}/gesamt" target="_blank"
+      ${p.drucklink ? `<a class="btn quiet" href="${h(p.drucklink)}/gesamt"
         rel="noopener">${t('upl.read_full')}</a>` : ''}
       ${p.drucklink && p.plan?.proben?.length ? `<a class="btn quiet"
-        href="${h(p.drucklink)}/probenplan" target="_blank" rel="noopener">${
+        href="${h(p.drucklink)}/probenplan">${
         t('upl.read_plan')}</a>` : ''}
     </div>` : ''}
     <form method="post" action="/theater/skript" enctype="multipart/form-data">
@@ -2180,9 +2180,23 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   @media print { .kmt-text { color:inherit !important; background:none !important; display:inline !important }
     .kmt-check-ui, .kmt-veil-ph, .kmt-step { display:none !important } }
   @media (max-width:700px) {
-    .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc }
-    body.kmt-has-bar { padding-top:0; padding-bottom:4rem }
-    .kmt-hint { bottom:4.2rem }
+    .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc; font-size:14px; gap:.3rem .35rem; padding:.4rem .5rem }
+    .kmt-bar select, .kmt-bar button { font-size:14px; padding:.3rem .4rem; max-width:9.5rem }
+    .kmt-bar .lbl, .kmt-bar .cnt { display:none }
+    .kmt-bar .grp { display:inline-flex; gap:.3rem }
+    table.cast th { letter-spacing:.02em; word-break:normal; hyphens:none }
+    body.kmt-has-bar { padding-top:0; padding-bottom:8rem }
+    .kmt-hint { bottom:8.2rem; font-size:12px }
+    /* the A4 layout let go: full width, readable type */
+    body { max-width:none !important; margin:0 !important; padding:0 .7rem !important; font-size:17px !important; line-height:1.4 !important }
+    main, main.plan { width:auto !important; max-width:100% !important; box-sizing:border-box }
+    main.plan { padding-left:6mm !important }
+    table.split { width:100% !important; table-layout:fixed }
+    table.split td, table.split th { width:50% !important }
+    table.cast { width:100%; font-size:.78em }
+    table.cast td, table.cast th { word-break:break-word }
+    main.plan .szkopf .lin { width:34vw } main.plan .szkopf .lin.kurz { width:16vw }
+    .kmt-box { font-size:16px }
   }
   @media print { .kmt-badge, .kmt-hint, .kmt-veil, .kmt-bar { display:none !important }
     body.kmt-has-bar { padding:0 } }
@@ -2326,7 +2340,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     /* whose lines are marked: the signed-in person to begin with, any
        person by choice - the director works with the view that way */
     var personB = D.me ? D.me.b : (D.people[0] ? D.people[0].b : '');
-    if (D.people.length) inner += '<label>' + esc(T.person) + ' <select id="kmt-person">' +
+    if (D.people.length) inner += '<label><span class="lbl">' + esc(T.person) + '</span> <select id="kmt-person">' +
       D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x.b === personB ? ' selected' : '') + '>' + esc(x.b) + '</option>'; }).join('') +
       '</select></label>';
     if (D.people.length) inner += '<button type="button" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>';
@@ -2335,9 +2349,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       var probeNr = function (pn) { var m = /(\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
       var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
       probes.sort(function (a, b) { return probeNr(a) - probeNr(b) || a.localeCompare(b); });
-      inner += '<label>' + esc(T.rehearsal) + ' <select id="kmt-probe">' +
+      inner += '<label><span class="lbl">' + esc(T.rehearsal) + '</span> <select id="kmt-probe">' +
         probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></label>' +
-        '<label>' + esc(T.scene) + ' <select id="kmt-scene">' +
+        '<label><span class="lbl">' + esc(T.scene) + '</span> <select id="kmt-scene">' +
         scenes.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' \u00b7 ' + esc(s.probe) + '</option>'; }).join('') +
         '</select></label>';
     }
@@ -2350,6 +2364,16 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
              '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></span>';
     bar.innerHTML = inner;
     document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
+    /* on a phone the bar sits at the bottom and may wrap to several rows:
+       keep the page's end and the hint clear of it */
+    var padBar = function () {
+      var hint = document.querySelector('.kmt-hint');
+      if (window.innerWidth <= 700) {
+        document.body.style.paddingBottom = (bar.offsetHeight + 14) + 'px';
+        if (hint) hint.style.bottom = (bar.offsetHeight + 8) + 'px';
+      } else { document.body.style.paddingBottom = ''; if (hint) hint.style.bottom = ''; }
+    };
+    padBar(); window.addEventListener('resize', padBar); setTimeout(padBar, 300);
     var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
     if (scenes.length) {
       var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
@@ -2564,7 +2588,7 @@ function commentsPage(p, m) {
   const nameOf = (b) => (p.personen || []).find(x => x.b === b)?.name || b;
   const item = (c) => `<div class="box cmt${c.frage && !c.erledigt ? ' important' : ''}">
       <div class="small muted">${h(nameOf(c.wer))} \u00b7 ${h(L.date(c.datum, { dateStyle: 'medium', timeStyle: 'short' }))}
-        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(p, c)}" target="_blank" rel="noopener">${
+        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(p, c)}">${
         t('cmt.at', { nr: h(String(c.nr)) })}</a>
         ${c.frage ? `\u00b7 <span class="open">${t('cmt.question')}</span>` : ''}
         ${c.erledigt ? `\u00b7 <span style="color:var(--good)">${t('cmt.done')}</span>` : ''}</div>
@@ -2601,7 +2625,7 @@ function myCommentsPage(project, person, m) {
     .sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
   const item = (c) => `<div class="box cmt">
       <div class="small muted">${h(L.date(c.datum, { dateStyle: 'medium', timeStyle: 'short' }))}
-        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(project, c)}" target="_blank" rel="noopener">${
+        \u00b7 ${docName(c.dokument)} \u00b7 <a href="${commentLink(project, c)}">${
         t('cmt.at', { nr: h(String(c.nr)) })}</a>
         ${c.frage ? `\u00b7 <span class="open">${t('cmt.question')}</span>` : ''}
         ${c.erledigt ? `\u00b7 <span style="color:var(--good)">${t('cmt.done')}</span>` : ''}</div>

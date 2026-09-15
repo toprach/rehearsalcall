@@ -393,6 +393,11 @@ async function takeInScript(project, script) {
 /* What goes into a document after <body>: the comments this viewer may
    see. The director (by code or personal link) sees all, everybody
    else their own. */
+/* The tool sets its documents for A4; a phone needs a viewport to lay
+   them out at its own width (the bar's styles do the rest). */
+const withViewport = text => text.replace('<head>',
+  '<head><meta name="viewport" content="width=device-width, initial-scale=1">');
+
 function docExtrasFor(A, project, token, doc, me, ctx) {
   const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
   const nameOf = (b) => (project.personen || []).find(x => x.b === b)?.name || b;
@@ -839,7 +844,7 @@ export async function handle(request, response, path) {
       const who = await memberFrom(request);
       const me = (who && who.project.id === project.id) ? who.person
         : (project.personen || []).find(x => x.b === meins) || null;
-      text = text.replace('<body>', '<body>' + docExtrasFor(A, project, token, action, me, ctx));
+      text = withViewport(text.replace('<body>', '<body>' + docExtrasFor(A, project, token, action, me, ctx)));
     }
 
     return response.end(text);
@@ -1229,8 +1234,8 @@ export async function handle(request, response, path) {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       });
-      text = text.replace('<body>', '<body>' + docExtrasFor(A, project, project.druck_token,
-        'gesamt', person, ctx));
+      text = withViewport(text.replace('<body>', '<body>' + docExtrasFor(A, project, project.druck_token,
+        'gesamt', person, ctx)));
       return response.end(text);
     }
 
