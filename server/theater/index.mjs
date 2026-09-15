@@ -965,6 +965,8 @@ export async function handle(request, response, path) {
       const { fields } = await readForm(request, 4_000_000);
       const entered = {};
       for (const t of days) {
+        // a day struck for oneself is a decided no, kept as such
+        if (fields['n_' + t.iso] === '1') { entered[t.iso] = { nein: true }; continue; }
         if (fields['t_' + t.iso] !== '1') continue;
         const from = time(fields['v_' + t.iso]) || '19:00';
         const to = time(fields['b_' + t.iso]) || '22:00';

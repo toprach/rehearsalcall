@@ -143,16 +143,44 @@ import ICAL from '/theater/vendor/ical.min.js';
     }).join('') + '<p class="small"><button type="button" class="quiet mini" id="pin-lock">' + esc(W.pin_lock) + '</button></p>'
       : '<p class="muted small">' + esc(W.none) + '</p>';
   }
+  /* The preferred window, and what of it is free on a day: the timed
+     entries of one's calendars are taken out, all-day ones are not. */
+  var mins = function (hm) { return hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null; };
+  function window_() {
+    var a = document.getElementById('pref-von'), b = document.getElementById('pref-bis');
+    if (!a || !b || !a.value || !b.value || b.value <= a.value) return null;
+    return { von: mins(a.value), bis: mins(b.value) };
+  }
+  function freeOn(iso) {
+    var w = window_(); if (!w) return null;
+    var busy = forDay(iso).filter(function (e) { return !e.allday && e.von && e.bis; })
+      .map(function (e) { return [Math.max(w.von, mins(e.von)), Math.min(w.bis, mins(e.bis))]; })
+      .filter(function (x) { return x[1] > x[0]; }).sort(function (a, b) { return a[0] - b[0]; });
+    var free = [], at = w.von;
+    busy.forEach(function (x) { if (x[0] > at) free.push([at, x[0]]); at = Math.max(at, x[1]); });
+    if (at < w.bis) free.push([at, w.bis]);
+    return { window: w, free: free, busy: busy.length };
+  }
   function paintDots() {
     document.querySelectorAll('.month td.day[data-iso]').forEach(function (td) {
-      var old = td.querySelector('.ics-dot'); if (old) old.parentNode.removeChild(old);
-      if (!key) return;
+      [].forEach.call(td.querySelectorAll('.ics-dot, .frei'), function (x) { x.parentNode.removeChild(x); });
+      if (!key || !vault.sources.length) return;
       var n = forDay(td.dataset.iso).length;
-      if (!n) return;
-      var s = document.createElement('span'); s.className = 'ics-dot'; s.title = W.n_events.replace('#', n); s.textContent = n;
-      td.appendChild(s);
+      if (n) { var s = document.createElement('span'); s.className = 'ics-dot'; s.title = W.n_events.replace('#', n); s.textContent = n; td.appendChild(s); }
+      var f = freeOn(td.dataset.iso); if (!f) return;
+      var bar = document.createElement('span'); bar.className = 'frei' + (f.busy ? '' : ' voll');
+      var span = f.window.bis - f.window.von;
+      if (f.busy) f.free.forEach(function (seg) {
+        var i = document.createElement('i');
+        i.style.left = ((seg[0] - f.window.von) / span * 100) + '%'; i.style.width = ((seg[1] - seg[0]) / span * 100) + '%';
+        bar.appendChild(i);
+      });
+      bar.title = f.free.map(function (seg) { return hm(seg[0]) + '\u2013' + hm(seg[1]); }).join(', ') || W.day_full;
+      td.appendChild(bar);
     });
   }
+  var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+  document.addEventListener('zeitfenster-geaendert', paintDots);
 
   /* Setting the PIN the first time a calendar is added. Returns the key. */
   function askPin() {
@@ -240,6 +268,12 @@ import ICAL from '/theater/vendor/ical.min.js';
     box.hidden = false;
     if (!key) { box.innerHTML = '<div class="muted">' + esc(W.pin_enter) + '</div>'; return; }
     var list = forDay(e.detail);
+    var f = freeOn(e.detail);
+    if (f && f.busy && f.free.length) {
+      var best = f.free.slice().sort(function (a, b) { return (b[1] - b[0]) - (a[1] - a[0]); })[0];
+      var tv = document.getElementById('tv'), tb = document.getElementById('tb');
+      if (tv && tb) { tv.value = hm(best[0]); tb.value = hm(best[1]); }
+    }
     box.innerHTML = '<div class="muted">' + esc(W.day_title) + '</div>' + (list.length
       ? list.map(function (x) { return '<div class="ics-ev">' + (x.allday ? '<b>' + esc(W.allday) + '</b>' : '<b>' + esc(x.von + (x.bis ? '–' + x.bis : '')) + '</b>') + ' ' + esc(x.text) + '</div>'; }).join('')
       : '<div class="muted">' + esc(W.day_free) + '</div>');

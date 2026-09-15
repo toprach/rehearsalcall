@@ -37,7 +37,7 @@ function windowOn(entry, date) {
 
   if (entry.tage) {
     const t = entry.tage[iso];
-    if (!t) return null;
+    if (!t || t.nein) return null;
     const a = asMinutes(t.von), b = asMinutes(t.bis);
     return (a == null || b == null || b <= a) ? null : { from: a, to: b };
   }

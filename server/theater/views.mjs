@@ -1015,7 +1015,7 @@ function companyPage(p, m, base) {
 
   const row = (x) => {
     const v = p.verfuegbar?.[x.id];
-    const evenings = Object.keys(v?.tage || {}).length;
+    const evenings = Object.values(v?.tage || {}).filter(x => x && x.von).length;
     const wochentags = (v?.wochentage || []).length;
     return `<tr>
       <td><span class="chip">${h(x.b)}</span>
@@ -1187,7 +1187,7 @@ const offlinePage = () => page({ title: t('pwa.offline_t'), narrow: true, body: 
 
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
-  const evenings = Object.keys(v.tage || {}).length;
+  const evenings = Object.values(v.tage || {}).filter(x => x && x.von).length;
   const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
   const fixed = (project.termine || []).filter(x => x.bestaetigt &&
     rehearsals.some(pr => pr.id === x.probe_id)).length;
@@ -1707,7 +1707,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     const e = entered[tg.iso];
     const l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
     const classes = ['day', 'level' + l.level];
-    if (e) classes.push('me');
+    if (e?.von) classes.push('me');
+    if (e?.nein) classes.push('nein');
     if (l.fixed?.length) classes.push('fixed');
     if (l.blocked) classes.push('blocked');
     const hinweis = l.best
@@ -1723,8 +1724,9 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                        (f.place ? ' @ ' + f.place : '')).join(' | '))}"
         title="${h(hinweis)}">
       <span class="num">${tg.day}</span>
-      <span class="time">${e ? h(e.von + '\u2013' + e.bis) : ''}</span>
-      <input type="hidden" name="t_${tg.iso}" value="${e ? '1' : ''}">
+      <span class="time">${e?.von ? h(e.von + '\u2013' + e.bis) : ''}</span>
+      <input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
+      <input type="hidden" name="n_${tg.iso}" value="${e?.nein ? '1' : ''}">
       <input type="hidden" name="v_${tg.iso}" value="${h(e?.von || '')}">
       <input type="hidden" name="b_${tg.iso}" value="${h(e?.bis || '')}">
       ${director ? `<input type="hidden" name="g_${tg.iso}" value="${l.blocked ? '1' : ''}">` : ''}
@@ -1747,7 +1749,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       </table></div>`;
   };
 
-  const count = Object.keys(entered).length;
+  const count = Object.values(entered).filter(x => x && x.von).length;
   const shortDate = new Intl.DateTimeFormat(L.locale, { day: '2-digit', month: '2-digit' });
   const myDays = Object.entries(entered).sort()
     .map(([iso, z]) => {
@@ -1766,6 +1768,12 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     ${person.regie ? `<div class="notice">${t('my.director_note')}</div>` : count ? '' : `<p class="muted">${t('my.nothing')}</p>`}
 
     <form method="post" action="/theater/mit/zeiten" id="formular">
+      <div class="pref small" id="zeitfenster">
+        <b>${t('my.pref_title')}</b>
+        <label class="inline">${t('my.from')} <input type="time" id="pref-von" step="900" value="${h(preset.von)}"></label>
+        <label class="inline">${t('my.to')} <input type="time" id="pref-bis" step="900" value="${h(preset.bis)}"></label>
+        <span class="muted">${t('my.pref_what')}</span>
+      </div>
       <div class="calhead">
         <button type="button" id="zurueck" class="quiet mini">&lsaquo;</button>
         <b id="monatsname">${h(months[0]?.title || '')}</b>
@@ -1782,6 +1790,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         <span class="dot level1"></span> ${t('my.one')}
         <span class="dot me"></span> ${t('my.me')}
         <span class="dot blocked"></span> ${t('my.legend_blocked')}
+        <span class="dot nein"></span> ${t('my.legend_nein')}
       </div>
 
       ${months.map(monthTable).join('')}
@@ -1807,7 +1816,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     <div class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
       remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
       n_events: t('my.source_n', { n: '#' }), day_title: t('my.day_title'), day_free: t('my.day_free'), allday: t('my.allday'),
-      bad_url: t('my.bad_url'), bad_file: t('my.bad_file'),
+      bad_url: t('my.bad_url'), bad_file: t('my.bad_file'), day_full: t('my.day_full'),
       pin: t('my.pin'), pin_repeat: t('my.pin_repeat'), pin_ok: t('my.pin_ok'), pin_set_title: t('my.pin_set_title'),
       pin_set_what: t('my.pin_set_what'), pin_enter: t('my.pin_enter'), pin_unlock: t('my.pin_unlock'), pin_wrong: t('my.pin_wrong'),
       pin_lock: t('my.pin_lock'), pin_mismatch: t('my.pin_mismatch'), pin_format: t('my.pin_format'),
@@ -1839,6 +1848,16 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       var months = [].slice.call(document.querySelectorAll('.month'));
       var names = ${JSON.stringify(Object.fromEntries(names))};
       var preset = ${JSON.stringify(preset)};
+      var personId = ${JSON.stringify(person.id)};
+      try { var zf = JSON.parse(localStorage.getItem('zeitfenster:' + personId) || 'null'); if (zf && zf.von && zf.bis) { preset = zf;
+        document.getElementById('pref-von').value = zf.von; document.getElementById('pref-bis').value = zf.bis; } } catch (e) {}
+      [].forEach.call(document.querySelectorAll('#zeitfenster input'), function (inp) {
+        inp.addEventListener('change', function () {
+          var a = document.getElementById('pref-von').value, b = document.getElementById('pref-bis').value;
+          if (a && b && b > a) { preset = { von: a, bis: b }; try { localStorage.setItem('zeitfenster:' + personId, JSON.stringify(preset)); } catch (e) {}
+            document.dispatchEvent(new CustomEvent('zeitfenster-geaendert')); }
+        });
+      });
       var place = ${JSON.stringify(L.locale)};
       var regie = ${director ? 'true' : 'false'};
       var W = { evenings: ${js('my.evenings_n', { n: '#' })},
@@ -1849,7 +1868,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 keine: ${js('my.no_rehearsal')},
                 zeit: ${js('my.free_then')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
-                ja: ${js('my.can')}, nein: ${js('my.cannot')},
+                ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
                 falsch: ${js('my.time_wrong')},
                 autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
                 saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
@@ -1904,6 +1923,9 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         var vI = td.querySelector('input[name^="v_"]');
         var bI = td.querySelector('input[name^="b_"]');
         var tI = td.querySelector('input[name^="t_"]');
+        // "yes" opens with the preferred window
+        var pv = document.getElementById('pref-von'), pb = document.getElementById('pref-bis');
+        if (pv && pb && pv.value && pb.value) preset = { von: pv.value, bis: pb.value };
         var da = td.dataset.da, gesamt = td.dataset.gesamt;
         var gI = td.querySelector('input[name^="g_"]');
         var blocked = td.classList.contains('blocked');
@@ -1932,7 +1954,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
               (bI.value || preset.bis) + '"></div>' +
           '</div>' +
           '<button type="button" id="jat">' + W.ja + '</button> ' +
-          '<button type="button" id="neint" class="quiet">' + W.nein + '</button>' +
+          '<button type="button" id="neint" class="quiet">' + W.nein + '</button> ' +
+          '<button type="button" id="offen" class="quiet">' + W.offen + '</button>' +
           (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
              (blocked ? W.unblock : W.block) + '</button>' : '');
 
@@ -1953,9 +1976,16 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           preset = { von: a, bis: b };
           schleier.hidden = true; zaehle(); speichere();
         };
+        var nI = td.querySelector('input[name^="n_"]');
         document.getElementById('neint').onclick = function () {
-          tI.value = ''; vI.value = ''; bI.value = '';
-          td.classList.remove('me');
+          tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '1';
+          td.classList.remove('me'); td.classList.add('nein');
+          td.querySelector('.time').textContent = '';
+          schleier.hidden = true; zaehle(); speichere();
+        };
+        document.getElementById('offen').onclick = function () {
+          tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '';
+          td.classList.remove('me'); td.classList.remove('nein');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
         };

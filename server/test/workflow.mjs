@@ -392,6 +392,15 @@ for (const b of cast) {
   check('enter availability (' + b + ')', good(e), say(e));
   if (b === cast[0]) check('the struck day shows as struck', new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(e.text));
   else check('a member sees the struck day but cannot strike', new RegExp('blocked[^"]*" data-iso="' + days[0] + '"').test(e.text) && !/name="g_/.test(e.text));
+  if (b === cast[1]) {
+    // a day struck for oneself is a decided no and stays one
+    const nf = {}; days.forEach((d, i) => { nf['t_' + d] = i ? '1' : ''; nf['v_' + d] = '18:00'; nf['b_' + d] = '23:00'; }); nf['n_' + days[0]] = '1';
+    const ne = await post('/theater/mit/zeiten', nf);
+    check('a day struck for oneself is kept', good(ne) && new RegExp('class="day [^"]*nein[^"]*" data-iso="' + days[0] + '"').test(ne.text) &&
+          new RegExp('name="n_' + days[0] + '" value="1"').test(ne.text), say(ne));
+    const back = await post('/theater/mit/zeiten', fields);
+    check('and can be entered again', good(back) && !new RegExp('nein[^"]*" data-iso="' + days[0] + '"').test(back.text), say(back));
+  }
   const me = await call('GET', '/theater/mit');
   // The director enters nothing that counts: their page says so instead of a number.
   if (b === cast[0]) check('the director\u2019s page says they count as always free', me.status === 200 &&

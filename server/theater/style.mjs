@@ -191,6 +191,17 @@ export const STYLE = `
     background:repeating-linear-gradient(135deg, var(--chip) 0 6px, var(--card) 6px 12px);
     border-color:var(--field-edge) }
   table.cal td.blocked .num { text-decoration:line-through }
+  table.cal td.nein { background:#e9e5df; border-color:#d0cac2; color:var(--muted) }
+  table.cal td.nein .num { text-decoration:line-through }
+  html[data-theme="dark"] table.cal td.nein { background:#2a2a30; border-color:#3a3a42 }
+  .dot.nein { background:#e9e5df; border-color:#c9c3ba }
+  .pref { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; margin:1rem 0 0 }
+  .pref input[type=time] { margin:0; padding:.2rem .35rem; width:auto }
+  .pref label.inline { margin:0 }
+  /* how much of the preferred window is still free, from one's own calendars */
+  table.cal td.day .frei { position:absolute; left:.3rem; right:.3rem; bottom:.25rem; height:5px; background:var(--rule); border-radius:3px; overflow:hidden }
+  table.cal td.day .frei i { position:absolute; top:0; bottom:0; background:#1d7a3e; display:block }
+  table.cal td.day .frei.voll { background:#1d7a3e }
   .dot.me { background:transparent; border:2px solid var(--accent) }
   /* Dark green: a fixed date of one of my rehearsals. */
   table.cal td.fixed, .dot.fixed { background:#2f8a4f; border-color:#256d3f; color:#fff }
@@ -311,6 +322,7 @@ export const STYLE = `
   .play h2 { margin:1.6rem 0 .4rem } .play h3 { margin:1.2rem 0 .3rem; font-size:1.05rem }
   .play .say { margin:.35rem 0; -webkit-user-select:none; user-select:none }
   .play .say.mine { border-left:3px solid var(--accent); padding-left:.5rem; margin-left:-.6rem; background:rgba(179,39,45,.05) }
+  .play .say.cur { outline:2px solid var(--accent); outline-offset:3px; border-radius:3px }
   .play .say.cut { text-decoration:line-through; opacity:.6 }
   .play .dir { color:var(--muted); font-style:italic; margin:.3rem 0 }
   .play mark.me { background:#ffe58a; color:inherit; font-weight:700; padding:0 .1em }

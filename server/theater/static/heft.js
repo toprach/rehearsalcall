@@ -189,14 +189,21 @@
   if (D.play) {
     var mine = [].slice.call(document.querySelectorAll('.play .say.mine'));
     var pos = document.getElementById('play-pos');
+    /* a cursor: one line at a time from where one is, the target framed */
+    var at = -1;
     var hop = function (dir) {
-      var mid = window.innerHeight * 0.4, pick = null, idx = -1;
-      mine.forEach(function (el, i) {
-        var top = el.getBoundingClientRect().top;
-        if (dir > 0 && top > mid + 30 && !pick) { pick = el; idx = i; }
-        if (dir < 0 && top < mid - 30) { pick = el; idx = i; }
-      });
-      if (pick) { pick.scrollIntoView({ block: 'center' }); pos.textContent = (idx + 1) + ' / ' + mine.length; }
+      if (!mine.length) return;
+      if (at < 0) {
+        var mid = window.innerHeight * 0.4, first = -1;
+        mine.forEach(function (el, i) { if (first < 0 && el.getBoundingClientRect().top > mid) first = i; });
+        if (first < 0) first = mine.length;
+        at = dir > 0 ? first - 1 : first;
+      }
+      at = Math.max(0, Math.min(mine.length - 1, at + dir));
+      mine.forEach(function (el) { el.classList.remove('cur'); });
+      mine[at].classList.add('cur');
+      mine[at].scrollIntoView({ block: 'center' });
+      pos.textContent = (at + 1) + ' / ' + mine.length;
     };
     document.getElementById('play-prev').onclick = function () { hop(-1); };
     document.getElementById('play-next').onclick = function () { hop(1); };
