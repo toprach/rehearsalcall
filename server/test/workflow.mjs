@@ -435,6 +435,15 @@ for (const b of cast) {
     check('the server fetches a calendar for the browser', px.status === 200 && /^BEGIN:VCALENDAR/.test(px.text), 'status ' + px.status + ' ' + px.text.slice(0, 40));
     const px2 = await post('/theater/mit/kalender-abruf', { url: 'ftp://example.org/x.ics' });
     check('and refuses anything but http(s)', px2.status === 400, 'status ' + px2.status);
+    const tv = await post('/theater/mit/kalender-tresor', { salt: 'AAAA', iv: 'BBBB', data: 'Q0ND' });
+    const tg = await call('GET', '/theater/mit/kalender-tresor');
+    check('the encrypted calendar vault is kept on the server per person', tv.status === 200 && tg.status === 200 && /"data":"Q0ND"/.test(tg.text),
+          'status ' + tv.status + '/' + tg.status);
+    const tb = await post('/theater/mit/kalender-tresor', { salt: 'x y', iv: 'BBBB', data: 'Q0ND' });
+    const td = await post('/theater/mit/kalender-tresor', { action: 'loeschen' });
+    const tg2 = await call('GET', '/theater/mit/kalender-tresor');
+    check('a malformed vault is refused and a forgotten one is gone', tb.status === 400 && td.status === 200 && tg2.status === 404,
+          'status ' + tb.status + '/' + td.status + '/' + tg2.status);
     const kj = await call('GET', '/theater/kalender.js'), vj = await call('GET', '/theater/vendor/ical.min.js');
     check('the calendar script and its library are served', kj.status === 200 && vj.status === 200 && /ICAL/.test(vj.text));
     check('the personal link with /heft leads to the part book', pj.status === 303 &&

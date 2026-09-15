@@ -971,6 +971,35 @@ export async function handle(request, response, path) {
       } finally { clearTimeout(timer); }
     }
 
+    if (second === 'kalender-tresor') {
+      /* The addresses of one's own calendars, encrypted in the browser
+         with the PIN and kept here as an opaque blob - so that a PIN
+         entered on the phone opens what was set up at the desk. The
+         server holds ciphertext only and cannot read it. */
+      const json = (status, obj) => {
+        response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(JSON.stringify(obj));
+      };
+      project.kalender_tresor = project.kalender_tresor || {};
+      if (!post) {
+        await drainBody(request);
+        const v = project.kalender_tresor[person.id];
+        return v ? json(200, v) : json(404, { ok: false });
+      }
+      const { fields } = await readForm(request, 300_000);
+      if (String(fields.action || '') === 'loeschen') {
+        delete project.kalender_tresor[person.id];
+        await S.write(project);
+        return json(200, { ok: true });
+      }
+      const b64 = /^[A-Za-z0-9+/=]+$/;
+      const salt = String(fields.salt || ''), iv = String(fields.iv || ''), data = String(fields.data || '');
+      if (![salt, iv, data].every(x => x && b64.test(x)) || data.length > 200_000) return json(400, { ok: false, reason: 'blob' });
+      project.kalender_tresor[person.id] = { salt, iv, data, geaendert: new Date().toISOString() };
+      await S.write(project);
+      return json(200, { ok: true });
+    }
+
     if (second === 'zeiten') {
       const days = calendarDays(project);
       const states = () => dayStates(project, person, days);

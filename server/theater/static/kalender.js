@@ -36,6 +36,39 @@ import ICAL from '/theater/vendor/ical.min.js';
   var key = null;                 // CryptoKey while unlocked
   var vault = { sources: [], cache: {} };
   var status = {};
+  /* The addresses travel: encrypted with the same PIN they are kept on
+     the server as an opaque blob, so that what was set up at the desk
+     opens on the phone. Files stay with the device; the fetched entries
+     are a cache and stay too. */
+  var SERVER = '/theater/mit/kalender-tresor';
+  var server = null;              // {salt, iv, data} as fetched
+  var pushed = '';                // the addresses as last sent, JSON
+  function fetchServer() {
+    return fetch(SERVER, { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { server = j && j.data ? j : null; })
+      .catch(function () { server = null; });
+  }
+  var urlSources = function () { return vault.sources.filter(function (s) { return s.url; }); };
+  function push() {
+    if (!key) return Promise.resolve();
+    var now = JSON.stringify(urlSources());
+    if (now === pushed) return Promise.resolve();
+    var salt = (stored() || server || {}).salt; if (!salt) return Promise.resolve();
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify({ sources: urlSources() })))
+      .then(function (ct) {
+        return fetch(SERVER, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ salt: salt, iv: b64(iv), data: b64(ct) }).toString() });
+      })
+      .then(function (r) { if (r.ok) { pushed = now; server = { salt: salt }; } })
+      .catch(function () {});
+  }
+  var decrypt = function (k, blob) {
+    if (!blob || !blob.data) return Promise.resolve(undefined);
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(blob.iv) }, k, unb64(blob.data))
+      .then(function (pt) { return JSON.parse(new TextDecoder().decode(pt)); }).catch(function () { return null; });
+  };
 
   function deriveKey(pin, salt) {
     return crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']).then(function (base) {
@@ -48,15 +81,27 @@ import ICAL from '/theater/vendor/ical.min.js';
     var stored = read(VAULT, null) || {};
     var iv = crypto.getRandomValues(new Uint8Array(12));
     return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(vault))).then(function (ct) {
-      write(VAULT, { salt: stored.salt, iv: b64(iv), data: b64(ct) });
-    });
+      write(VAULT, { salt: stored.salt || (server || {}).salt, iv: b64(iv), data: b64(ct) });
+    }).then(push);
   }
+  /* Open what is here and what the server holds. The server's addresses
+     win - they are the newest - files and cache stay with the device.
+     False only when neither opens: the PIN is wrong. */
   function open(k) {
-    var stored = read(VAULT, null);
-    if (!stored || !stored.data) { vault = { sources: [], cache: {} }; return Promise.resolve(true); }
-    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(stored.iv) }, k, unb64(stored.data)).then(function (pt) {
-      vault = JSON.parse(new TextDecoder().decode(pt)); return true;
-    }).catch(function () { return false; });
+    return Promise.all([decrypt(k, read(VAULT, null)), decrypt(k, server)]).then(function (r) {
+      var loc = r[0], srv = r[1];
+      // undefined = nothing there to open, null = there, but the PIN is wrong
+      if (loc === undefined && srv === undefined) { vault = { sources: [], cache: {} }; pushed = ''; return true; }
+      if (!loc && !srv) return false;
+      vault = loc || { sources: [], cache: {} };
+      if (srv && srv.sources) {
+        vault.sources = srv.sources.concat(vault.sources.filter(function (s) { return !s.url; }));
+        var ids = {}; vault.sources.forEach(function (s) { ids[s.id] = true; });
+        Object.keys(vault.cache).forEach(function (id) { if (!ids[id]) delete vault.cache[id]; });
+        pushed = JSON.stringify(srv.sources);
+      } else pushed = '';
+      return true;
+    });
   }
   function rememberKey(k) {
     crypto.subtle.exportKey('raw', k).then(function (raw) { try { sessionStorage.setItem(SESSION, b64(raw)); } catch (e) {} });
@@ -124,7 +169,7 @@ import ICAL from '/theater/vendor/ical.min.js';
   var stored = function () { return read(VAULT, null); };
   function paint() {
     var list = root.querySelector('.quellen'), form = root.querySelector('.hinzu'), pinBox = root.querySelector('.pin');
-    var locked = !key && !!stored();
+    var locked = !key && !!(stored() || server);
     pinBox.innerHTML = '';
     if (locked) {
       pinBox.innerHTML = '<p class="muted">' + esc(W.pin_enter) + '</p>' +
@@ -138,7 +183,8 @@ import ICAL from '/theater/vendor/ical.min.js';
     // the list names the sources; the addresses stay inside the vault
     list.innerHTML = vault.sources.length ? vault.sources.map(function (src) {
       var n = ((vault.cache[src.id] || {}).events || []).length;
-      return '<div class="quelle"><b>' + esc(src.name) + '</b> <span class="muted">' + (status[src.id] ? esc(status[src.id]) : W.n_events.replace('#', n)) + '</span> ' +
+      return '<div class="quelle"><b>' + esc(src.name) + '</b> <span class="muted">' + (status[src.id] ? esc(status[src.id]) : W.n_events.replace('#', n)) +
+        (src.url ? '' : ' \u00b7 ' + esc(W.local_only)) + '</span> ' +
         '<button type="button" class="quiet mini" data-remove="' + esc(src.id) + '">' + esc(W.remove) + '</button></div>';
     }).join('') + '<p class="small"><button type="button" class="quiet mini" id="pin-lock">' + esc(W.pin_lock) + '</button></p>'
       : '<p class="muted small">' + esc(W.none) + '</p>';
@@ -219,16 +265,31 @@ import ICAL from '/theater/vendor/ical.min.js';
       save().then(paint).then(paintDots);
     }
     if (t.id === 'pin-lock') lock();
-    if (t.id === 'pin-forget') { if (confirm(W.pin_forget_confirm)) { try { localStorage.removeItem(VAULT); } catch (x) {} lock(); } }
+    if (t.id === 'pin-forget') {
+      if (confirm(W.pin_forget_confirm)) {
+        try { localStorage.removeItem(VAULT); } catch (x) {}
+        fetch(SERVER, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: 'action=loeschen' }).catch(function () {}).then(function () { server = null; pushed = ''; lock(); });
+      }
+    }
     if (t.id === 'pin-unlock') {
       var pin = root.querySelector('#pin-in').value, st = stored();
-      if (!/^\d{4}$/.test(pin) || !st) return;
-      deriveKey(pin, unb64(st.salt)).then(function (k) {
-        return open(k).then(function (ok) {
-          if (!ok) { root.querySelector('#pin-in').value = ''; alert(W.pin_wrong); return; }
-          key = k; rememberKey(k); loadAll();
+      if (!/^\d{4}$/.test(pin) || !(st || server)) return;
+      // the salt of this device; a vault set up elsewhere brings its own
+      var salts = [];
+      if (st && st.salt) salts.push(st.salt);
+      if (server && server.salt && salts.indexOf(server.salt) < 0) salts.push(server.salt);
+      var attempt = function (i) {
+        if (i >= salts.length) { root.querySelector('#pin-in').value = ''; alert(W.pin_wrong); return; }
+        return deriveKey(pin, unb64(salts[i])).then(function (k) {
+          return open(k).then(function (ok) {
+            if (!ok) return attempt(i + 1);
+            if (!st || st.salt !== salts[i]) write(VAULT, { salt: salts[i], iv: '', data: '' });
+            key = k; rememberKey(k); loadAll();
+          });
         });
-      });
+      };
+      attempt(0);
     }
   });
   root.addEventListener('keydown', function (e) {
@@ -279,9 +340,10 @@ import ICAL from '/theater/vendor/ical.min.js';
       : '<div class="muted">' + esc(W.day_free) + '</div>');
   });
 
-  /* ---- start: unlocked from the session, else locked ---- */
-  recallKey().then(function (k) {
-    if (!k || !stored()) { paint(); return; }
+  /* ---- start: what the server holds, then unlocked from the session, else locked ---- */
+  paint();
+  fetchServer().then(recallKey).then(function (k) {
+    if (!k || !(stored() || server)) { paint(); return; }
     return open(k).then(function (ok) { if (ok) { key = k; return loadAll(); } paint(); });
   });
 })();

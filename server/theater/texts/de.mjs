@@ -552,13 +552,14 @@ export const de = {
   'my.sources_title': 'Meine Kalender einblenden',
   'my.sources_what':  'Adressen eigener Kalender eintragen (etwa der private ICS-Link eines Google-Kalenders) oder eine '
                     + '.ics-Datei laden, gern mehrere. Der Server holt einen Kalender f\u00fcr Sie ab und vergisst ihn '
-                    + 'sofort; Adressen und Termine liegen nur auf diesem Ger\u00e4t, mit einem vierstelligen PIN '
-                    + 'verschl\u00fcsselt, und beim Tippen auf einen Tag erscheinen sie erst nach dem PIN.',
+                    + 'sofort. Die Adressen sind mit einem vierstelligen PIN verschl\u00fcsselt und liegen so auch am '
+                    + 'Server \u2013 am Handy gen\u00fcgt derselbe PIN, um sie zu sehen; ohne PIN zeigt die Seite '
+                    + 'keine Termine, und lesen kann der Server sie nicht. Geladene Dateien bleiben auf dem Ger\u00e4t.',
   'my.pin':           'PIN',
   'my.pin_repeat':    'PIN wiederholen',
   'my.pin_ok':        'Festlegen',
   'my.pin_set_title': 'Zuerst einen PIN festlegen',
-  'my.pin_set_what':  'Vier Ziffern. Damit werden Ihre Kalender auf diesem Ger\u00e4t verschl\u00fcsselt; ohne PIN zeigt die Seite keine Termine.',
+  'my.pin_set_what':  'Vier Ziffern. Damit werden Ihre Kalender verschl\u00fcsselt \u2013 hier und am Server; derselbe PIN \u00f6ffnet sie auf jedem Ger\u00e4t. Ohne PIN zeigt die Seite keine Termine.',
   'my.pin_enter':     'PIN eingeben, um die Kalender zu sehen.',
   'my.pin_unlock':    'Entsperren',
   'my.pin_wrong':     'Falscher PIN.',
@@ -566,8 +567,9 @@ export const de = {
   'my.pin_mismatch':  'Die beiden Eingaben sind verschieden.',
   'my.pin_format':    'Vier Ziffern, bitte.',
   'my.pin_forget':    'PIN vergessen?',
-  'my.pin_forget_what': 'Entfernt die Kalender von diesem Ger\u00e4t; danach neu einbinden.',
-  'my.pin_forget_confirm': 'Alle Kalender von diesem Ger\u00e4t entfernen?',
+  'my.pin_forget_what': 'Entfernt die Kalender von diesem Ger\u00e4t und vom Server; danach neu einbinden.',
+  'my.pin_forget_confirm': 'Alle Kalender von diesem Ger\u00e4t und vom Server entfernen?',
+  'my.source_local':  'nur auf diesem Ger\u00e4t',
   'my.source_name':   'Name',
   'my.source_url':    'ICS-Adresse',
   'my.source_add':    'Hinzuf\u00fcgen',

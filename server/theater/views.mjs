@@ -1819,7 +1819,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       pin: t('my.pin'), pin_repeat: t('my.pin_repeat'), pin_ok: t('my.pin_ok'), pin_set_title: t('my.pin_set_title'),
       pin_set_what: t('my.pin_set_what'), pin_enter: t('my.pin_enter'), pin_unlock: t('my.pin_unlock'), pin_wrong: t('my.pin_wrong'),
       pin_lock: t('my.pin_lock'), pin_mismatch: t('my.pin_mismatch'), pin_format: t('my.pin_format'),
-      pin_forget: t('my.pin_forget'), pin_forget_what: t('my.pin_forget_what'), pin_forget_confirm: t('my.pin_forget_confirm') }))}"
+      pin_forget: t('my.pin_forget'), pin_forget_what: t('my.pin_forget_what'), pin_forget_confirm: t('my.pin_forget_confirm'),
+      local_only: t('my.source_local') }))}"
       data-person="${h(person.id)}">
       <b>${t('my.sources_title')}</b>
       <p class="muted">${t('my.sources_what')}</p>
