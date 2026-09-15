@@ -1339,9 +1339,8 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
     <p class="eyebrow">${h(project.titel)}</p>
     <h1>${t('book.title_for', { name: h(who) })}</h1>
     <p class="small muted">${t('book.figures', { passages: passages.length, words })}
-      ${project.druck_token ? `\u00b7 <a href="/theater/druck/${h(project.druck_token)}/rolle/${
-        encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>` : ''}
-      \u00b7 <a href="/theater/mit/stueck">${t('book.play_link')}</a></p>
+      \u00b7 <a href="${project.druck_token && project.plan?.proben?.length
+        ? `/theater/druck/${h(project.druck_token)}/probenplan` : '/theater/mit/stueck'}">${t('book.play_link')}</a></p>
     ${filter ? `<div class="notice" id="heft-filter">${filter.mit
         ? t('book.filter_adhoc', { who: filter.mit.map(b => h(nameOf(b))).join(', ') })
         : t('book.filter_note', { id: h(filter.id) })}
@@ -2093,11 +2092,11 @@ function adminPage(projects, m, fresh, entry) {
    click, and - in the rehearsal plan - a way to jump between the
    scenes of a rehearsal. Nothing of it prints.
    --------------------------------------------------------------------- */
-function docExtras(token, doc, me, comments, canSeeAll, people = []) {
+function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { keys: {}, steps: {} }) {
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
-    people,
+    people, keys: learn.keys || {}, steps: learn.steps || {},
     comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
       name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
       erledigt: !!c.erledigt })),
@@ -2112,6 +2111,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
       next: t('kd.next_comment'), none: t('kd.no_comments'),
       prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine'),
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
+      check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
+      check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -2158,6 +2159,23 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
   body { zoom:var(--kmt-zoom, 1) }
   @media print { body { zoom:1 } }
   .kmt-cur { outline:2px solid #b3272d; outline-offset:3px; border-radius:3px }
+  .kmt-bar button.on { background:#b3272d; color:#fff; border-color:#b3272d }
+  p.speech.kmt-veiled { cursor:pointer }
+  p.speech.kmt-s0 .kmt-text { color:transparent; background:#d9d4cc; border-radius:3px }
+  p.speech.kmt-s0 .kmt-text * { color:transparent !important; background:transparent !important }
+  p.speech.kmt-s1 .kmt-text { display:none }
+  p.speech:not(.kmt-s1) .kmt-veil-ph { display:none }
+  .kmt-veil-ph { color:#6b655c; letter-spacing:.04em }
+  .kmt-check-ui { display:inline-flex; gap:.3rem; margin-left:.5rem; vertical-align:middle }
+  .kmt-check-ui button { font:600 12px/1.7 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; padding:0 .6rem;
+    border-radius:1em; border:1px solid; cursor:pointer; color:#fff }
+  .kmt-check-ui .ok { background:#166b34; border-color:#166b34 }
+  .kmt-check-ui .no { background:#b3272d; border-color:#b3272d }
+  p.speech.kmt-ok { border-left-color:#166b34; background:rgba(22,107,52,.08) }
+  p.speech.kmt-no { background:rgba(179,39,45,.12) }
+  .kmt-step { font-size:.75em; color:#6b655c; margin-left:.3em; white-space:nowrap }
+  @media print { .kmt-text { color:inherit !important; background:none !important; display:inline !important }
+    .kmt-check-ui, .kmt-veil-ph, .kmt-step { display:none !important } }
   @media (max-width:700px) {
     .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc }
     body.kmt-has-bar { padding-top:0; padding-bottom:4rem }
@@ -2256,6 +2274,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
     document.addEventListener('dblclick', function (e) {
       var p = e.target.closest ? e.target.closest('main p, main td p') : null;
       if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return;
+      if (p.classList.contains('kmt-veiled')) return;
       var nr = p.dataset.nr;
       if (!nr) { var q = p; while (q && !nr) { q = q.previousElementSibling; if (q && q.dataset && q.dataset.nr) nr = q.dataset.nr; } }
       if (!nr) return;
@@ -2307,6 +2326,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
     if (D.people.length) inner += '<label>' + esc(T.person) + ' <select id="kmt-person">' +
       D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x.b === personB ? ' selected' : '') + '>' + esc(x.b) + '</option>'; }).join('') +
       '</select></label>';
+    if (D.people.length) inner += '<button type="button" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>';
     if (scenes.length) {
       // rehearsals in their order 1..N, scenes all of them
       var probeNr = function (pn) { var m = /(\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
@@ -2350,25 +2370,22 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
     };
     count();
 
-    /* ---- stepping: a cursor per kind, one step at a time, the target framed.
-       The first press starts from what is on screen. ---- */
-    var cursors = {};
+    /* ---- stepping: from the middle of what is on screen to the next
+       (or the previous) element of the kind, framed and centred. The
+       reference is always the view, never the last target - after
+       scrolling by hand the step goes on from there. ---- */
     var step = function (dir, selector) {
       selector = selector || '.kmt-badge';
       var list = [].slice.call(document.querySelectorAll(selector)).map(function (el) { return el.closest('p') || el; });
+      list = list.filter(function (el, i) { return list.indexOf(el) === i; });
       if (!list.length) return;
-      var c = cursors[selector];
-      if (!c || c.length !== list.length || list.indexOf(c.el) < 0) {
-        var mid = window.innerHeight * 0.4, at = -1;
-        list.forEach(function (el, i) { if (at < 0 && el.getBoundingClientRect().top > mid) at = i; });
-        if (at < 0) at = list.length;
-        c = cursors[selector] = { length: list.length, idx: dir > 0 ? at - 1 : at, el: null };
-      }
-      c.idx = Math.max(0, Math.min(list.length - 1, c.idx + dir));
-      c.el = list[c.idx];
+      var mid = window.innerHeight / 2, target = null, i;
+      if (dir > 0) { for (i = 0; i < list.length; i++) if (list[i].getBoundingClientRect().top > mid) { target = list[i]; break; } }
+      else { for (i = list.length - 1; i >= 0; i--) if (list[i].getBoundingClientRect().bottom < mid) { target = list[i]; break; } }
+      if (!target) return;
       [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
-      c.el.classList.add('kmt-cur');
-      c.el.scrollIntoView({ block: 'center' });
+      target.classList.add('kmt-cur');
+      target.scrollIntoView({ block: 'center' });
     };
     bar.querySelector('#kmt-prev').onclick = function () { step(-1); };
     bar.querySelector('#kmt-next').onclick = function () { step(1); };
@@ -2388,7 +2405,6 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
       // undo the previous person's marks
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) { p.classList.remove('kmt-mine'); });
       [].forEach.call(document.querySelectorAll('main span.kmt-wrap'), function (sp) { sp.replaceWith(document.createTextNode(sp.textContent)); });
-      cursors = {};
       [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
       [].forEach.call(bar.querySelectorAll('.who'), function (w) { w.textContent = name; });
       if (!name) return;
@@ -2417,7 +2433,116 @@ function docExtras(token, doc, me, comments, canSeeAll, people = []) {
     };
     markPerson(personB);
     var selPerson = bar.querySelector('#kmt-person');
-    if (selPerson) selPerson.onchange = function () { markPerson(selPerson.value); };
+    if (selPerson) selPerson.onchange = function () { unveil(); markPerson(selPerson.value); if (checking) veil(); };
+
+    /* ---- checking: the chosen person's lines veiled. A tap shows the
+       initials, another the words; then a tick or a cross records the
+       line for that person as the part book would. A speech and its
+       continuation paragraphs are one unit. ---- */
+    var checking = false;
+    var chkBtn = bar.querySelector('#kmt-check');
+    var hintEl = document.querySelector('.kmt-hint');
+    var firstLetters = function (text) {
+      return text.replace(/[\\p{L}\\p{N}\\u2019']+/gu, function (w) { return w.charAt(0) + '\\u00b7'.repeat(Math.min(w.length - 1, 6)); });
+    };
+    var whoNow = function () { return selPerson ? selPerson.value : personB; };
+    var headOf = function (p) {
+      var q = p;
+      while (q && !q.dataset.nr && q.classList.contains('cont')) q = q.previousElementSibling;
+      return q && q.classList.contains('kmt-veiled') ? q : p;
+    };
+    var unitOf = function (head) {
+      var us = [head], q = head.nextElementSibling;
+      while (q && q.classList.contains('cont') && q.classList.contains('kmt-veiled')) { us.push(q); q = q.nextElementSibling; }
+      return us;
+    };
+    var paint = function (head, state) {
+      var unit = unitOf(head), last = unit[unit.length - 1];
+      unit.forEach(function (p) {
+        p.classList.remove('kmt-s0', 'kmt-s1', 'kmt-s2'); p.classList.add('kmt-s' + state);
+        var ph = p.querySelector('.kmt-veil-ph'), tx = p.querySelector('.kmt-text');
+        if (ph && tx) ph.textContent = state === 1 ? firstLetters(tx.textContent) : '';
+      });
+      var ui = last.querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
+      var name = whoNow(), key = (D.keys[name] || {})[head.dataset.nr];
+      if (state === 2 && key && D.me) {
+        ui = document.createElement('span'); ui.className = 'kmt-check-ui';
+        ui.innerHTML = '<button type="button" class="ok">\u2713 ' + esc(T.check_ok) + '</button><button type="button" class="no">\u2717 ' + esc(T.check_no) + '</button>';
+        ui.querySelector('.ok').onclick = function (e) { e.stopPropagation(); record(head, key, 'kann'); };
+        ui.querySelector('.no').onclick = function (e) { e.stopPropagation(); record(head, key, 'nochmal'); };
+        last.appendChild(ui);
+      }
+    };
+    var stepBadge = function (head) {
+      var name = whoNow(), key = (D.keys[name] || {})[head.dataset.nr];
+      var old = head.querySelector('.kmt-step'); if (old) old.parentNode.removeChild(old);
+      var s = key != null && D.steps[name] ? D.steps[name][key] : null;
+      if (s == null) return;
+      var b = document.createElement('span'); b.className = 'kmt-step'; b.textContent = esc(T.check_step).replace('{s}', s);
+      var who = head.querySelector('.who'); if (who) who.appendChild(b);
+    };
+    var record = function (head, key, rating) {
+      var name = whoNow();
+      var body = 'key=' + encodeURIComponent(key) + '&antwort=' + rating + '&fuer=' + encodeURIComponent(name);
+      fetch('/theater/mit/heft', { method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (!r.ok) { alert(T.failed); return; }
+          (D.steps[name] = D.steps[name] || {})[key] = r.rec.s;
+          var unit = unitOf(head);
+          unit.forEach(function (p) { p.classList.remove('kmt-ok', 'kmt-no'); p.classList.add(rating === 'kann' ? 'kmt-ok' : 'kmt-no'); });
+          var ui = unit[unit.length - 1].querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
+          stepBadge(head);
+        })
+        .catch(function () { alert(T.failed); });
+    };
+    var veil = function () {
+      [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) {
+        if (p.classList.contains('kmt-veiled')) return;
+        var span = document.createElement('span'); span.className = 'kmt-text';
+        var who = null, rest = [];
+        [].slice.call(p.childNodes).forEach(function (n) {
+          if (n.nodeType === 1 && n.classList.contains('who')) { who = n; return; }
+          if (n.nodeType === 1 && n.classList.contains('kmt-badge')) { rest.push(n); return; }
+          span.appendChild(n);
+        });
+        var ph = document.createElement('span'); ph.className = 'kmt-veil-ph';
+        p.innerHTML = '';
+        if (who) { p.appendChild(who); p.appendChild(document.createTextNode(' ')); }
+        p.appendChild(ph); p.appendChild(span);
+        rest.forEach(function (n) { p.appendChild(n); });
+        p.classList.add('kmt-veiled');
+      });
+      [].forEach.call(document.querySelectorAll('main p.speech.kmt-veiled'), function (p) {
+        if (headOf(p) === p) { p.dataset.kmtState = '0'; paint(p, 0); stepBadge(p); }
+      });
+    };
+    var unveil = function () {
+      [].forEach.call(document.querySelectorAll('main p.speech.kmt-veiled'), function (p) {
+        var span = p.querySelector('.kmt-text');
+        [].forEach.call(p.querySelectorAll('.kmt-veil-ph, .kmt-check-ui, .kmt-step'), function (x) { x.parentNode.removeChild(x); });
+        if (span) { while (span.firstChild) p.insertBefore(span.firstChild, span); p.removeChild(span); }
+        p.classList.remove('kmt-veiled', 'kmt-s0', 'kmt-s1', 'kmt-s2', 'kmt-ok', 'kmt-no');
+        delete p.dataset.kmtState;
+      });
+    };
+    var setChecking = function (on) {
+      checking = on;
+      if (chkBtn) chkBtn.classList.toggle('on', on);
+      if (on) { veil(); if (!hintEl) { hintEl = document.createElement('div'); hintEl.className = 'kmt-hint'; document.body.appendChild(hintEl); } hintEl.textContent = T.check_hint; }
+      else { unveil(); if (hintEl) { if (D.me) hintEl.textContent = T.hint; else { hintEl.parentNode.removeChild(hintEl); hintEl = null; } } }
+    };
+    if (chkBtn) chkBtn.onclick = function () { setChecking(!checking); };
+    document.addEventListener('click', function (e) {
+      if (!checking || !e.target.closest) return;
+      if (e.target.closest('button, .kmt-badge, .kmt-veil, .kmt-bar')) return;
+      var p = e.target.closest('main p.speech.kmt-veiled'); if (!p) return;
+      var head = headOf(p);
+      var next = (Number(head.dataset.kmtState || 0) + 1) % 3;
+      head.dataset.kmtState = String(next);
+      paint(head, next);
+    });
     bar.querySelector('#kmt-me-prev').onclick = function () { step(-1, 'p.speech.kmt-mine'); };
     bar.querySelector('#kmt-me-next').onclick = function () { step(1, 'p.speech.kmt-mine'); };
     var oldBadge = badge;

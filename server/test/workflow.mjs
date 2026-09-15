@@ -626,6 +626,11 @@ for (const b of cast) {
   check('the member deletes their comment', /"ok":true/.test(c.text), c.text.slice(0, 60));
   const pl = await call('GET', printBase + '/probenplan');
   check('the rehearsal plan carries the scene navigation', /szk-|kmt-data/.test(pl.text));
+  check('the rehearsal plan offers the checking mode with the keys of my lines',
+        /id="kmt-check"/.test(pl.text) && new RegExp('"keys":\\{"' + b + '":\\{"\\d+":"').test(pl.text));
+  const chk = await call('POST', '/theater/mit/heft', new URLSearchParams({ key: 'x.y', antwort: 'kann', fuer: cast[0] }).toString(),
+    { 'content-type': 'application/x-www-form-urlencoded' });
+  check('a plain member cannot record for somebody else', chk.status === 403, 'status ' + chk.status);
   // Back to being the last cast member, as the next step expects.
   cookies = '';
   await call('GET', printBase + '/mit/' + encodeURIComponent(b) + '?goto=zeiten');

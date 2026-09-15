@@ -963,7 +963,6 @@ export const de = {
   'book.title':      'Rollenheft',
   'book.title_for':  'Rollenheft \u2013 {name}',
   'book.figures':    '{passages} Passagen, etwa {words} W\u00f6rter',
-  'book.print':      'A4 zum Drucken',
   'book.what':       'Jede Passage mit ihrem Stichwort. Mit \u201eLernen\u201c sind die eigenen Zeilen '
                    + 'verdeckt, bis Sie sie einblenden; \u201esitzt\u201c markiert, was Sie k\u00f6nnen, '
                    + 'und das merkt sich dieses Ger\u00e4t.',
@@ -1119,6 +1118,12 @@ export const de = {
   'kd.zoom_in':      'Schrift gr\u00f6\u00dfer',
   'kd.zoom_out':     'Schrift kleiner',
   'kd.scene_of':     'Szene {k} von {n}',
+  'kd.check':        'Abpr\u00fcfen',
+  'kd.check_title':  'Text der gew\u00e4hlten Person verdecken und abfragen',
+  'kd.check_hint':   'Abpr\u00fcfen: Klick auf eine verdeckte Stelle zeigt die Anfangsbuchstaben, der n\u00e4chste den Text. Dann H\u00e4kchen oder Kreuz.',
+  'kd.check_ok':     'sitzt',
+  'kd.check_no':     'nochmal',
+  'kd.check_step':   'Stufe {s}',
   'cmt.title':       'Kommentare',
   'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und in den Probenplan '
                    + 'geschrieben hat. Fragen an die Regie stehen zuerst; eine Antwort geht an die '

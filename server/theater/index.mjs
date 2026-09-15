@@ -400,7 +400,21 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
     .filter(c => mayAll || (me && c.wer === me.b))
     .map(c => ({ ...c, name: nameOf(c.wer) }));
   const people = (project.personen || []).map(x => ({ b: x.b, name: x.name || x.b }));
-  return A.docExtras(token || '', doc, me, visible, mayAll, people);
+  /* Checking lines in the document: speech number -> learning key, and
+     the step reached, for everybody the viewer may record for - the
+     director for the whole company, a member for themselves. */
+  const learn = { keys: {}, steps: {} };
+  if (project.skript) {
+    const targets = mayAll ? (project.personen || []) : (me ? [me] : []);
+    for (const x of targets) {
+      const keys = {};
+      for (const p of partBook(project.skript, x.b))
+        for (const c of p.chunks) for (const l of c.lines) if (l.nr != null) keys[l.nr] = c.key;
+      learn.keys[x.b] = keys;
+      learn.steps[x.b] = Object.fromEntries(Object.entries(project.lernen?.[x.id] || {}).map(([k, r]) => [k, r.s]));
+    }
+  }
+  return A.docExtras(token || '', doc, me, visible, mayAll, people, learn);
 }
 const t_ = (code, key) => language(code).t(key);
 
@@ -1115,9 +1129,19 @@ export async function handle(request, response, path) {
           response.end(JSON.stringify(obj));
         };
         const key = String(fields.key || '');
-        if (!passages.some(p => p.chunks.some(c => c.key === key))) return answer({ ok: false, reason: 'key' }, 400);
+        /* fuer=<b>: the director records for somebody else - checking
+           lines in the rehearsal plan with the person chosen there. */
+        const fuer = String(fields.fuer || '');
+        let who = person, book = passages;
+        if (fuer && fuer !== person.b) {
+          const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;
+          const other = (project.personen || []).find(x => x.b === fuer);
+          if (!mayAll || !other) return answer({ ok: false, reason: 'fuer' }, 403);
+          who = other; book = partBook(project.skript, other.b);
+        }
+        if (!book.some(p => p.chunks.some(c => c.key === key))) return answer({ ok: false, reason: 'key' }, 400);
         project.lernen = project.lernen || {};
-        const mine = project.lernen[person.id] = project.lernen[person.id] || {};
+        const mine = project.lernen[who.id] = project.lernen[who.id] || {};
         let rec = mine[key] || null;
         if (fields.antwort != null) {
           rec = Learn.answer(rec, String(fields.antwort), today);

@@ -94,7 +94,7 @@ export function partBook(structure, b, opt = {}) {
       }
       cur.to = idx;
       cur.lines.push({ who: e.figur || e.sprecher_im_text || b, text: e.text || '',
-                       cont: e.typ === 'fortsetzung', cut: !!e.gestrichen });
+                       cont: e.typ === 'fortsetzung', cut: !!e.gestrichen, nr: e.nr ?? null });
     } else {
       cur = null;
       cue = { who: e.figur || e.sprecher_im_text || '', text: e.text || '', nr: e.nr ?? null, b: e.ensemble || null };

@@ -960,7 +960,6 @@ export const en = {
   'book.title':      'Part book',
   'book.title_for':  'Part book \u2013 {name}',
   'book.figures':    '{passages} passages, about {words} words',
-  'book.print':      'A4 for printing',
   'book.what':       'Every passage with its cue. Tick \u201clearning\u201d and the own lines are '
                    + 'hidden until you reveal them; \u201csits\u201d marks what you know, and that '
                    + 'is remembered on this device.',
@@ -1116,6 +1115,12 @@ export const en = {
   'kd.zoom_in':      'larger type',
   'kd.zoom_out':     'smaller type',
   'kd.scene_of':     'Scene {k} of {n}',
+  'kd.check':        'Quiz',
+  'kd.check_title':  'Veil the chosen person\u2019s lines and test them',
+  'kd.check_hint':   'Quiz: tap a veiled line for the initials, once more for the words. Then tick or cross.',
+  'kd.check_ok':     'got it',
+  'kd.check_no':     'again',
+  'kd.check_step':   'step {s}',
   'cmt.title':       'Comments',
   'cmt.what':        'What the company wrote into the script, the part books and the rehearsal '
                    + 'plan. Questions to the director come first; an answer goes back to the person '
