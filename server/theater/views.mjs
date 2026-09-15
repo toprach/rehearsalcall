@@ -1723,6 +1723,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                        (f.place ? ' @ ' + f.place : '')).join(' | '))}"
         title="${h(hinweis)}">
       <span class="num">${tg.day}</span>
+      ${(l.fixed || []).map(f => `<span class="fix">${t('kd.rehearsal')} ${h(String(f.rehearsal).replace(/^P0?/, ''))}${
+          f.from ? ' \u00b7 ' + h(f.from) : ''}</span>`).join('')}
       <span class="time">${e?.von ? h(e.von + '\u2013' + e.bis) : ''}</span>
       <input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
       <input type="hidden" name="n_${tg.iso}" value="${e?.nein ? '1' : ''}">

@@ -204,8 +204,11 @@ export const STYLE = `
   table.cal td.day .frei.voll { background:#1d7a3e }
   .dot.me { background:transparent; border:2px solid var(--accent) }
   /* Dark green: a fixed date of one of my rehearsals. */
-  table.cal td.fixed, .dot.fixed { background:#2f8a4f; border-color:#256d3f; color:#fff }
+  table.cal td.fixed, table.cal td.day.fixed.me, table.cal td.day.level3.fixed.me, .dot.fixed { background:#2f8a4f; border-color:#256d3f; color:#fff }
   table.cal td.fixed .num, table.cal td.fixed .time { color:#fff }
+  /* the fixed rehearsal named in the cell, not only by colour */
+  table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
   .copyable { display:inline-flex; gap:.5rem; align-items:center; flex-wrap:wrap }
   .copyable code { user-select:all }
@@ -455,7 +458,7 @@ export const STYLE = `
   html[data-theme="dark"] table.cal td.level2, html[data-theme="dark"] .dot.level2 { background:#6e5a22; border-color:#8d7533 }
   html[data-theme="dark"] table.cal td.level3, html[data-theme="dark"] .dot.level3 { background:#8a4a14; border-color:#b3651f }
   html[data-theme="dark"] table.cal td.level3.me, html[data-theme="dark"] .dot.level3.me { background:#255c39; border-color:#39794f }
-  html[data-theme="dark"] table.cal td.fixed, html[data-theme="dark"] .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
+  html[data-theme="dark"] table.cal td.fixed, html[data-theme="dark"] table.cal td.day.level3.fixed.me, html[data-theme="dark"] .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
   html[data-theme="dark"] button.quiet, html[data-theme="dark"] .btn.quiet { background:var(--card); border-color:var(--field-edge);
                              color:var(--ink) }
 `;
