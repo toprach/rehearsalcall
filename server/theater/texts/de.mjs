@@ -382,7 +382,7 @@ export const de = {
                     + '„Regie liest“, was ersatzweise vorgelesen wird. Kursiv die '
                     + 'Regieanweisungen.',
   'text.scene':       'Szene {n}',
-  'text.scene_head':  '{act} \u00b7 Stichwort {from}\u2013{to} \u00b7 {min} min \u00b7 '
+  'text.scene_head':  '{act} \u00b7 Repliken {from}\u2013{to} \u00b7 {min} min \u00b7 '
                     + 'Regie liest {substitution}',
   'text.reads_for':    'Die Regie liest hier mit für: {folks}',
   'text.silent_scene': 'Laut Regieanweisung ohne Text auf der Bühne, aber nicht dabei: '
@@ -998,7 +998,15 @@ export const de = {
   'book.new':        'neu',
   'book.part':       'Teil {k} von {n}',
   'book.progress':   '{done} von {total} erledigt',
-  'book.cue_nr':     'Stichwort {nr}',
+  'book.cue_nr':     'Replik {nr}',
+  'book.entry_n':    'Einsatz {n}',
+  'book.resume':     'Weiter bei {what}, Passage {k} von {n}.',
+  'book.resume_read': 'Weiter, wo Sie zuletzt gelesen haben ({what}).',
+  'book.resume_restart': 'von vorn',
+  'book.resume_all': 'alle Passagen',
+  'book.filter_probe': 'Probe {id}',
+  'book.filter_adhoc_short': 'Ad-hoc-Probe',
+  'book.filter_all_label': 'allen Passagen',
   'book.no_cue':     '(kein Stichwort \u2013 die Passage er\u00f6ffnet)',
   'book.own_before': '(du, direkt davor)',
   'book.first_time': 'Zum ersten Mal: einmal lesen, dann kommt sie verdeckt wieder.',
@@ -1078,7 +1086,7 @@ export const de = {
   'pwa.retry':         'Noch einmal versuchen',
 
   /* ---------- Kommentare ---------- */
-  'kd.new':          'Neuer Kommentar bei Stichwort {nr}',
+  'kd.new':          'Neuer Kommentar bei Replik {nr}',
   'kd.text':         'Kommentar',
   'kd.question':     'Frage an die Regie',
   'kd.question_mark': 'Frage an die Regie',
@@ -1102,6 +1110,10 @@ export const de = {
   'kd.prev_mine':    'meine vorige Stelle',
   'kd.next_mine':    'meine n\u00e4chste Stelle',
   'kd.no_comments':  'keine Kommentare',
+  'kd.person':       'Person',
+  'kd.zoom_in':      'Schrift gr\u00f6\u00dfer',
+  'kd.zoom_out':     'Schrift kleiner',
+  'kd.scene_of':     'Szene {k} von {n}',
   'cmt.title':       'Kommentare',
   'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und in den Probenplan '
                    + 'geschrieben hat. Fragen an die Regie stehen zuerst; eine Antwort geht an die '

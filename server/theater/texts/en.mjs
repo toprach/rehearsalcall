@@ -385,7 +385,7 @@ export const en = {
                     + '\u201cdirector reads\u201d, what is read out instead. Stage '
                     + 'directions in italics.',
   'text.scene':       'Scene {n}',
-  'text.scene_head':  '{act} \u00b7 cue {from}\u2013{to} \u00b7 {min} min \u00b7 director '
+  'text.scene_head':  '{act} \u00b7 speeches {from}\u2013{to} \u00b7 {min} min \u00b7 director '
                     + 'reads {substitution}',
   'text.reads_for':    'The director reads along here for: {folks}',
   'text.silent_scene': 'On stage without text according to the directions, but not present: '
@@ -995,7 +995,15 @@ export const en = {
   'book.new':        'new',
   'book.part':       'part {k} of {n}',
   'book.progress':   '{done} of {total} done',
-  'book.cue_nr':     'cue {nr}',
+  'book.cue_nr':     'speech {nr}',
+  'book.entry_n':    'Entrance {n}',
+  'book.resume':     'Carrying on at {what}, passage {k} of {n}.',
+  'book.resume_read': 'Carrying on where you last read ({what}).',
+  'book.resume_restart': 'from the start',
+  'book.resume_all': 'all passages',
+  'book.filter_probe': 'rehearsal {id}',
+  'book.filter_adhoc_short': 'the ad-hoc rehearsal',
+  'book.filter_all_label': 'all passages',
   'book.no_cue':     '(no cue \u2013 the passage opens)',
   'book.own_before': '(you, just before)',
   'book.first_time': 'First time: read it once, then it comes back hidden.',
@@ -1075,7 +1083,7 @@ export const en = {
   'pwa.retry':         'Try again',
 
   /* ---------- comments ---------- */
-  'kd.new':          'New comment at cue {nr}',
+  'kd.new':          'New comment at speech {nr}',
   'kd.text':         'Comment',
   'kd.question':     'Question to the director',
   'kd.question_mark': 'question to the director',
@@ -1099,6 +1107,10 @@ export const en = {
   'kd.prev_mine':    'my previous line',
   'kd.next_mine':    'my next line',
   'kd.no_comments':  'no comments',
+  'kd.person':       'Person',
+  'kd.zoom_in':      'larger type',
+  'kd.zoom_out':     'smaller type',
+  'kd.scene_of':     'Scene {k} of {n}',
   'cmt.title':       'Comments',
   'cmt.what':        'What the company wrote into the script, the part books and the rehearsal '
                    + 'plan. Questions to the director come first; an answer goes back to the person '

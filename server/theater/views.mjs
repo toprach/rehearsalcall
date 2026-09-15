@@ -1271,7 +1271,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       <input type="text" maxlength="200" value="${h(note)}" placeholder="${h(t('book.intent_private'))}"></div>`;
   const card = (p) => {
     return `<section class="pass cmt${p.cut ? ' cut' : ''}" id="pass-${p.i}"${p.nr != null ? ` data-nr="${p.nr}"` : ''}>
-      <div class="passhead small muted"><span class="pno">${p.i}</span>
+      <div class="passhead small muted"><span class="pno">${h(t('book.entry_n', { n: p.i }))}</span>
         ${p.chapter ? h(p.chapter) : ''}${p.nr != null ? ' \u00b7 ' + t('book.cue_nr', { nr: p.nr }) : ''}
         ${p.role ? ' \u00b7 ' + h(p.role) : ''}</div>
       ${p.ctxBefore.length ? `<div class="ctxwrap"><button type="button" class="quiet mini ctx-more before">${h(t('book.more_before'))}</button>
@@ -1323,6 +1323,9 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       c_cancel: t('kd.cancel'), c_comments: t('kd.comments'), c_answer: t('kd.answer'), c_del: t('kd.delete'),
       c_done: t('kd.done'), c_failed: t('kd.failed'), c_hint: t('book.dbl_hint'),
       intent_private: t('book.intent_private'), note_icon: icon('note'),
+      entry_n: t('book.entry_n'), resume: t('book.resume'), resume_read: t('book.resume_read'),
+      resume_restart: t('book.resume_restart'), resume_all: t('book.resume_all'),
+      filter_probe: t('book.filter_probe'), filter_adhoc: t('book.filter_adhoc_short'), filter_all: t('book.filter_all_label'),
       more_before: t('book.more_before'), more_after: t('book.more_after'),
       remind_active: t('book.remind_active'), remind_elsewhere: t('book.remind_elsewhere'), remind_inactive: t('book.remind_inactive'),
       remind_unsupported: t('book.remind_unsupported'), remind_ios: t('book.remind_ios'), remind_denied: t('book.remind_denied'),
@@ -2060,10 +2063,11 @@ function adminPage(projects, m, fresh, entry) {
    click, and - in the rehearsal plan - a way to jump between the
    scenes of a rehearsal. Nothing of it prints.
    --------------------------------------------------------------------- */
-function docExtras(token, doc, me, comments, canSeeAll) {
+function docExtras(token, doc, me, comments, canSeeAll, people = []) {
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
+    people,
     comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
       name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
       erledigt: !!c.erledigt })),
@@ -2077,6 +2081,7 @@ function docExtras(token, doc, me, comments, canSeeAll) {
       rehearsal: t('kd.rehearsal'), scene: t('kd.scene'), prev: t('kd.prev_comment'),
       next: t('kd.next_comment'), none: t('kd.no_comments'),
       prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine'),
+      person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -2120,6 +2125,9 @@ function docExtras(token, doc, me, comments, canSeeAll) {
     background:#fff; color:#1c1a18; cursor:pointer }
   .kmt-bar .cnt { color:#6b655c }
   body.kmt-has-bar { padding-top:3.2rem }
+  body { zoom:var(--kmt-zoom, 1) }
+  @media print { body { zoom:1 } }
+  .kmt-cur { outline:2px solid #b3272d; outline-offset:3px; border-radius:3px }
   @media (max-width:700px) {
     .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc }
     body.kmt-has-bar { padding-top:0; padding-bottom:4rem }
@@ -2263,29 +2271,38 @@ function docExtras(token, doc, me, comments, canSeeAll) {
        Top of the screen on a desk, bottom on a phone; never printed. ---- */
     var bar = document.createElement('div'); bar.className = 'kmt-bar';
     var inner = '';
+    /* whose lines are marked: the signed-in person to begin with, any
+       person by choice - the director works with the view that way */
+    var personB = D.me ? D.me.b : (D.people[0] ? D.people[0].b : '');
+    if (D.people.length) inner += '<label>' + esc(T.person) + ' <select id="kmt-person">' +
+      D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x.b === personB ? ' selected' : '') + '>' + esc(x.b) + '</option>'; }).join('') +
+      '</select></label>';
     if (scenes.length) {
+      // rehearsals in their order 1..N, scenes all of them
+      var probeNr = function (pn) { var m = /(\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
       var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
+      probes.sort(function (a, b) { return probeNr(a) - probeNr(b) || a.localeCompare(b); });
       inner += '<label>' + esc(T.rehearsal) + ' <select id="kmt-probe">' +
         probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></label>' +
-        '<label>' + esc(T.scene) + ' <select id="kmt-scene"></select></label>';
+        '<label>' + esc(T.scene) + ' <select id="kmt-scene">' +
+        scenes.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' \u00b7 ' + esc(s.probe) + '</option>'; }).join('') +
+        '</select></label>';
     }
-    if (D.me) inner += '<button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '">\u25c0 ' + esc(D.me.b) + '</button>' +
-             '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '">' + esc(D.me.b) + ' \u25b6</button>';
-    inner += '<button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
+    inner += '<span class="grp"><button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '">\u25c0 <span class="who"></span></button>' +
+             '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '"><span class="who"></span> \u25b6</button></span>' +
+             '<span class="grp"><button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
              '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button>' +
-             '<span class="cnt" id="kmt-cnt"></span>';
+             '<span class="cnt" id="kmt-cnt"></span></span>' +
+             '<span class="grp zoom"><button type="button" id="kmt-zoom-out" title="' + esc(T.zoom_out) + '">A\u2212</button>' +
+             '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></span>';
     bar.innerHTML = inner;
     document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
     var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
     if (scenes.length) {
       var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
-      var fill = function () {
-        var same = scenes.filter(function (s) { return s.probe === selP.value; });
-        selS.innerHTML = same.map(function (s) { return '<option value="' + s.i + '">' + esc(s.scene) + '</option>'; }).join('');
-      };
-      fill();
-      selP.onchange = function () { fill(); jump(document.getElementById('szk-' + selS.value)); };
-      selS.onchange = function () { jump(document.getElementById('szk-' + selS.value)); };
+      var firstOf = function (pn) { return scenes.filter(function (s) { return s.probe === pn; })[0]; };
+      selP.onchange = function () { var f = firstOf(selP.value); if (f) { selS.value = String(f.i); jump(document.getElementById('szk-' + f.i)); } };
+      selS.onchange = function () { var s = scenes[Number(selS.value)]; if (s) { selP.value = s.probe; jump(document.getElementById('szk-' + s.i)); } };
       var syncing = false;
       window.addEventListener('scroll', function () {
         if (syncing) return; syncing = true;
@@ -2293,7 +2310,7 @@ function docExtras(token, doc, me, comments, canSeeAll) {
           syncing = false;
           var cur = null;
           scenes.forEach(function (s) { var el = document.getElementById('szk-' + s.i); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s; });
-          if (cur && (selP.value !== cur.probe || String(selS.value) !== String(cur.i))) { selP.value = cur.probe; fill(); selS.value = String(cur.i); }
+          if (cur && (selP.value !== cur.probe || String(selS.value) !== String(cur.i))) { selP.value = cur.probe; selS.value = String(cur.i); }
         }, 150);
       });
     }
@@ -2302,28 +2319,52 @@ function docExtras(token, doc, me, comments, canSeeAll) {
       bar.querySelector('#kmt-cnt').textContent = n ? '\u270e ' + n : T.none;
     };
     count();
+
+    /* ---- stepping: a cursor per kind, one step at a time, the target framed.
+       The first press starts from what is on screen. ---- */
+    var cursors = {};
     var step = function (dir, selector) {
-      var list = [].slice.call(document.querySelectorAll(selector || '.kmt-badge'));
-      var mid = window.innerHeight * 0.4;
-      var pick = null;
-      list.forEach(function (el) {
-        var top = el.getBoundingClientRect().top;
-        if (dir > 0 && top > mid + 30 && !pick) pick = el;
-        if (dir < 0 && top < mid - 30) pick = el;
-      });
-      if (pick) { var p = pick.closest('p') || pick; p.scrollIntoView({ block: 'center' }); }
+      selector = selector || '.kmt-badge';
+      var list = [].slice.call(document.querySelectorAll(selector)).map(function (el) { return el.closest('p') || el; });
+      if (!list.length) return;
+      var c = cursors[selector];
+      if (!c || c.length !== list.length || list.indexOf(c.el) < 0) {
+        var mid = window.innerHeight * 0.4, at = -1;
+        list.forEach(function (el, i) { if (at < 0 && el.getBoundingClientRect().top > mid) at = i; });
+        if (at < 0) at = list.length;
+        c = cursors[selector] = { length: list.length, idx: dir > 0 ? at - 1 : at, el: null };
+      }
+      c.idx = Math.max(0, Math.min(list.length - 1, c.idx + dir));
+      c.el = list[c.idx];
+      [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
+      c.el.classList.add('kmt-cur');
+      c.el.scrollIntoView({ block: 'center' });
     };
     bar.querySelector('#kmt-prev').onclick = function () { step(-1); };
     bar.querySelector('#kmt-next').onclick = function () { step(1); };
 
+    /* ---- the type size of this view, remembered on the device ---- */
+    var ZOOMS = [0.8, 0.9, 1, 1.15, 1.3, 1.5];
+    var zi = 2; try { zi = Math.max(0, Math.min(ZOOMS.length - 1, Number(localStorage.getItem('kmt-zoom') || 2))); } catch (e) {}
+    var applyZoom = function () { document.documentElement.style.setProperty('--kmt-zoom', ZOOMS[zi]); try { localStorage.setItem('kmt-zoom', String(zi)); } catch (e) {} };
+    applyZoom();
+    bar.querySelector('#kmt-zoom-in').onclick = function () { if (zi < ZOOMS.length - 1) { zi++; applyZoom(); } };
+    bar.querySelector('#kmt-zoom-out').onclick = function () { if (zi > 0) { zi--; applyZoom(); } };
+
     /* ---- reading as oneself: own lines marked, the own name in the
        directions too, and two buttons that hop from one to the next ---- */
-    if (D.me) {
-      var name = D.me.b;
+    var isWord = function (c) { return !!c && /[A-Za-z0-9\u00c0-\u024f]/.test(c); };
+    var markPerson = function (name) {
+      // undo the previous person's marks
+      [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) { p.classList.remove('kmt-mine'); });
+      [].forEach.call(document.querySelectorAll('main span.kmt-wrap'), function (sp) { sp.replaceWith(document.createTextNode(sp.textContent)); });
+      cursors = {};
+      [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
+      [].forEach.call(bar.querySelectorAll('.who'), function (w) { w.textContent = name; });
+      if (!name) return;
       [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
         if (p.dataset.ensemble === name) p.classList.add('kmt-mine');
       });
-      var isWord = function (c) { return !!c && /[A-Za-z0-9\u00c0-\u024f]/.test(c); };
       var markName = function (text) {
         var out = '', i = 0, idx;
         while ((idx = text.indexOf(name, i)) >= 0) {
@@ -2339,13 +2380,16 @@ function docExtras(token, doc, me, comments, canSeeAll) {
         nodes.forEach(function (tn) {
           var html = markName(tn.nodeValue);
           if (html.indexOf('<mark') < 0) return;
-          var span = document.createElement('span'); span.innerHTML = html;
+          var span = document.createElement('span'); span.className = 'kmt-wrap'; span.innerHTML = html;
           tn.parentNode.replaceChild(span, tn);
         });
       });
-      bar.querySelector('#kmt-me-prev').onclick = function () { step(-1, 'p.speech.kmt-mine'); };
-      bar.querySelector('#kmt-me-next').onclick = function () { step(1, 'p.speech.kmt-mine'); };
-    }
+    };
+    markPerson(personB);
+    var selPerson = bar.querySelector('#kmt-person');
+    if (selPerson) selPerson.onchange = function () { markPerson(selPerson.value); };
+    bar.querySelector('#kmt-me-prev').onclick = function () { step(-1, 'p.speech.kmt-mine'); };
+    bar.querySelector('#kmt-me-next').onclick = function () { step(1, 'p.speech.kmt-mine'); };
     var oldBadge = badge;
     badge = function (nr) { oldBadge(nr); count(); };
   });

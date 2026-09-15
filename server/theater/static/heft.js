@@ -210,6 +210,7 @@
                  intensiv: document.getElementById('heft-intensiv'), wiederholen: document.getElementById('heft-wiederholen') };
   var LEARNING = { lernen: 1, intensiv: 1, wiederholen: 1 };
   function mode(name) {
+    currentMode = name; remember();
     Object.keys(panels).forEach(function (k) { if (panels[k]) panels[k].hidden = k !== name; });
     [].forEach.call(document.querySelectorAll('.heft-modes button'), function (b) { b.classList.toggle('on', b.dataset.mode === name); });
     try { localStorage.setItem('heft-mode', name); } catch (e) {}
@@ -263,8 +264,25 @@
       queue = hard.map(function (c) { return { item: c, fresh: false }; });
     }
     session = { kind: kind, queue: queue, batch: [], last: null, prev: null, done: 0, total: queue.length, hint: 0 };
+    // coming back: the chunk one was at goes first
+    if (resume && resume.key) {
+      var at = -1; session.queue.forEach(function (q, i) { if (at < 0 && q.item.key === resume.key) at = i; });
+      if (at > 0) session.queue.unshift(session.queue.splice(at, 1)[0]);
+      resume = null;
+    }
     next();
   }
+
+  /* ---- where one was: filter, mode and chunk, kept for twelve hours ---- */
+  var STAND = 'heft-stand:' + (D.me || '');
+  var resume = null;
+  function remember(extra) {
+    var st = { when: Date.now(), q: location.search, mode: currentMode };
+    if (extra) for (var k in extra) st[k] = extra[k];
+    try { localStorage.setItem(STAND, JSON.stringify(st)); } catch (e) {}
+  }
+  function stand() { try { var st = JSON.parse(localStorage.getItem(STAND) || 'null'); return st && Date.now() - st.when < 12 * 3600000 ? st : null; } catch (e) { return null; } }
+  var currentMode = 'lesen';
   function fill() {
     while (session.batch.length < BATCH && session.queue.length) {
       var q = session.queue.shift();
@@ -335,7 +353,7 @@
   }
   function head(e) {
     var c = e.item, p = c.p, r = rec(c.key);
-    return '<div class="passhead small muted"><span class="pno">' + p.i + '</span> ' + esc(p.chapter) +
+    return '<div class="passhead small muted"><span class="pno">' + esc(fmt(T.entry_n, { n: p.i })) + '</span> ' + esc(p.chapter) +
       (c.teil ? ' · ' + esc(fmt(T.part, { k: c.teil[0], n: c.teil[1] })) : '') +
       (r ? ' · ' + esc(fmt(T.step_short, { i: r.s })) : ' · ' + esc(T.new_)) +
       '<span class="batch">' + esc(fmt(T.progress, { done: session.done, total: session.total })) + '</span></div>';
@@ -407,6 +425,7 @@
       ctxAfterHtml(ctx.after) + '</section>';
     panel.innerHTML = '<div id="heft-figures" class="small muted figures"></div>' + html;
     paintFigures(); paintBadges();
+    remember({ key: c.key });
     panel.querySelector('#heft-card').scrollIntoView({ block: 'start' });
     window.scrollBy(0, -8);
   }
@@ -578,8 +597,28 @@
   var start = 'lesen';
   try { start = localStorage.getItem('heft-mode') || 'lesen'; } catch (e) {}
   if (D.filter) start = 'lernen';
+  /* Coming back within twelve hours: the same filter, the same mode, the
+     same place. A link with a filter of its own, or #neu, starts afresh. */
+  var back = stand();
+  if (location.hash === '#neu') { try { localStorage.removeItem(STAND); } catch (e) {} back = null; }
+  if (back && back.q && !location.search) { location.replace(location.pathname + back.q + '#weiter'); }
+  else if (back && back.q === location.search) {
+    start = back.mode || start; resume = back;
+    var what = D.filter ? (D.filter.mit ? T.filter_adhoc : fmt(T.filter_probe, { id: D.filter.id })) : T.filter_all;
+    var idx = -1; items.forEach(function (c, i) { if (c.key === back.key) idx = i; });
+    var note = document.createElement('div'); note.className = 'notice'; note.id = 'heft-resume';
+    note.innerHTML = esc(idx >= 0 && LEARNING[start] ? fmt(T.resume, { what: what, k: idx + 1, n: items.length }) : fmt(T.resume_read, { what: what })) +
+      ' \u00b7 <a href="' + location.pathname + location.search + '#neu">' + esc(T.resume_restart) + '</a>' +
+      (D.filter ? ' \u00b7 <a href="/theater/mit/heft#neu">' + esc(T.resume_all) + '</a>' : '');
+    var modesEl = document.querySelector('.heft-modes'); modesEl.parentNode.insertBefore(note, modesEl);
+  }
   if (!panels[start]) start = 'lesen';
-  if (start === 'lesen') { mode('lesen'); }
+  if (start === 'lesen') { mode('lesen'); if (back && back.y && back.q === location.search) window.scrollTo(0, back.y); }
   else mode(start);
+  var scrollTimer = null;
+  window.addEventListener('scroll', function () {
+    if (currentMode !== 'lesen') return;
+    clearTimeout(scrollTimer); scrollTimer = setTimeout(function () { remember({ y: window.scrollY }); }, 300);
+  });
   paintFigures(); paintBadges();
 })();

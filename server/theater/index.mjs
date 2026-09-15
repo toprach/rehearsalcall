@@ -399,7 +399,8 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
   const visible = (project.kommentare || [])
     .filter(c => mayAll || (me && c.wer === me.b))
     .map(c => ({ ...c, name: nameOf(c.wer) }));
-  return A.docExtras(token || '', doc, me, visible, mayAll);
+  const people = (project.personen || []).map(x => ({ b: x.b, name: x.name || x.b }));
+  return A.docExtras(token || '', doc, me, visible, mayAll, people);
 }
 const t_ = (code, key) => language(code).t(key);
 
