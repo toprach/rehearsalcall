@@ -128,7 +128,7 @@ export function wholePlay(structure, b) {
 
 /* Rough count of the words one has to learn. */
 export const wordsOf = passages => passages.reduce((a, p) =>
-  a + p.lines.reduce((x, l) => x + (l.text ? l.text.split(/\s+/).length : 0), 0), 0);
+  a + p.lines.reduce((x, l) => x + (l.text ? countWords(l.text) : 0), 0), 0);
 
 /* ---- chunks and keys ---- */
 
@@ -139,7 +139,9 @@ const hash = (s) => {
   for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
   return h.toString(36);
 };
-const countWords = s => (norm(s).match(/\S+/g) || []).length;
+// bracketed directions inside a speech are not words to learn
+const spoken = s => String(s || '').replace(/\([^()]*\)/g, ' ');
+const countWords = s => (norm(spoken(s)).match(/\S+/g) || []).length;
 const endsSentence = s => /[.!?…"”’')\]]\s*$/.test(String(s || ''));
 
 /* Cut the own lines of a passage into chunks of about maxWords, only

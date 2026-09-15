@@ -292,6 +292,7 @@ export const STYLE = `
   html[data-font="sehrgross"] .pass .cue, html[data-font="sehrgross"] .pass .dir { font-size:1.25rem }
   html[data-font="sehrgross"] .pass .reveal, html[data-font="sehrgross"] .bookstep #next { font-size:1.2rem }
   .pass .say.cut { text-decoration:line-through; opacity:.6 }
+  .say i.dir { font-style:italic; opacity:.72; font-weight:400 }
   .pass .reveal { display:none; margin:.3rem 0 }
   .pass.sits { border-color:var(--good) }
   .pass.sits .pno { color:var(--good) }

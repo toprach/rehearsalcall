@@ -255,13 +255,19 @@
 
   /* ---- learning ---- */
   var session = null;
-  function startSession(kind) {
+  function startSession(kind, again) {
     var queue;
     if (kind === 'lernen') {
       var due = shuffle(items.filter(function (c) { var r = rec(c.key); return r && r.f <= today; }));
       var fresh = items.filter(function (c) { return !rec(c.key); });
       queue = due.map(function (c) { return { item: c, fresh: false }; })
         .concat(fresh.map(function (c) { return { item: c, fresh: true }; }));
+      if (!queue.length && again) {
+        // asked for one more round with nothing due: what is due soonest, one batch
+        var soon = items.filter(function (c) { return !!rec(c.key); })
+          .sort(function (a, b) { return rec(a.key).f < rec(b.key).f ? -1 : rec(a.key).f > rec(b.key).f ? 1 : 0; }).slice(0, BATCH);
+        queue = shuffle(soon).map(function (c) { return { item: c, fresh: false }; });
+      }
     } else if (kind === 'wiederholen') {
       var learnt = items.filter(function (c) { return !!rec(c.key); });
       queue = learnt.map(function (c) { return { item: c, fresh: false }; });
@@ -320,6 +326,13 @@
   function firstLetters(text) {
     return text.replace(/[\p{L}\p{N}’']+/gu, function (w) { return w.charAt(0) + '·'.repeat(Math.min(w.length - 1, 6)); });
   }
+  /* A bracketed stretch inside a speech is a stage direction - italic in
+     the original - shown as such, never veiled, not to be learnt. */
+  function speechHtml(text, hinted) {
+    return String(text || '').split(/(\([^()]*\))/).map(function (p, i) {
+      return i % 2 ? '<i class="dir">' + esc(p) + '</i>' : esc(hinted ? firstLetters(p) : p);
+    }).join('');
+  }
   function noteButton(key, note) {
     return '<button type="button" class="notebtn' + (note ? ' has' : '') + '" data-key="' + esc(key) + '" title="' + esc(T.intent) + '" aria-label="' + esc(T.intent) + '">' + T.note_icon + '</button>';
   }
@@ -333,10 +346,9 @@
     var note = rec(c.key) && rec(c.key).a || '';
     return c.lines.map(function (l, i) {
       if (l.direction) return '<p class="dir">' + esc(l.direction) + '</p>';
-      var text = l.text;
-      if (hint === 1) text = firstLetters(text);
-      else if (hint === 2) { if (firstLineDone) text = firstLetters(text); firstLineDone = true; }
-      return '<p class="say' + (l.cut ? ' cut' : '') + '">' + (l.cont ? '' : '<b>' + esc(l.who) + ':</b> ') + esc(text) +
+      var hinted = hint === 1 || (hint === 2 && firstLineDone);
+      if (hint === 2) firstLineDone = true;
+      return '<p class="say' + (l.cut ? ' cut' : '') + '">' + (l.cont ? '' : '<b>' + esc(l.who) + ':</b> ') + speechHtml(l.text, hinted) +
         (withNote && i === last ? noteButton(c.key, note) : '') + '</p>';
     }).join('') + (withNote ? noteBox(c.key, note) : '');
   }
@@ -380,7 +392,7 @@
   }
   var ctxLine = function (l) {
     return l.dir ? '<p class="dir">' + esc(l.text) + '</p>'
-      : '<p class="say ctxline">' + (l.cont ? '' : '<b>' + esc(l.who) + ':</b> ') + esc(l.text) + '</p>';
+      : '<p class="say ctxline">' + (l.cont ? '' : '<b>' + esc(l.who) + ':</b> ') + speechHtml(l.text, false) + '</p>';
   };
   function ctxBeforeHtml(list) {
     if (!list.length) return '';
@@ -519,7 +531,7 @@
     else if (act === 'zurueck-ende') { session.hint = 0; render(panel, e, e.fresh && !e.shown); }
     else if (act === 'applaus-weiter') next();
     else if (act === 'applaus-morgen') { clockStop(); finish(panel); }
-    else if (act === 'again-session') startSession(session.kind);
+    else if (act === 'again-session') startSession(session.kind, true);
   });
 
   /* ---- the daily reminder: a push subscription of this phone ---- */

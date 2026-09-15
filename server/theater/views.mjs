@@ -1260,7 +1260,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
   const fig = summaryOf(state, chunks, today);
   const line = (l) => l.dir
     ? `<p class="dir">${h(l.text)}</p>`
-    : `<p class="say ctxline">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}</p>`;
+    : `<p class="say ctxline">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${speechHtml(l.text)}</p>`;
   /* The private note "what do I want here?": a small icon after the
      last character of the chunk opens it. It belongs to the person
      alone and never appears anywhere else. */
@@ -1284,7 +1284,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
           const note = state[c.key]?.a || '';
           return c.lines.map((l, i) => l.direction
             ? `<p class="dir">${h(l.direction)}</p>`
-            : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${h(l.text)}${
+            : `<p class="say${l.cut ? ' cut' : ''}">${l.cont ? '' : `<b>${h(l.who)}:</b> `}${speechHtml(l.text)}${
                 i === last ? noteButton(c.key, note) : ''}</p>`).join('') + noteBox(c.key, note);
         }).join('')}
       </div>
@@ -1381,6 +1381,9 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
    own name in the directions too; the bar hops between them, a double
    tap opens the comments. The rehearsal that begins at a line is noted.
    --------------------------------------------------------------------- */
+/* A bracketed stretch inside a speech is a stage direction: italic. */
+const speechHtml = s => h(s).replace(/\([^()]*\)/g, m => `<i class="dir">${m}</i>`);
+
 function playPage(project, person, blocks, starts, comments) {
   const me = person.b;
   const markName = (text) => {
@@ -1402,7 +1405,7 @@ function playPage(project, person, blocks, starts, comments) {
     const from = b.nr != null && starts[b.nr] ? `<div class="rehearsal-from small">${
       starts[b.nr].map(id => `<a class="chip" href="/theater/mit/plan/${encodeURIComponent(id)}">${h(t('play.rehearsal_from', { id: h(id) }))}</a>`).join('')}</div>` : '';
     return from + `<p class="say cmt${b.own ? ' mine' : ''}${b.cut ? ' cut' : ''}"${b.nr != null ? ` data-nr="${b.nr}"` : ''}>${
-      b.cont ? '' : `<b>${h(b.who)}:</b> `}${h(b.text)}</p>`;
+      b.cont ? '' : `<b>${h(b.who)}:</b> `}${speechHtml(b.text)}</p>`;
   };
   const own = blocks.filter(b => b.kind === 'speech' && b.own && !b.cont).length;
   const data = { token: project.druck_token || '', me, locale: L.locale, comments, play: true,
@@ -2166,6 +2169,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   p.speech.kmt-veiled { cursor:pointer }
   p.speech.kmt-s0 .kmt-text { color:transparent; background:#d9d4cc; border-radius:3px }
   p.speech.kmt-s0 .kmt-text * { color:transparent !important; background:transparent !important }
+  p.speech.kmt-s0 .kmt-text em.emph { color:#5a554d !important }
   p.speech.kmt-s1 .kmt-text { display:none }
   p.speech:not(.kmt-s1) .kmt-veil-ph { display:none }
   .kmt-veil-ph { color:#6b655c; letter-spacing:.04em }
