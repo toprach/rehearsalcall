@@ -3,13 +3,15 @@
    the day panel - behind a PIN - and saving every entry at once.
 
    The addresses of the other calendars (ICS feeds) and what they
-   contained are kept in this browser only, encrypted with a key made
-   from a four-digit PIN (PBKDF2, AES-GCM), one vault per person. So a
+   contained are kept in this browser, encrypted with a key made from a
+   four-digit PIN (PBKDF2, AES-GCM), one vault per person. So a
    colleague who borrows the phone and switches to their own name sees
    nothing of it, and neither does anybody who looks at the storage.
-   Nothing of it is stored on the server: the server merely fetches a
-   feed when asked, because most calendar services refuse to hand their
-   feed to a browser on another site (CORS), and forgets it at once.
+   The addresses alone travel to the server as the same ciphertext, so
+   that the PIN opens them on another device; the server cannot read
+   them. It merely fetches a feed when asked, because most calendar
+   services refuse to hand their feed to a browser on another site
+   (CORS), and forgets it at once.
 
    Parsing is done by ical.js (Mozilla, MPL), which knows recurring
    events. Unlocked, the key lives in sessionStorage: gone when the tab
@@ -167,6 +169,15 @@ import ICAL from '/theater/vendor/ical.min.js';
 
   /* ---- the box ---- */
   var stored = function () { return read(VAULT, null); };
+  /* Deriving the key takes a moment, on a phone a long one: the button
+     shows a spinner and takes no second press meanwhile. */
+  function busy(btn, on) {
+    if (!btn) return;
+    btn.disabled = on;
+    var s = btn.querySelector('.spin');
+    if (on && !s) { s = document.createElement('span'); s.className = 'spin'; s.setAttribute('aria-hidden', 'true'); btn.insertBefore(s, btn.firstChild); btn.setAttribute('aria-busy', 'true'); }
+    if (!on && s) { s.parentNode.removeChild(s); btn.removeAttribute('aria-busy'); }
+  }
   function paint() {
     var list = root.querySelector('.quellen'), form = root.querySelector('.hinzu'), pinBox = root.querySelector('.pin');
     var locked = !key && !!(stored() || server);
@@ -243,6 +254,7 @@ import ICAL from '/theater/vendor/ical.min.js';
         if (!/^\d{4}$/.test(a)) { box.querySelector('#pin-msg').textContent = W.pin_format; return; }
         if (a !== b) { box.querySelector('#pin-msg').textContent = W.pin_mismatch; return; }
         var salt = crypto.getRandomValues(new Uint8Array(16));
+        busy(box.querySelector('#pin-ok'), true);
         deriveKey(a, salt).then(function (k) {
           write(VAULT, { salt: b64(salt), iv: '', data: '' });
           key = k; rememberKey(k); vault = { sources: [], cache: {} };
@@ -275,21 +287,25 @@ import ICAL from '/theater/vendor/ical.min.js';
     if (t.id === 'pin-unlock') {
       var pin = root.querySelector('#pin-in').value, st = stored();
       if (!/^\d{4}$/.test(pin) || !(st || server)) return;
+      var inp = root.querySelector('#pin-in');
+      busy(t, true); inp.disabled = true;
+      var done = function () { busy(t, false); inp.disabled = false; };
       // the salt of this device; a vault set up elsewhere brings its own
       var salts = [];
       if (st && st.salt) salts.push(st.salt);
       if (server && server.salt && salts.indexOf(server.salt) < 0) salts.push(server.salt);
       var attempt = function (i) {
-        if (i >= salts.length) { root.querySelector('#pin-in').value = ''; alert(W.pin_wrong); return; }
+        if (i >= salts.length) { done(); inp.value = ''; inp.focus(); alert(W.pin_wrong); return; }
         return deriveKey(pin, unb64(salts[i])).then(function (k) {
           return open(k).then(function (ok) {
             if (!ok) return attempt(i + 1);
             if (!st || st.salt !== salts[i]) write(VAULT, { salt: salts[i], iv: '', data: '' });
-            key = k; rememberKey(k); loadAll();
+            key = k; rememberKey(k);
+            return loadAll().then(done, done);
           });
         });
       };
-      attempt(0);
+      Promise.resolve(attempt(0)).catch(done);
     }
   });
   root.addEventListener('keydown', function (e) {
@@ -302,7 +318,9 @@ import ICAL from '/theater/vendor/ical.min.js';
     ensureKey().then(function () {
       vault.sources.push({ id: 'q' + Date.now().toString(36), name: name || url.replace(/^https?:\/\//, '').slice(0, 40), url: url });
       root.querySelector('#quelle-url').value = ''; root.querySelector('#quelle-name').value = '';
-      return loadAll();
+      var add = root.querySelector('#quelle-add'), free = function () { busy(add, false); };
+      busy(add, true);
+      return loadAll().then(free, free);
     });
   });
   root.querySelector('#quelle-file').addEventListener('change', function (e) {

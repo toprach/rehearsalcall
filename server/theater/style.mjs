@@ -210,6 +210,12 @@ export const STYLE = `
   table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
+  /* a button at work: spinner in front of its label, no second press */
+  .spin { display:inline-block; width:.9em; height:.9em; border:2px solid currentColor; border-right-color:transparent;
+    border-radius:50%; margin-right:.45em; vertical-align:-.1em; animation:spin .8s linear infinite }
+  @keyframes spin { to { transform:rotate(360deg) } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation-duration:2s } }
+  button[aria-busy="true"] { cursor:progress; opacity:.8 }
   .copyable { display:inline-flex; gap:.5rem; align-items:center; flex-wrap:wrap }
   .copyable code { user-select:all }
   button.wide { width:100%; text-align:left; margin:.25rem 0; padding:.6rem .8rem }
