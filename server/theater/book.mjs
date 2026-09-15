@@ -97,7 +97,7 @@ export function partBook(structure, b, opt = {}) {
                        cont: e.typ === 'fortsetzung', cut: !!e.gestrichen });
     } else {
       cur = null;
-      cue = { who: e.figur || e.sprecher_im_text || '', text: e.text || '', nr: e.nr ?? null };
+      cue = { who: e.figur || e.sprecher_im_text || '', text: e.text || '', nr: e.nr ?? null, b: e.ensemble || null };
       pending = [];
     }
   });

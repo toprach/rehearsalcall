@@ -26,9 +26,23 @@
   var T = D.t, state = D.state || {}, today = D.today;
   var INTERVALS = [0, 1, 3, 7, 14, 30], BATCH = 6;
 
+  /* A filter on one rehearsal: only passages whose cue number lies in
+     one of its scenes. The reading cards of the others are hidden. */
+  var passByNr = {};
+  (D.passages || []).forEach(function (p) { if (p.nr != null) passByNr[p.nr] = p; });
+  var inFilter = function (p) {
+    if (!D.filter || !p) return !D.filter;
+    if (D.filter.ranges && !(p.nr != null && D.filter.ranges.some(function (r) { return p.nr >= r[0] && p.nr <= r[1]; }))) return false;
+    if (D.filter.mit && !(p.cue && p.cue.b && D.filter.mit.indexOf(p.cue.b) >= 0)) return false;
+    return true;
+  };
   var items = [];
   (D.passages || []).forEach(function (p) {
+    if (!inFilter(p)) return;
     p.chunks.forEach(function (c) { c.p = p; items.push(c); });
+  });
+  if (D.filter) [].forEach.call(document.querySelectorAll('#heft-lesen .pass[data-nr]'), function (sec) {
+    if (!inFilter(passByNr[Number(sec.dataset.nr)])) sec.hidden = true;
   });
   var byKey = {};
   items.forEach(function (c) { byKey[c.key] = c; });
@@ -562,6 +576,7 @@
   /* ---- start ---- */
   var start = 'lesen';
   try { start = localStorage.getItem('heft-mode') || 'lesen'; } catch (e) {}
+  if (D.filter) start = 'lernen';
   if (!panels[start]) start = 'lesen';
   if (start === 'lesen') { mode('lesen'); }
   else mode(start);

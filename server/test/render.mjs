@@ -184,6 +184,8 @@ for (const { code } of LANGUAGES) {
     ], 12, { 'k1.a': { s: 3, f: '2026-09-10', l: [2, 2, 0], a: 'win <her>' } }, '2026-09-14',
        [{ id: 'c1', nr: 3, text: 'a <b>', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false }]),
     bookEmpty: () => A.bookPage(project, person, [], 0, {}, '2026-09-14'),
+    bookFiltered: () => A.bookPage(project, person, [], 0, {}, '2026-09-14', [], null, { id: 'P<1>', ranges: [[1, 9]] }),
+    bookAdhoc: () => A.bookPage(project, person, [], 0, {}, '2026-09-14', [], null, { mit: [project.personen[1].b] }),
     bookRemind: () => A.bookPage(project, person, [], 0, {}, '2026-09-14', [],
       { key: 'BPUSHKEY', zeit: '19:30', zone: 'Europe/Vienna', abos: [{ endpoint: 'https://push.example/<x>' }] }),
     playPage: () => A.playPage(project, person, [

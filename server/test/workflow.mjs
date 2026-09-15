@@ -456,6 +456,12 @@ for (const b of cast) {
           planIds.every(id => all.text.includes('>' + id + '<')), 'status ' + all.status);
     clean('all rehearsals page', all);
     const pg = await call('GET', '/theater/mit/plan/' + target);
+    const lb = await call('GET', '/theater/mit/heft?probe=' + encodeURIComponent(target));
+    check('the book can be narrowed to one rehearsal', lb.status === 200 && /id="heft-filter"/.test(lb.text) &&
+          new RegExp('"filter":\\{"id":"' + target + '"').test(lb.text), 'status ' + lb.status);
+    const ah = await call('GET', '/theater/mit/heft?mit=' + encodeURIComponent(cast[0]) + '&mit=' + encodeURIComponent(cast[1]));
+    check('an ad-hoc rehearsal narrows the book to the cues of the chosen people', ah.status === 200 &&
+          /"mit":\["[A-Z]/.test(ah.text) && /id="adhoc"/.test(ah.text), 'status ' + ah.status);
     check('passages of a rehearsal for a member', pg.status === 200 && /class="line/.test(pg.text)
           && /\/theater\/mit\/termine/.test(pg.text));
     clean('member passages page', pg);

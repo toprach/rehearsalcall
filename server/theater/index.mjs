@@ -1141,7 +1141,18 @@ export async function handle(request, response, path) {
                      frage: !!c.frage, antwort: c.antwort || null, erledigt: !!c.erledigt }));
       const keys = Push.keysFromEnv();
       const remind = keys ? { key: keys.publicKey, ...(project.erinnerung?.[person.id] || {}) } : null;
-      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today, comments, remind));
+      /* ?probe=<id>: only the passages of that rehearsal, in learning mode -
+         the button on the rehearsal's page leads here. */
+      const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+      const wanted = (project.plan?.proben || []).find(pr => pr.id === query.get('probe'));
+      let filter = wanted ? { id: wanted.id, ranges: (wanted.szenen || [])
+        .filter(sz => sz.nr_von != null && sz.nr_bis != null).map(sz => [Number(sz.nr_von), Number(sz.nr_bis)]) } : null;
+      /* ?mit=A&mit=B: an ad-hoc rehearsal with whoever is around - only the
+         passages whose cue comes from one of them. */
+      const known = new Set((project.personen || []).map(x => x.b));
+      const mit = query.getAll('mit').map(String).filter(b => known.has(b) && b !== person.b);
+      if (mit.length) filter = { ...(filter || {}), mit };
+      return html(response, A.bookPage(project, person, passages, wordsOf(passages), state, today, comments, remind, filter));
     }
 
     if (second === 'gesamt') {

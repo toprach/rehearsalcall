@@ -875,6 +875,8 @@ function passagesPage(p, d, m, opt = {}) {
     <h1>${t('text.title', { id: h(pr.id) })}</h1>
     ${notice(m)}
     <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
+    ${opt.member && pr.gruppe.includes(opt.member.b) ? `<p><a class="btn" href="/theater/mit/heft?probe=${encodeURIComponent(pr.id)}">${h(t('text.learn_this'))}</a>
+      <span class="small muted">${t('text.learn_this_what')}</span></p>` : ''}
     <p class="small muted">${t('text.figures', {
         scenes: (pr.szenen || []).length,
         min: Math.round(pr.minuten || 0),
@@ -1240,8 +1242,20 @@ function memberPage(project, person, m, realSelf) {
    a button reveals them; the bar below steps to the next passage. What
    sits and what does not is remembered in the browser only.
    --------------------------------------------------------------------- */
-function bookPage(project, person, passages, words, state = {}, today = '', comments = [], remind = null) {
+function bookPage(project, person, passages, words, state = {}, today = '', comments = [], remind = null, filter = null) {
   const who = person.name || person.b;
+  const nameOf = (b) => (project.personen || []).find(x => x.b === b)?.name || b;
+  const others = (project.personen || []).filter(x => x.b !== person.b)
+    .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale));
+  const adhocBox = others.length ? `<details class="box small" id="adhoc"${filter?.mit ? ' open' : ''}>
+      <summary><b>${t('book.adhoc_title')}</b></summary>
+      <p class="muted">${t('book.adhoc_what')}</p>
+      <form method="get" action="/theater/mit/heft#heft-filter" class="adhoc">
+        <div class="choices">${others.map(x => `<label class="inline choice"><input type="checkbox" name="mit" value="${h(x.b)}"${
+          filter?.mit?.includes(x.b) ? ' checked' : ''}> ${h(x.name || x.b)}</label>`).join('')}</div>
+        <button type="submit" class="mini">${h(t('book.adhoc_go'))}</button>
+      </form>
+    </details>` : '';
   const chunks = passages.flatMap(p => p.chunks);
   const fig = summaryOf(state, chunks, today);
   const line = (l) => l.dir
@@ -1281,6 +1295,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
   };
 
   const data = {
+    filter,
     today,
     state,
     token: project.druck_token || '',
@@ -1324,6 +1339,11 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       ${project.druck_token ? `\u00b7 <a href="/theater/druck/${h(project.druck_token)}/rolle/${
         encodeURIComponent(person.b)}" target="_blank" rel="noopener">${t('book.print')}</a>` : ''}
       \u00b7 <a href="/theater/mit/stueck">${t('book.play_link')}</a></p>
+    ${filter ? `<div class="notice" id="heft-filter">${filter.mit
+        ? t('book.filter_adhoc', { who: filter.mit.map(b => h(nameOf(b))).join(', ') })
+        : t('book.filter_note', { id: h(filter.id) })}
+      <a href="/theater/mit/heft">${t('book.filter_all')}</a>${filter.id
+        ? ` \u00b7 <a href="/theater/mit/plan/${encodeURIComponent(filter.id)}">${t('book.filter_back')}</a>` : ''}</div>` : ''}
     <div class="heft-modes">
       <button type="button" data-mode="lesen" class="on">${h(t('book.mode_read'))}</button>
       <button type="button" data-mode="lernen">${h(t('book.mode_learn'))}</button>
@@ -1341,6 +1361,7 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
       </div>
       <p class="small muted" id="remind-note"></p>
     </details>` : ''}
+    ${adhocBox}
     <div id="heft-lesen">
       <p class="small muted">${t('book.read_what')} ${t('book.dbl_hint')}</p>
       <div id="book">${passages.map(card).join('')}</div>
@@ -1560,7 +1581,8 @@ function myDatesPage(project, person, result, m, opt = {}) {
   return page({ title: t('date.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${showAll ? t('mdate.all') : t('mdate.title')}</h1>
     <p class="tabs"><a href="/theater/mit/termine"${showAll ? '' : ' class="on"'}>${t('mdate.mine')}</a>
-      <a href="/theater/mit/termine?alle=1"${showAll ? ' class="on"' : ''}>${t('mdate.all')}</a></p>
+      <a href="/theater/mit/termine?alle=1"${showAll ? ' class="on"' : ''}>${t('mdate.all')}</a>
+      <a href="/theater/mit/heft#adhoc" class="btn quiet mini" style="margin-left:.5rem">${h(t('mdate.adhoc'))}</a></p>
     ${notice(m)}
     ${showAll ? `<p class="small muted">${t('mdate.all_what')}</p>` : ''}
     ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
