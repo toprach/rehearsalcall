@@ -213,6 +213,12 @@ export const STYLE = `
   table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
+  /* dates: the director's tools on a fixed date, the history */
+  .datetools { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; align-items:center }
+  .datetools form.inline { margin:0 }
+  .hist { margin-top:.25rem }
+  .hist .chip { margin-left:.2rem }
+  table.histtable input { margin:0 }
   /* the day panel: when the others can, one bar per person */
   .balken { margin:.4rem 0 .7rem }
   .balken .zeile { display:flex; align-items:center; gap:.4rem; margin:.15rem 0 }

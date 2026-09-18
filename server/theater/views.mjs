@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
+import { substitutesOf, historyOf } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -230,6 +231,76 @@ function fixDialog(target, pr, project, directors, place, label, cls = '') {
       </form>
     </dialog>`;
 }
+/* What has been: the dates a rehearsal already had, and how well it sat. */
+const shortDay = iso => L.date(new Date(iso + 'T00:00:00Z'), { day: '2-digit', month: '2-digit' });
+const historyLine = (history) => !history?.length ? '' :
+  `<div class="small muted hist">${t('date.history')} ${history.map(v =>
+    `<span class="chip muted">${h(shortDay(v.iso))}${v.sitzt != null ? ' \u00b7 ' + v.sitzt + '\u00a0%' : ''}</span>`).join('')}</div>`;
+/* Whom the director reads for - welcome along, never waited for. */
+const optionalLine = (optional, canThatEvening) => !optional?.length ? '' :
+  `<div class="small muted">${t('date.reads_for')} ${optional.map(o =>
+    `<span class="chip muted" title="${h(t('date.reads_n', { n: o.speeches }))}">${h(o.b)} (${o.speeches})</span>`).join('')}${
+    canThatEvening?.length ? ` \u00b7 ${t('date.optional_can', { who: canThatEvening.map(h).join(', ') })}` : ''}</div>`;
+
+/* The director and the assistant on a fixed date: change it, have the
+   message again, call it off. */
+function directorTools(target, pr, e) {
+  const id = 'chg-' + String(pr.id).replace(/[^A-Za-z0-9_-]/g, '');
+  return `<div class="datetools">
+    <button type="button" class="quiet mini" data-dialog="${id}">${h(t('date.change'))}</button>
+    ${actionForm(target, 'nachricht', { rehearsal: pr.id },
+      `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+    ${actionForm(target, 'loesen', { rehearsal: pr.id },
+      `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
+    <dialog id="${id}" class="fixbox">
+      <form method="post" action="${h(target)}">
+        <input type="hidden" name="action" value="aendern">
+        <input type="hidden" name="rehearsal" value="${h(pr.id)}">
+        <p class="eyebrow">${t('date.change_title', { id: h(pr.id) })}</p>
+        <div class="row">
+          <div><label for="${id}-iso">${t('date.day')}</label>
+            <input type="date" id="${id}-iso" name="iso" value="${h(e.iso || '')}" required></div>
+          <div><label for="${id}-from">${t('my.from')}</label>
+            <input type="time" id="${id}-from" name="from" step="300" value="${h(e.von || '')}" required></div>
+          <div><label for="${id}-to">${t('my.to')}</label>
+            <input type="time" id="${id}-to" name="to" step="300" value="${h(e.bis || '')}" required></div>
+        </div>
+        <label for="${id}-place">${t('fix.place')}</label>
+        <input type="text" id="${id}-place" name="place" value="${h(e.ort || '')}" maxlength="120"
+               placeholder="${h(t('common.place_hint'))}">
+        <p class="small muted">${t('date.change_what')}</p>
+        <p><button type="submit">${h(t('date.change_go'))}</button>
+           <button type="button" class="quiet" data-close="${id}">${h(t('fix.cancel'))}</button></p>
+      </form>
+    </dialog></div>`;
+}
+
+/* The rehearsals that have taken place, newest first: the director or
+   the assistant notes afterwards how well each one sat. */
+function historySection(target, project) {
+  const list = [...(project.verlauf || [])].sort((a, b) => b.iso.localeCompare(a.iso));
+  if (!list.length) return '';
+  const rows = list.map(v => {
+    const d = new Date(v.iso + 'T00:00:00Z');
+    return `<tr>
+      <td>${h(L.weekday(d.getUTCDay(), 'short'))} ${h(L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }))}
+        <div class="small muted">${h(v.von || '')}${v.bis ? '\u2013' + h(v.bis) : ''}${v.ort ? ' \u00b7 ' + h(v.ort) : ''}</div></td>
+      <td><b>${h(v.probe_id)}</b> ${(v.gruppe || []).map(b => `<span class="chip">${h(b)}</span>`).join('')}</td>
+      <td>${actionForm(target, 'sitzt', { rehearsal: v.probe_id, iso: v.iso },
+        `<input type="number" name="sitzt" min="0" max="100" step="5" value="${v.sitzt ?? ''}" style="width:4.5rem"
+                aria-label="${h(t('hist.sits'))}"> %
+         <input type="text" name="notiz" value="${h(v.notiz || '')}" maxlength="200" placeholder="${h(t('hist.note'))}" style="width:12rem">
+         <button class="quiet mini" type="submit">${h(t('common.save'))}</button>`)}</td>
+      <td>${actionForm(target, 'verlauf-loeschen', { rehearsal: v.probe_id, iso: v.iso },
+        `<button class="quiet mini" type="submit" data-confirm="${h(t('hist.remove_confirm'))}">${h(t('hist.remove'))}</button>`)}</td>
+    </tr>`;
+  }).join('');
+  return `<h2 id="verlauf">${t('hist.title')} (${list.length})</h2>
+    <p class="small muted">${t('hist.what')}</p>
+    <table class="histtable"><tr><th>${t('date.col_date')}</th><th>${t('date.col_rehearsal')}</th>
+      <th>${t('hist.sits')}</th><th></th></tr>${rows}</table>`;
+}
+
 /* The message about a fixed rehearsal, as plain text for a chat:
    what, when, where, who, and the link to the rehearsal. */
 function rehearsalMessage(project, entry, link) {
@@ -246,6 +317,8 @@ function rehearsalMessage(project, entry, link) {
                     from: entry.von, to: entry.bis }),
     entry.ort ? t('share.line_place', { place: entry.ort }) : t('share.line_place_open'),
     t('share.line_with', { who }),
+    ...(pr && substitutesOf(project.skript, pr).length
+      ? [t('share.line_optional', { who: substitutesOf(project.skript, pr).map(o => nameOf(o.b)).join(', ') })] : []),
     t('share.line_link', { link }),
   ].join('\n');
 }
@@ -262,6 +335,8 @@ const shareBox = (share) => !share ? '' : `<div class="box share" id="sharebox">
 const datesScript = () => `<script>
 (function () {
   document.addEventListener('click', function (e) {
+    var q = e.target.closest('[data-confirm]');
+    if (q && !confirm(q.dataset.confirm)) { e.preventDefault(); return; }
     var b = e.target.closest('[data-dialog]');
     if (b) { var d = document.getElementById(b.dataset.dialog); if (!d) return;
       if (d.showModal) d.showModal(); else d.setAttribute('open', '');
@@ -967,6 +1042,8 @@ function passagesPage(p, d, m, opt = {}) {
     <h1>${t('text.title', { id: h(pr.id) })}</h1>
     ${notice(m)}
     <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
+    ${optionalLine(substitutesOf(p.skript, pr))}
+    ${historyLine(historyOf(p, pr))}
     ${opt.member && pr.gruppe.includes(opt.member.b) ? `<p><a class="btn" href="/theater/mit/heft?probe=${encodeURIComponent(pr.id)}">${h(t('text.learn_this'))}</a>
       <span class="small muted">${t('text.learn_this_what')}</span></p>` : ''}
     <p class="small muted">${t('text.figures', {
@@ -1648,7 +1725,8 @@ function myDatesPage(project, person, result, m, opt = {}) {
           h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.fixed')}</div>
-        ${placeField('/theater/mit/termine', pr.id, e.ort)}`;
+        ${placeField('/theater/mit/termine', pr.id, e.ort)}
+        ${opt.mayDirect ? directorTools('/theater/mit/termine', pr, e) : ''}`;
     } else if (pr.proposal) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
@@ -1662,8 +1740,9 @@ function myDatesPage(project, person, result, m, opt = {}) {
     }
     return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
       <td><a href="/theater/mit/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
-        <div class="small muted">${t('common.minutes', { n: Math.round(pr.minutes) })}</div></td>
-      <td>${showAll ? who : t('mdate.with', { who })}</td>
+        <div class="small muted">${t('common.minutes', { n: Math.round(pr.minutes) })}</div>
+        ${historyLine(pr.history)}</td>
+      <td>${showAll ? who : t('mdate.with', { who })}${optionalLine(pr.optional, pr.fixed ? [] : pr.proposal?.optional)}</td>
       <td>${date}${button}</td></tr>`;
   };
 
@@ -1692,6 +1771,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
       ${unresolved.length
         ? `<table>${header}${unresolved.map(row).join('')}</table>`
         : `<p class="small muted">${t('mdate.all_arranged')}</p>`}`}
+    ${opt.mayDirect ? historySection('/theater/mit/termine', project) : ''}
     ${datesScript()}` });
 }
 
@@ -1714,9 +1794,7 @@ function datesPage(p, result, m, share = null) {
         <span class="small muted"><br>${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.fixed')}</span>
         ${placeField('/theater/termine', pr.id, e.ort)}`;
-      button = actionForm('/theater/termine', 'loesen', { rehearsal: pr.id },
-        '<button class="quiet small" style="margin:.4rem 0 0; padding:.25rem .7rem">' +
-        h(t('date.release')) + '</button>');
+      button = directorTools('/theater/termine', pr, e);
     } else if (pr.proposal) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <span class="small muted"><br>${t('date.clock', { from: h(pr.proposal.from),
@@ -1735,9 +1813,10 @@ function datesPage(p, result, m, share = null) {
           h(L.date(x.date, { day: '2-digit', month: '2-digit' }))}</span>`).join('')}</div>` : '';
 
     return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
-      <td>${h(pr.id)}</td>
+      <td>${h(pr.id)}${historyLine(pr.history)}</td>
       <td>${who}<div class="small muted">${t('date.scenes_min', {
-          scenes: (pr.scenes || []).length, min: Math.round(pr.minutes) })}</div></td>
+          scenes: (pr.scenes || []).length, min: Math.round(pr.minutes) })}</div>${
+          optionalLine(pr.optional, pr.fixed ? [] : pr.proposal?.optional)}</td>
       <td title="${h(t('date.possible_n', { n: pr.possible.length }))}">${date}${reason}${alternatives}</td>
       <td>${button}</td>
     </tr>`;
@@ -1758,6 +1837,7 @@ function datesPage(p, result, m, share = null) {
          <th>${t('date.col_date')}</th><th></th></tr>
          ${rows}</table>`
       : `<p>${t('date.no_plan')}</p>`}
+    ${historySection('/theater/termine', p)}
     ${datesScript()}` });
 }
 
@@ -1812,6 +1892,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         data-koennen="${h((l.canCome || []).join(','))}"
         data-fenster="${h(JSON.stringify(l.windows || {}))}"
         data-gruppe="${h((l.best?.group || []).join(','))}"
+        data-passt="${h(JSON.stringify(l.suits || []))}"
         data-missing="${h((l.best?.missing || []).join(','))}"
         data-rehearsal="${h(l.best?.rehearsal || '')}"
         data-da="${l.best?.here ?? 0}" data-gesamt="${l.best?.total ?? 0}"
@@ -1962,7 +2043,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 absent: ${js('my.still_missing')},
                 nurSie: ${js('my.only_you')},
                 keine: ${js('my.no_rehearsal')},
-                zeit: ${js('my.free_then')},
+                zeit: ${js('my.free_then')}, also: ${js('my.also_suits')},
                 bars_me: ${js('my.bars_me')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
                 ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
@@ -2040,6 +2121,12 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 W.von_n.replace('#DA#', da).replace('#GESAMT#', gesamt) +
                 (td.dataset.missing ? W.absent + liste(td.dataset.missing) : W.nurSie)
               : W.keine) +
+            (function () {
+              var passt = []; try { passt = JSON.parse(td.dataset.passt || '[]'); } catch (x) {}
+              passt = passt.filter(function (x) { return x.rehearsal !== td.dataset.rehearsal; });
+              return passt.length ? '<br>' + W.also + passt.map(function (x) {
+                return '<b>' + x.rehearsal + '</b> ' + x.here + '/' + x.total; }).join(' \u00b7 ') : '';
+            })() +
             '<br>' + W.zeit + liste(td.dataset.koennen) +
           '</div>' +
           '<div id="tafel-balken" class="balken small"></div>' +

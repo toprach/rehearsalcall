@@ -168,6 +168,53 @@ function findGap(group, window_, length, bookings, stages) {
 
 const clock = m => `${twoDigits(Math.floor(m / 60))}:${twoDigits(m % 60)}`;
 
+/* Who else speaks inside a rehearsal's scenes without being in its
+   group? The plan lets the director read small parts ("the director
+   reads x %"); these are the people read for - welcome when they can
+   make it, not needed for the date. */
+export function substitutesOf(structure, rehearsal) {
+  const ranges = (rehearsal?.szenen || rehearsal?.scenes || [])
+    .filter(z => z.nr_von != null && z.nr_bis != null).map(z => [Number(z.nr_von), Number(z.nr_bis)]);
+  if (!ranges.length || !structure) return [];
+  const group = new Set(rehearsal.gruppe || rehearsal.group || []);
+  const count = new Map();
+  const take = (e) => {
+    if (!e || e.typ !== 'replik' || e.nr == null || !e.ensemble || group.has(e.ensemble)) return;
+    if (!ranges.some(([a, b]) => e.nr >= a && e.nr <= b)) return;
+    const c = count.get(e.ensemble) || { b: e.ensemble, speeches: 0, words: 0 };
+    c.speeches++;
+    c.words += String(e.text || '').split(/\s+/).filter(Boolean).length;
+    count.set(e.ensemble, c);
+  };
+  for (const s of structure.sequenz || []) {
+    if (s.typ === 'tabelle')
+      for (const z of s.zeilen || []) [...(z.hinter_der_buehne || []), ...(z.auf_der_buehne || [])].forEach(take);
+    else take(s);
+  }
+  return [...count.values()].sort((a, b) => b.speeches - a.speeches || b.words - a.words);
+}
+
+/* A rehearsal is rehearsed more than once. A fixed date that lies in
+   the past moves into the history (project.verlauf), where the director
+   notes afterwards how well it sits; the rehearsal is then open for the
+   next date. Returns whether anything moved. */
+export function archivePast(project, today = isoDate(new Date())) {
+  const past = (project.termine || []).filter(t => t.bestaetigt && t.iso && t.iso < today);
+  if (!past.length) return false;
+  project.verlauf = project.verlauf || [];
+  for (const t of past) {
+    if (project.verlauf.some(v => v.probe_id === t.probe_id && v.iso === t.iso)) continue;
+    project.verlauf.push({ probe_id: t.probe_id, iso: t.iso, von: t.von || '', bis: t.bis || '',
+      ort: t.ort || '', gruppe: t.gruppe || [], sitzt: null, notiz: '' });
+  }
+  project.termine = project.termine.filter(t => !past.includes(t));
+  return true;
+}
+const sameGroup = (a, b) => !a || !a.length || [...a].sort().join('+') === [...(b || [])].sort().join('+');
+export const historyOf = (project, rehearsal) => (project.verlauf || [])
+  .filter(v => v.probe_id === rehearsal.id && sameGroup(v.gruppe, rehearsal.gruppe || rehearsal.group))
+  .sort((a, b) => a.iso.localeCompare(b.iso));
+
 /* ---------------------------------------------------------------------
    The main function: collect the possible evenings for every rehearsal,
    then hand out a proposal.
@@ -206,6 +253,11 @@ export function proposeDates(project) {
       return !person || (!person.regie && !entered.has(person.id));
     });
     const needs = rehearsalLength(playing);
+    // read for by the director: asked along when they can, never waited for
+    const optional = substitutesOf(project.skript, pr)
+      .filter(o => personByShort.has(o.b) && !needed.includes(o.b));
+    const history = historyOf(project, pr);
+    const rated = history.filter(v => v.sitzt != null);
     const possible = [];
     const missingCount = new Map();
     let longest = 0, tooShort = 0;
@@ -218,11 +270,24 @@ export function proposeDates(project) {
       const span = r.to - r.from;
       if (span > longest) longest = span;
       if (span < needs) { tooShort++; continue; }
-      possible.push({ date: d, from: r.from, to: r.to });
+      /* The time goes where the most people overlap: the window of the
+         needed ones, narrowed to those of the optional people who can
+         as long as the rehearsal still fits. */
+      let from = r.from, to = r.to;
+      const also = [];
+      for (const o of optional) {
+        const w = windowOfPerson(personByShort.get(o.b), project.verfuegbar || {}, d);
+        if (!w) continue;
+        const f = Math.max(from, w.from), t2 = Math.min(to, w.to);
+        if (t2 - f >= needs) { from = f; to = t2; also.push(o.b); }
+      }
+      possible.push({ date: d, from: r.from, to: r.to, pref: { from, to }, also });
     }
     return {
       id: pr.id, group: pr.gruppe, needed, minutes: playing, needs,
       scenes: pr.szenen || [],
+      optional, history, held: history.length,
+      lastRating: rated.length ? rated[rated.length - 1].sitzt : null,
       withoutEntry,
       possible,
       scarcity: possible.length,
@@ -245,8 +310,9 @@ export function proposeDates(project) {
   /* Fixed dates are settled. They are not recomputed, but they do book
      their people - so the rest gives way to them. */
   const fixed = new Map();
+  const today = isoDate(new Date());
   for (const t of project.termine || []) {
-    if (!t.bestaetigt || !t.iso) continue;
+    if (!t.bestaetigt || !t.iso || t.iso < today) continue;   // the past is history
     fixed.set(t.probe_id, t);
     const pr = rehearsals.find(x => x.id === t.probe_id);
     const group = pr ? pr.needed : needing(t.gruppe || []);
@@ -263,16 +329,25 @@ export function proposeDates(project) {
                     from: t.von || '', to: t.bis || '' };
   }
 
+  /* What has never been rehearsed comes before a repeat; among the
+     repeats what sits worst comes first. */
   const order = [...rehearsals].filter(x => !x.fixed).sort((a, b) =>
+    ((a.held ? 1 : 0) - (b.held ? 1 : 0)) ||
+    ((a.lastRating ?? -1) - (b.lastRating ?? -1)) ||
     (a.scarcity - b.scarcity) || (b.minutes - a.minutes));
   for (const pr of order) {
     for (const m of pr.possible) {
       const iso = isoDate(m.date);
-      const gap = findGap(pr.needed, m, pr.needs, booked.get(iso) || [], stages);
+      const taken = booked.get(iso) || [];
+      // first where the optional people can as well, else anywhere that evening
+      let gap = m.also.length ? findGap(pr.needed, m.pref, pr.needs, taken, stages) : null;
+      const withOptional = !!gap;
+      if (!gap) gap = findGap(pr.needed, m, pr.needs, taken, stages);
       if (!gap) continue;
       pr.proposal = {
         date: m.date, iso, weekday: m.date.getDay(),
         from: clock(gap.from), to: clock(gap.to),
+        optional: withOptional ? m.also : [],
       };
       book(iso, pr.needed, gap.from, gap.to);
       break;
@@ -281,7 +356,7 @@ export function proposeDates(project) {
       .filter(m => !pr.proposal || isoDate(m.date) !== pr.proposal.iso)
       .slice(0, 4)
       .map(m => ({ date: m.date, weekday: m.date.getDay(),
-                   from: clock(m.from), to: clock(m.from + pr.needs) }));
+                   from: clock(m.pref.from), to: clock(m.pref.from + pr.needs) }));
   }
 
   rehearsals.sort((a, b) => {
@@ -349,17 +424,22 @@ export function dayStates(project, person, days) {
       .map(x => x.b);
 
     let level = 0, best = null;
+    const list = [];
     for (const pr of mine) {
       const others = pr.gruppe.filter(b => b !== person.b && !directors.includes(b));
       const here = others.filter(b => canOn(b, d));
       const share = others.length ? here.length / others.length : 1;
       const st = share >= 1 ? 3 : (share >= 0.5 ? 2 : (here.length ? 1 : 0));
-      if (st > level || (st === level && best && others.length > best.total)) {
-        level = st;
-        best = { rehearsal: pr.id, here: here.length, total: others.length,
-                 group: others, missing: others.filter(b => !canOn(b, d)) };
-      }
+      list.push({ rehearsal: pr.id, here: here.length, total: others.length, st, share,
+                  group: others, missing: others.filter(b => !canOn(b, d)) });
     }
+    /* Which of my rehearsals does the day suit? The most complete one
+       first; among complete ones the larger (harder to gather), among
+       incomplete ones the one with the fewest people missing. */
+    list.sort((a, b) => (b.share - a.share) ||
+      (a.share >= 1 ? b.total - a.total : a.missing.length - b.missing.length));
+    const worth = list.filter(x => x.here > 0 || x.total === 0);
+    if (worth.length) { best = worth[0]; level = best.st; }
     // When each of them can: minutes from midnight, for the bars in the
     // day panel. The directors are there anyway and get no bar.
     const windows = {};
@@ -369,6 +449,7 @@ export function dayStates(project, person, days) {
     }
     states[t.iso] = {
       level, best, canCome, windows,
+      suits: worth.slice(0, 4).map(x => ({ rehearsal: x.rehearsal, here: x.here, total: x.total })),
       // Fixed dates of MY rehearsals (the director's: all of them).
       fixed: [...fixed.values()].filter(x => x.iso === t.iso &&
           (isDirector || (x.gruppe || []).includes(person.b) ||

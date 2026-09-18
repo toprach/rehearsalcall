@@ -18,7 +18,7 @@ import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
-import { proposeDates, calendarDays, dayStates, directorsOf } from './dates.mjs';
+import { proposeDates, calendarDays, dayStates, directorsOf, archivePast } from './dates.mjs';
 import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -267,6 +267,66 @@ async function drainBody(request) {
 
 const time = s => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(s || '')) ? s : null;
 const date = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
+
+/* What can be done to the date of a rehearsal - the same from the
+   director's page and from a member's. Fixing and releasing is open to
+   everybody in the rehearsal; changing it, sending the message again,
+   rating a date that is over and removing it from the history takes the
+   director or the assistant. pr may be missing for the history actions:
+   a plan derived anew has other rehearsals than the history speaks of. */
+function dateAction(A, project, pr, fields, opt) {
+  const id = String(fields.rehearsal || '');
+  const action = String(fields.action || '');
+  const current = (project.termine || []).find(t => t.probe_id === id);
+  const message = (entry) => ({ text: A.rehearsalMessage(project, entry, rehearsalLink(project, id, opt.base)) });
+  const placeOf = () => String(fields.place || '').trim().slice(0, 120);
+  const bad = (key) => ({ m: { kind: 'error', key }, share: null });
+  const good = (key) => ({ kind: 'good', key, values: { p1: h(id) } });
+
+  if (action === 'sitzt' || action === 'verlauf-loeschen') {
+    if (!opt.mayDirect) return bad('r.not_yours');
+    const at = (project.verlauf || []).findIndex(v => v.probe_id === id && v.iso === String(fields.iso || ''));
+    if (at < 0) return bad('r.no_date2');
+    if (action === 'verlauf-loeschen') { project.verlauf.splice(at, 1); return { m: good('r.history_removed'), share: null }; }
+    const raw = String(fields.sitzt ?? '').trim();
+    if (raw !== '' && !Number.isFinite(Number(raw))) return bad('r.date_invalid');
+    const v = project.verlauf[at];
+    v.sitzt = raw === '' ? null : Math.max(0, Math.min(100, Math.round(Number(raw))));
+    v.notiz = String(fields.notiz || '').trim().slice(0, 200);
+    v.erfasst = new Date().toISOString();
+    if (opt.by) v.erfasst_von = opt.by;
+    return { m: good('r.rated'), share: null };
+  }
+  if (!pr) return bad('msg.rehearsal_gone');
+
+  if (action === 'halten' && date(fields.iso)) {
+    project.termine = (project.termine || []).filter(t => t.probe_id !== id);
+    const entry = {
+      probe_id: id, iso: fields.iso,
+      von: time(fields.from) || '', bis: time(fields.to) || '',
+      gruppe: pr.gruppe, bestaetigt: true,
+      ort: placeOf() || current?.ort || project.einstellungen?.ort || '',
+      gehalten: new Date().toISOString(), ...(opt.by ? { von_wem: opt.by } : {}),
+    };
+    project.termine.push(entry);
+    return { m: good(opt.director ? 'r.fixed' : 'r.now_fixed'), share: message(entry) };
+  }
+  if (action === 'loesen') {
+    project.termine = (project.termine || []).filter(t => t.probe_id !== id);
+    return { m: good(opt.director ? 'r.released2' : 'r.released'), share: null };
+  }
+  if (action === 'aendern' || action === 'nachricht') {
+    if (!opt.mayDirect) return bad('r.not_yours');
+    if (!current) return bad('r.no_date2');
+    if (action === 'nachricht') return { m: null, share: message(current) };
+    const from = time(fields.from), to = time(fields.to);
+    if (!date(fields.iso) || !from || !to || to <= from) return bad('r.date_invalid');
+    current.iso = fields.iso; current.von = from; current.bis = to; current.ort = placeOf();
+    current.geaendert = new Date().toISOString();
+    return { m: good('r.date_changed'), share: message(current) };
+  }
+  return { m: null, share: null };
+}
 
 /* Eine fertig gesetzte Datei zum Herunterladen schicken. */
 function sendFile(response, text, name) {
@@ -894,6 +954,7 @@ export async function handle(request, response, path) {
     if (!who) { await drainBody(request); return html(response,
       A.errorPage('f.not_signed_in_t', 'f.not_signed_in'), 401); }
     const { project, person } = who;
+    if (archivePast(project)) await S.write(project);
     projectLanguage(project);
     demoBanner(project);
 
@@ -1052,12 +1113,14 @@ export async function handle(request, response, path) {
     if (second === 'termine') {
       const query = new URLSearchParams((request.url || '').split('?')[1] || '');
       const view = { all: query.get('alle') === '1' };
-      if (!post) return html(response, A.myDatesPage(project, person, proposeDates(project), null, view));
+      if (!post) return html(response, A.myDatesPage(project, person, proposeDates(project), null,
+        { ...view, mayDirect: ctx.regieProject === project.id || ctx.directorProject === project.id }));
       const { fields } = await readForm(request);
       const rehearsal = String(fields.rehearsal || '');
       const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
       const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
-      const allowed = mine && (mine.gruppe.includes(person.b) || mayDirect);
+      const historyAction = ['sitzt', 'verlauf-loeschen'].includes(String(fields.action || ''));
+      const allowed = (mine && (mine.gruppe.includes(person.b) || mayDirect)) || (historyAction && mayDirect);
       if (!allowed)
         return html(response, A.myDatesPage(project, person, proposeDates(project), {
           kind: 'error', key: 'r.not_yours' }, view));
@@ -1075,25 +1138,11 @@ export async function handle(request, response, path) {
         return html(response, A.myDatesPage(project, person, proposeDates(project), m));
       }
 
-      project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
-      let share = null;
-      if (fields.action === 'halten' && date(fields.iso)) {
-        const entry = {
-          probe_id: rehearsal, iso: fields.iso,
-          von: time(fields.from) || '', bis: time(fields.to) || '',
-          gruppe: mine.gruppe, bestaetigt: true,
-          ort: String(fields.place || '').trim().slice(0, 120) || old?.ort || project.einstellungen?.ort || '',
-          gehalten: new Date().toISOString(), von_wem: person.b,
-        };
-        project.termine.push(entry);
-        m = { kind: 'good', key: 'r.now_fixed', values: { p1: h(rehearsal) } };
-        share = { text: A.rehearsalMessage(project, entry, rehearsalLink(project, rehearsal, baseOf(request))) };
-      } else if (fields.action === 'loesen') {
-        m = { kind: 'good', key: 'r.released', values: { p1: h(rehearsal) } };
-      }
+      const done = dateAction(A, project, mine, fields, { by: person.b, mayDirect, base: baseOf(request), director: false });
+      m = done.m;
       await S.write(project);
       Reminders.refresh(project);
-      return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, share }));
+      return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, share: done.share, mayDirect }));
     }
 
     /* The part book for the screen: passage by passage, with the
@@ -1870,6 +1919,7 @@ export async function handle(request, response, path) {
   }
 
   if (first === 'termine') {
+    if (archivePast(project)) await S.write(project);
     if (!post) return html(response, A.datesPage(project, proposeDates(project), null));
     const { fields } = await readForm(request);
     const rehearsal = String(fields.rehearsal || '');
@@ -1888,31 +1938,12 @@ export async function handle(request, response, path) {
 
     /* Only a rehearsal the plan knows can be fixed - the identifier comes
        from a form and would otherwise go into the notice as it is. */
-    const pr = (project.plan?.proben || []).find(x => x.id === rehearsal);
-    if (!pr) {
-      await drainBody(request);
-      return html(response, A.datesPage(project, proposeDates(project),
-        { kind: 'error', key: 'msg.rehearsal_gone' }));
-    }
-    project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
-    let share = null;
-    if (fields.action === 'halten' && date(fields.iso)) {
-      const entry = {
-        probe_id: rehearsal, iso: fields.iso,
-        von: time(fields.from) || '', bis: time(fields.to) || '',
-        gruppe: pr.gruppe, bestaetigt: true,
-        ort: String(fields.place || '').trim().slice(0, 120) || before?.ort || project.einstellungen?.ort || '',
-        gehalten: new Date().toISOString(),
-      };
-      project.termine.push(entry);
-      m = { kind: 'good', key: 'r.fixed', values: { p1: h(rehearsal) } };
-      share = { text: A.rehearsalMessage(project, entry, rehearsalLink(project, rehearsal, baseOf(request))) };
-    } else if (fields.action === 'loesen') {
-      m = { kind: 'good', key: 'r.released2', values: { p1: h(rehearsal) } };
-    }
+    const pr = (project.plan?.proben || []).find(x => x.id === rehearsal) || null;
+    const done = dateAction(A, project, pr, fields, { mayDirect: true, base: baseOf(request), director: true });
+    m = done.m;
     await S.write(project);
     Reminders.refresh(project);
-    return html(response, A.datesPage(project, proposeDates(project), m, share));
+    return html(response, A.datesPage(project, proposeDates(project), m, done.share));
   }
 
   return html(response, A.errorPage('f.not_found3_t', 'f.not_found3'), 404);

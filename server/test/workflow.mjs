@@ -714,6 +714,22 @@ for (const b of cast) {
     check('and its date is still fixed', new RegExp('name="rehearsal" value="' + val('rehearsal') + '"[\\s\\S]{0,400}?value="loesen"').test(d.text) && /value="Stage"/.test(d.text));
     d = await post('/theater/termine', { action: 'place', rehearsal: val('rehearsal'), place: 'Rehearsal room' });
     check('enter the place as the director', good(d) && /Rehearsal room/.test(d.text), say(d));
+    d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '18:30', to: '20:00', place: 'Attic' });
+    check('the director changes time and place of a fixed date', good(d) && /18:30/.test(d.text) && /id="sharebox"/.test(d.text), say(d));
+    d = await post('/theater/termine', { action: 'nachricht', rehearsal: val('rehearsal') });
+    check('and gets the message again later', /id="sharebox"/.test(d.text) && /Attic/.test((/<pre class="sharetext"[^>]*>([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || ''));
+    d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '21:00', to: '20:00', place: 'Attic' });
+    check('an end before the start is refused', !good(d), say(d));
+    // a date that is over moves into the history, where it is rated
+    await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: '2020-01-06', from: '19:00', to: '20:00', place: 'Attic' });
+    d = await call('GET', '/theater/termine');
+    check('a date that is over moves into the history', /id="verlauf"/.test(d.text) && /06\.01\.2020|01\/06\/2020|2020/.test(d.text));
+    clean('dates page with history', d);
+    d = await post('/theater/termine', { action: 'sitzt', rehearsal: val('rehearsal'), iso: '2020-01-06', sitzt: '60', notiz: 'second half <shaky>' });
+    check('the director notes how well it sat', good(d) && /name="sitzt"[^>]*value="60"/.test(d.text) && /second half &lt;shaky&gt;/.test(d.text), say(d));
+    check('the rehearsal is open again and shows what has been', /class="small muted hist"/.test(d.text) && /60(&nbsp;|\u00a0| )%/.test(d.text));
+    d = await post('/theater/termine', { action: 'verlauf-loeschen', rehearsal: val('rehearsal'), iso: '2020-01-06' });
+    check('a history entry can be removed', good(d) && !/id="verlauf"/.test(d.text), say(d));
     d = await post('/theater/termine', { action: 'loesen', rehearsal: val('rehearsal') });
     check('release it again', good(d), say(d));
   } else check('a date to fix as the director', false);
