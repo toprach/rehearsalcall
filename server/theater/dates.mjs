@@ -357,11 +357,18 @@ export function dayStates(project, person, days) {
       if (st > level || (st === level && best && others.length > best.total)) {
         level = st;
         best = { rehearsal: pr.id, here: here.length, total: others.length,
-                 missing: others.filter(b => !canOn(b, d)) };
+                 group: others, missing: others.filter(b => !canOn(b, d)) };
       }
     }
+    // When each of them can: minutes from midnight, for the bars in the
+    // day panel. The directors are there anyway and get no bar.
+    const windows = {};
+    for (const b of canCome) {
+      const w = windowOfPerson(personByShort.get(b), project.verfuegbar, d);
+      if (w) windows[b] = [w.from, w.to];
+    }
     states[t.iso] = {
-      level, best, canCome,
+      level, best, canCome, windows,
       // Fixed dates of MY rehearsals (the director's: all of them).
       fixed: [...fixed.values()].filter(x => x.iso === t.iso &&
           (isDirector || (x.gruppe || []).includes(person.b) ||

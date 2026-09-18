@@ -213,6 +213,21 @@ export const STYLE = `
   table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
+  /* the day panel: when the others can, one bar per person */
+  .balken { margin:.4rem 0 .7rem }
+  .balken .zeile { display:flex; align-items:center; gap:.4rem; margin:.15rem 0 }
+  .balken .wer { flex:0 0 34%; max-width:9.5rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted) }
+  .balken .wer.noetig { color:var(--ink); font-weight:600 }
+  .balken .wer.selbst { color:var(--accent); font-weight:600 }
+  .balken .spur { position:relative; flex:1; height:.8rem; background:var(--rule); border-radius:.4rem; overflow:hidden }
+  .balken .spur b { position:absolute; top:0; bottom:0; background:#c9b26a; border-radius:.4rem }
+  .balken .spur b.noetig { background:#2f8a4f }
+  .balken .spur b.selbst { background:var(--accent) }
+  .balken .spur em.ich { position:absolute; top:0; bottom:0; background:rgba(179,39,45,.16) }
+  .balken .wann { flex:0 0 5.6rem; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:.8em }
+  .balken .achse .spur { background:transparent; height:1rem; overflow:visible }
+  .balken .achse i { position:absolute; top:0; transform:translateX(-50%); font-style:normal; font-size:.7em; color:var(--muted) }
+  .balken .gemeinsam { margin-top:.3rem; font-weight:600 }
   /* a button at work: spinner in front of its label, no second press */
   .spin { display:inline-block; width:.9em; height:.9em; border:2px solid currentColor; border-right-color:transparent;
     border-radius:50%; margin-right:.45em; vertical-align:-.1em; animation:spin .8s linear infinite }

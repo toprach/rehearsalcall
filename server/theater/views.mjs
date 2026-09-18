@@ -1810,6 +1810,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                           : t('my.nobody'));
     return `<td class="${classes.join(' ')}" data-iso="${tg.iso}"
         data-koennen="${h((l.canCome || []).join(','))}"
+        data-fenster="${h(JSON.stringify(l.windows || {}))}"
+        data-gruppe="${h((l.best?.group || []).join(','))}"
         data-missing="${h((l.best?.missing || []).join(','))}"
         data-rehearsal="${h(l.best?.rehearsal || '')}"
         data-da="${l.best?.here ?? 0}" data-gesamt="${l.best?.total ?? 0}"
@@ -1961,6 +1963,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 nurSie: ${js('my.only_you')},
                 keine: ${js('my.no_rehearsal')},
                 zeit: ${js('my.free_then')},
+                bars_me: ${js('my.bars_me')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
                 ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
                 falsch: ${js('my.time_wrong')},
@@ -2039,6 +2042,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
               : W.keine) +
             '<br>' + W.zeit + liste(td.dataset.koennen) +
           '</div>' +
+          '<div id="tafel-balken" class="balken small"></div>' +
           '<div class="row">' +
             '<div><label for="tv">' + W.von + '</label>' +
               '<input type="time" id="tv" step="900" value="' +
@@ -2054,6 +2058,50 @@ function myTimesPage(project, person, m, days, states, ics = '') {
              (blocked ? W.unblock : W.block) + '</button>' : '');
 
         document.dispatchEvent(new CustomEvent('tag-geoeffnet', { detail: iso }));
+
+        /* When the others can: one bar per person on a common time axis,
+           my own window across all of them, and what is common to the
+           people of the rehearsal and me on top. Redrawn as I change my
+           times. */
+        (function () {
+          var box = document.getElementById('tafel-balken');
+          var fenster = {}; try { fenster = JSON.parse(td.dataset.fenster || '{}'); } catch (x) {}
+          var gruppe = (td.dataset.gruppe || '').split(',').filter(Boolean);
+          var mins = function (hm) { return hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null; };
+          var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+          var people = Object.keys(fenster).filter(function (b) { return b !== ${JSON.stringify(person.b)}; });
+          people.sort(function (a, b) { return (gruppe.indexOf(b) >= 0) - (gruppe.indexOf(a) >= 0) || fenster[a][0] - fenster[b][0]; });
+          if (!people.length) { box.hidden = true; return; }
+          var draw = function () {
+            var a = mins(document.getElementById('tv').value), b = mins(document.getElementById('tb').value);
+            var mine = a != null && b != null && b > a ? [a, b] : null;
+            var lo = 24 * 60, hi = 0;
+            people.forEach(function (p) { lo = Math.min(lo, fenster[p][0]); hi = Math.max(hi, fenster[p][1]); });
+            if (mine) { lo = Math.min(lo, mine[0]); hi = Math.max(hi, mine[1]); }
+            lo = Math.floor(lo / 60) * 60; hi = Math.ceil(hi / 60) * 60; if (hi - lo < 120) hi = lo + 120;
+            var pos = function (m) { return ((m - lo) / (hi - lo) * 100).toFixed(2) + '%'; };
+            var wid = function (x, y) { return ((y - x) / (hi - lo) * 100).toFixed(2) + '%'; };
+            // common to the needed people who can, and me
+            var cFrom = mine ? mine[0] : lo, cTo = mine ? mine[1] : hi, needed = people.filter(function (p) { return gruppe.indexOf(p) >= 0; });
+            needed.forEach(function (p) { cFrom = Math.max(cFrom, fenster[p][0]); cTo = Math.min(cTo, fenster[p][1]); });
+            var ticks = ''; for (var h = lo; h <= hi; h += 60) ticks += '<i style="left:' + pos(h) + '">' + (h / 60) + '</i>';
+            var row = function (label, w, cls) {
+              return '<div class="zeile"><span class="wer' + (cls ? ' ' + cls : '') + '">' + label + '</span><span class="spur">' +
+                (mine ? '<em class="ich" style="left:' + pos(mine[0]) + ';width:' + wid(mine[0], mine[1]) + '"></em>' : '') +
+                (w ? '<b class="' + (cls || '') + '" style="left:' + pos(w[0]) + ';width:' + wid(w[0], w[1]) + '" title="' + hm(w[0]) + '\u2013' + hm(w[1] === 1440 ? 1439 : w[1]) + '"></b>' : '') +
+                '</span><span class="wann">' + (w ? hm(w[0]) + '\u2013' + (w[1] >= 1440 ? '24:00' : hm(w[1])) : '') + '</span></div>';
+            };
+            var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+            box.innerHTML = '<div class="zeile achse"><span class="wer"></span><span class="spur">' + ticks + '</span><span class="wann"></span></div>' +
+              people.map(function (p) { return row(esc(names[p] || p), fenster[p], gruppe.indexOf(p) >= 0 ? 'noetig' : ''); }).join('') +
+              (mine ? row(esc(W.bars_me), mine, 'selbst') : '') +
+              (needed.length ? '<div class="gemeinsam">' + (cTo - cFrom >= 30
+                ? esc(W.bars_common.replace('{von}', hm(cFrom)).replace('{bis}', cTo >= 1440 ? '24:00' : hm(cTo)))
+                : esc(W.bars_none)) + '</div>' : '');
+          };
+          draw();
+          ['tv', 'tb'].forEach(function (id) { document.getElementById(id).addEventListener('input', draw); });
+        })();
 
         if (regie && gI) document.getElementById('sperrt').onclick = function () {
           gI.value = blocked ? '' : '1';
