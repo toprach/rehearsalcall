@@ -514,6 +514,7 @@ export async function handle(request, response, path) {
   const regie = await regieFrom(request, null);
   const fontCookie = plainCookie(request, 'schrift');
   const ctx = { directorProject: projectIdFromCookie(request), regieProject: regie?.project.id || null,
+                member: !!sealedCookie(request, MEMBER),
                 theme: plainCookie(request, 'thema') === 'dunkel' ? 'dunkel' : 'hell',
                 font: ['klein', 'normal', 'gross', 'sehrgross'].includes(fontCookie) ? fontCookie : 'normal' };
   /* A demo project says so on every page, with the hour of the next reset. */

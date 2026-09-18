@@ -243,6 +243,9 @@ export const en = {
   'navm.tab_dates': 'Dates',
   'navm.tab_book':  'Part',
   'navm.tab_notes': 'Notes',
+  'navm.tab_direct': 'Director',
+  'set.more':        'More',
+  'set.start':       'Start page',
 
   /* ---------- casting ---------- */
   'cast.step':      'Step 2',

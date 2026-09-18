@@ -240,6 +240,9 @@ export const de = {
   'navm.tab_dates': 'Termine',
   'navm.tab_book':  'Rolle',
   'navm.tab_notes': 'Notizen',
+  'navm.tab_direct': 'Regie',
+  'set.more':        'Mehr',
+  'set.start':       'Startseite',
 
   /* ---------- casting ---------- */
   'cast.step':      'Schritt 2',

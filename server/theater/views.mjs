@@ -67,6 +67,7 @@ const ICONS = {
   book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
   note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  clapper: '<path d="M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 10l1.2-4.6 14.6 2L19 10M8.6 5.9l1.9 4.1M13.6 6.6l1.9 3.4"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -74,11 +75,15 @@ const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 
 function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
   const name = t('app.name');
-  /* The name in the head leads home - and home is where the visitor
-     is: a member's start page, the director's overview, else the
-     entry. The navigation says which. */
-  const home = /href="\/theater\/mit\/zeiten"/.test(nav) ? '/theater/mit'
-             : /href="\/theater\/leute"/.test(nav) ? '/theater/projekt' : '/theater';
+  /* One navigation for everybody who is signed in, on a desk as on a
+     phone: the bar at the bottom. A member's pages bring theirs; the
+     director's pages bring the links of the director's area (nav), which
+     go above the content, and get the bar here. The head keeps the name
+     and the share button. Pages for visitors have no bar - they keep
+     language and light/dark in the head. */
+  const directing = /class="subnav"/.test(nav);
+  if (!tabbar && directing) tabbar = directorTabbar();
+  const home = tabbar && !directing ? '/theater/mit' : directing ? '/theater/projekt' : '/theater';
   return `<!doctype html><html lang="${L.code}"${ctx.theme === 'dunkel' ? ' data-theme="dark"' : ''}${
     ctx.font && ctx.font !== 'normal' ? ` data-font="${h(ctx.font)}"` : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -88,9 +93,9 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="${h(ctx.app ? ctx.app.short : t('pwa.short'))}">
 <link rel="apple-touch-icon" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/icon-192.png` : '/theater/icon-192.png'}">
-<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body>
+<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body${tabbar ? ' class="hasbar"' : ''}>
 <header class="head${tabbar ? ' member' : ''}"><div class="inner">
-  <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${nav}${L.picker(pfad)}
+  <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${tabbar ? '' : `${L.picker(pfad)}
   <form method="post" action="/theater/thema" class="themepick">
     <input type="hidden" name="back" value="${h(pfad)}">
     <input type="hidden" name="thema" value="${ctx.theme === 'dunkel' ? 'hell' : 'dunkel'}">
@@ -98,7 +103,7 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
             aria-label="${h(t(ctx.theme === 'dunkel' ? 'nav.light' : 'nav.dark'))}">${ctx.theme === 'dunkel' ? '\u2600' : '\u263d'}</button>
   </form>
   <a class="settings" href="/theater/einstellungen?z=${encodeURIComponent(pfad)}" title="${h(t('nav.settings'))}"
-     aria-label="${h(t('nav.settings'))}">\u2699</a>
+     aria-label="${h(t('nav.settings'))}">\u2699</a>`}
   ${ctx.share ? `<button type="button" class="share" data-url="${h(ctx.share)}" data-title="${h(t('book.title'))}"
      data-copied="${h(t('nav.copied'))}" title="${h(t('nav.share'))}" aria-label="${h(t('nav.share'))}">${icon('share')}</button>` : ''}
 </div></header>
@@ -119,7 +124,7 @@ ${ctx.share ? `<script>
 <\/script>` : ''}
 <div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${tabbar ? installBanner() : ''}${ctx.demo
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
-      { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${body}</div>
+      { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${directing ? nav : ''}${body}</div>
 ${tabbar}
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
@@ -451,7 +456,7 @@ const entryPage = (m, demos = []) => page({
 const navDirector = (p) => {
   const a = (href, key) => `<a href="${href}"${pfad === href || pfad.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
   const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
-  return `<nav>
+  return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
   ${grp(a('/theater/skript', 'nav.script'), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
   ${grp(a('/theater/termine', 'nav.dates'), a('/theater/kommentare', 'nav.comments'))}
@@ -461,8 +466,7 @@ const navDirector = (p) => {
       <option value="">${h(t('nav.calendar_for'))}</option>
       ${[...p.personen].sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale))
         .map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
-    </select></form>` : ''}
-  <a href="/theater/abmelden">${t('nav.signout')}</a></nav>`;
+    </select></form>` : ''}</nav>`;
 };
 
 function printPage(p, m) {
@@ -1286,33 +1290,36 @@ const navMember = (project, person) => {
     </select>
     <noscript><button class="quiet mini">${h(t('mem.switch_go'))}</button></noscript>
   </form>` : `<a href="/theater/mit">${h(person.name || person.b)}</a>`;
-  return `<nav>
-  ${picker}
-  <a href="/theater/mit/zeiten">${t('navm.times')}</a>
-  <a href="/theater/mit/termine">${t('navm.dates')}</a>
-  ${project.druck_token ? `<a href="/theater/druck/${h(project.druck_token)}">${t('navm.scripts')}</a>` : ''}
-  <a href="/theater/mit/kommentare">${t('nav.comments')}</a>
-  ${ctx.regieProject === project.id || ctx.directorProject === project.id
-    ? `<a href="/theater/projekt">${t('nav.project')}</a>` : ''}
-  <a href="/theater/mit/abmelden">${t('nav.signout')}</a></nav>`;
+  void picker;      // switching person lives on the settings page
+  return '';
 };
 
 /* The bar at the bottom of a phone screen: the four places a member
    goes. On a desk the links in the head do the same, and the bar is
    hidden. The current page is marked. */
-const memberTabbar = (project, person) => {
-  const items = [
-    ['/theater/mit/zeiten', t('navm.tab_avail'), 'person'],
-    ['/theater/mit/termine', t('navm.tab_dates'), 'calendar'],
-    ['/theater/mit/heft', t('navm.tab_book'), 'book'],
-    ['/theater/mit/kommentare', t('navm.tab_notes'), 'note'],
-    ['/theater/einstellungen?z=' + encodeURIComponent(pfad), '', 'gear', t('nav.settings')],
-  ];
-  return `<nav class="tabbar">${items.map(([href, label, ico, aria]) =>
-    `<a href="${href}"${pfad === href || pfad.startsWith(href.split('?')[0]) ? ' class="on"' : ''}${
-      aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
-      ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
-};
+const DIRECTING = ['/theater/projekt', '/theater/leute', '/theater/skript', '/theater/besetzung', '/theater/plan',
+  '/theater/termine', '/theater/kommentare', '/theater/drucken', '/theater/hoerbuch', '/theater/fassungen', '/theater/text'];
+const barOf = (items) => `<nav class="tabbar">${items.map(([href, label, ico, aria, on]) =>
+  `<a href="${href}"${on ?? (pfad === href || pfad.startsWith(href.split('?')[0])) ? ' class="on"' : ''}${
+    aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
+    ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
+const memberItems = () => [
+  ['/theater/mit/zeiten', t('navm.tab_avail'), 'person'],
+  ['/theater/mit/termine', t('navm.tab_dates'), 'calendar'],
+  ['/theater/mit/heft', t('navm.tab_book'), 'book'],
+  ['/theater/mit/kommentare', t('navm.tab_notes'), 'note'],
+];
+const directItem = () => ['/theater/projekt', t('navm.tab_direct'), 'clapper', '',
+  DIRECTING.some(x => pfad === x || pfad.startsWith(x + '/'))];
+const gearItem = () => ['/theater/einstellungen?z=' + encodeURIComponent(pfad), '', 'gear', t('nav.settings')];
+/* Two roles: a member, and the director (with the assistant). What only
+   the director sees sits behind one item of its own. */
+const memberTabbar = (project, person) => barOf([...memberItems(),
+  ...(ctx.regieProject === project.id || ctx.directorProject === project.id ? [directItem()] : []),
+  gearItem()]);
+/* On the director's pages: with a member's identity the same bar, by the
+   access code alone only the director's place and the settings. */
+const directorTabbar = () => barOf([...(ctx.member ? memberItems() : []), directItem(), gearItem()]);
 
 /* The invitation to put the pages on the phone as an app. Shown on a
    member's pages while they run in a browser tab, not once installed;
@@ -1605,7 +1612,8 @@ function playPage(project, person, blocks, starts, comments) {
 function settingsPage(current, back, m, who) {
   const radio = (name, value, label, checked) => `<label class="inline choice">
       <input type="radio" name="${name}" value="${h(value)}"${checked ? ' checked' : ''}> ${h(label)}</label>`;
-  const nav = who ? navMember(who.project, who.person) : '';
+  const directs = !!(ctx.directorProject || ctx.regieProject);
+  const nav = who ? '' : directs ? navDirector(null) : '';
   const tabbar = who ? memberTabbar(who.project, who.person) : '';
   const folks = who ? (who.project.personen || []).filter(x => x.id !== who.person.id)
     .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale)) : [];
@@ -1645,7 +1653,15 @@ function settingsPage(current, back, m, who) {
       </div>
       <button type="submit">${t('common.save')}</button>
       <a class="btn quiet" href="${h(back)}">${t('common.back')}</a>
-    </form>` });
+    </form>
+    ${who || directs ? `<h2>${t('set.more')}</h2>
+    <p class="morelinks">
+      ${who ? `<a class="btn quiet" href="/theater/mit">${h(t('set.start'))}</a>` : ''}
+      ${who?.project?.druck_token ? `<a class="btn quiet" href="/theater/druck/${h(who.project.druck_token)}">${h(t('navm.scripts'))}</a>` : ''}
+      <a class="btn quiet" href="/theater/ueber">${h(t('about.title'))}</a>
+      ${who ? `<a class="btn quiet" href="/theater/mit/abmelden">${h(t('nav.signout'))}</a>`
+            : `<a class="btn quiet" href="/theater/abmelden">${h(t('nav.signout'))}</a>`}
+    </p>` : ''}` });
 }
 
 /* ---------------------------------------------------------------------

@@ -94,12 +94,15 @@ export const STYLE = `
      Without min-width:0 a flex item refuses to go below its content
      width, and the picker was pushed onto a second line instead; with
      a basis of 0 it is never the item that wraps as a whole. */
-  .head nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:.35rem 1.1rem;
+  .subnav { margin:0 0 1.4rem; padding-bottom:.7rem; border-bottom:1px solid var(--rule) }
+  .subnav .whopick select { font-size:.85rem; padding:.15rem .3rem; margin:0 }
+  .head nav, .subnav { margin-left:auto; display:flex; flex-wrap:wrap; gap:.35rem 1.1rem;
               justify-content:flex-end; flex:1 1 0; min-width:0 }
-  .head nav a { font-size:.88rem; text-decoration:none; color:var(--muted) }
-  .head nav a.on { color:var(--ink); font-weight:700 }
-  .head nav .grp { display:inline-flex; gap:.7rem; padding-left:.9rem; border-left:1px solid var(--rule) }
-  .head nav .grp:first-child { padding-left:0; border-left:0 }
+  .head nav a, .subnav a { font-size:.88rem; text-decoration:none; color:var(--muted) }
+  .head nav a.on, .subnav a.on { color:var(--ink); font-weight:700 }
+  .head nav .grp, .subnav .grp { display:inline-flex; gap:.7rem; padding-left:.9rem; border-left:1px solid var(--rule) }
+  .head nav .grp:first-child, .subnav .grp:first-child { padding-left:0; border-left:0 }
+  .subnav { margin-left:0 }
   /* --- the overview: the road as a strip of steps --- */
   .steps { display:grid; grid-template-columns:repeat(5, 1fr); gap:.6rem; margin:1rem 0 .4rem }
   .step { display:flex; flex-direction:column; gap:.2rem; text-decoration:none; color:var(--ink);
@@ -272,30 +275,32 @@ export const STYLE = `
                       border-radius:6px }
   .whopick { display:inline-block; margin:0 }
   /* --- a member on a phone: the links move into a bar at the bottom --- */
-  .tabbar { display:none }
+  .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; justify-content:center;
+            background:var(--card); border-top:1px solid var(--rule);
+            padding:.3rem 0 max(.3rem, env(safe-area-inset-bottom)) }
+  /* The bar keeps its size whatever the type setting: six labels have
+     to fit a phone's width. */
+  .tabbar a { flex:1; max-width:8.5rem; min-width:0; overflow:hidden; display:flex; flex-direction:column; align-items:center;
+              justify-content:center; gap:2px; font-size:11px; line-height:1.25; text-align:center; white-space:nowrap;
+              color:var(--muted); text-decoration:none; padding:3px 0 }
+  .tabbar a svg { width:22px; height:22px; flex:0 0 auto }
+  .tabbar a.on { color:var(--accent); font-weight:700 }
+  .tabbar a:hover { color:var(--ink) }
+  .frame.hastabs, .hasbar .frame { padding-bottom:6rem }
+  .hasbar .foot .inner { padding-bottom:5.5rem }
+  .head.member button.share { margin-left:auto }
+  body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem }
+  body .bookstep { bottom:3.9rem }
+  .morelinks { display:flex; flex-wrap:wrap; gap:.4rem }
+  @media (min-width:701px) { .tabbar a { font-size:12px } .tabbar a svg { width:24px; height:24px } }
+  @media print { .tabbar, .subnav { display:none } }
   /* A long link or word must never make the page wider than the
      screen: on a phone that drags the fixed bar out of sight. */
   html, body { overflow-x:hidden; overflow-x:clip }
   .copyable { max-width:100% }
   .copyable code { min-width:0; max-width:100%; overflow-wrap:anywhere; word-break:break-all }
   @media (max-width:700px) {
-    .head.member nav a, .head.member .whopick, .head.member .langpick,
-    .head.member .themepick, .head.member a.settings { display:none }
-    .head.member button.share { margin-left:auto }
     .head.member button.share svg { width:22px; height:22px }
-    .head.member nav { flex:0 1 auto; margin-left:0 }
-    .tabbar a { min-width:0; overflow:hidden }
-    .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40;
-              background:var(--card); border-top:1px solid var(--rule);
-              padding:.3rem 0 max(.3rem, env(safe-area-inset-bottom)) }
-    /* The bar keeps its size whatever the type setting: five labels
-       have to fit a phone's width. */
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
-                font-size:11px; line-height:1.25; text-align:center; color:var(--muted); text-decoration:none; padding:3px 0 }
-    .tabbar a svg { width:22px; height:22px; flex:0 0 auto }
-    .tabbar a { white-space:nowrap; justify-content:center }
-    .tabbar a.on { color:var(--accent); font-weight:700 }
-    .frame.hastabs { padding-bottom:6rem }
     .overlay { align-items:flex-start; padding-top:1rem }
     body .bookstep { bottom:3.9rem }
   }
