@@ -647,10 +647,19 @@ for (const b of cast) {
 
 /* ---- 10. dates: proposed, fixed from the company, place, released ---- */
 {
+  // The director sets the usual place first; it is prefilled when a date is fixed.
+  const member = cookies;
+  cookies = director;
+  let d = await post('/theater/projekt', { action: 'ort', ort: 'Steinbach <hall>' });
+  check('the director sets the usual rehearsal place', good(d) && /value="Steinbach &lt;hall&gt;"/.test(d.text), say(d));
+  cookies = member;
   // Still signed in as the last cast member.
-  let d = await call('GET', '/theater/mit/termine');
+  d = await call('GET', '/theater/mit/termine');
   check('my dates page', d.status === 200, 'status ' + d.status);
   clean('my dates page', d);
+  check('the fix button opens a dialog with the usual place prefilled',
+        new RegExp('data-dialog="fix-' + target + '"').test(d.text) &&
+        new RegExp('<dialog id="fix-' + target + '"[\\s\\S]*?name="place" value="Steinbach &lt;hall&gt;"').test(d.text));
   const mine = new RegExp('name="rehearsal" value="' + target + '"[\\s\\S]*?name="iso" value="([^"]+)"' +
     '[\\s\\S]*?name="from" value="([^"]*)"[\\s\\S]*?name="to" value="([^"]*)"').exec(d.text);
   check('a date is proposed for ' + target, !!mine, mine ? mine[1] + ' ' + mine[2] + '-' + mine[3] : 'none');
@@ -658,6 +667,23 @@ for (const b of cast) {
   if (mine) {
     d = await post('/theater/mit/termine', { action: 'halten', rehearsal: target, iso: mine[1], from: mine[2], to: mine[3], place: 'Attic <room>' });
     check('confirm the date from the company, with a place', good(d) && /Attic &lt;room&gt;/.test(d.text), say(d));
+    const shareText = (/<pre class="sharetext" id="sharetext">([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || '';
+    const link = (/https?:\/\/\S+\/theater\/gruppe\/[a-z0-9]+\/plan\/[A-Za-z0-9_-]+/.exec(shareText) || [])[0] || '';
+    check('a message to pass on: rehearsal, place, cast and the link',
+          new RegExp(target).test(shareText) && /Attic &lt;room&gt;/.test(shareText) && /Dabei: |With: /.test(shareText) && !!link, shareText.slice(0, 160));
+    check('the WhatsApp link carries the same text', d.text.includes('href="https://wa.me/?text=' + encodeURIComponent(shareText.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"')).slice(0, 60)));
+    const path = link.replace(/^https?:\/\/[^/]+/, '');
+    d = await call('GET', path);
+    check('the link sends a signed-in member straight to the rehearsal', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit/plan/' + target), 'status ' + d.status + ' ' + d.res.headers.get('location'));
+    const keep = cookies; cookies = '';
+    d = await call('GET', path);
+    check('and asks a newcomer for the name, remembering the target', d.status === 200 && new RegExp('name="zu" value="plan/' + target + '"').test(d.text), 'status ' + d.status);
+    const pid = (/name="person" value="([^"]+)"/.exec(d.text) || [])[1];
+    d = await post(path.replace(/\/plan\/.*$/, ''), { person: pid, zu: 'plan/' + target });
+    check('after picking the name it lands on the rehearsal', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit/plan/' + target), 'status ' + d.status + ' ' + d.res.headers.get('location'));
+    d = await post(path.replace(/\/plan\/.*$/, ''), { person: pid, zu: '../admin' });
+    check('a bad target is dropped', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit'), d.res.headers.get('location'));
+    cookies = keep;
     d = await post('/theater/mit/termine', { action: 'place', rehearsal: target, place: 'Stage <left>' });
     check('enter the place from the company', good(d) && /Stage &lt;left&gt;/.test(d.text), say(d));
     d = await post('/theater/mit/termine', { action: 'halten', rehearsal: 'P99', iso: mine[1], from: mine[2], to: mine[3] });
@@ -678,6 +704,7 @@ for (const b of cast) {
     d = await post('/theater/termine', { action: 'halten', rehearsal: val('rehearsal'),
       iso: val('iso'), from: val('from'), to: val('to'), place: 'Stage' });
     check('fix a date as the director, with a place', good(d) && /value="Stage"/.test(d.text), say(d));
+    check('the director gets the message to pass on as well', /id="sharebox"/.test(d.text) && /Stage/.test((/<pre class="sharetext"[^>]*>([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || ''));
     // Deriving afresh leaves the fixed rehearsal and its date alone.
     const pl = await call('GET', '/theater/plan');
     const all = Object.fromEntries([...pl.text.matchAll(/name="(akt_\d+)"/g)].map(m => [m[1], '1']));

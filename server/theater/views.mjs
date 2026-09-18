@@ -200,6 +200,86 @@ const placeField = (target, rehearsalId, place) =>
      <button class="quiet mini" type="submit">${h(t('common.save'))}</button>`,
     { cssClass: 'placefield' });
 
+/* Fixing a date happens in a dialog: the place is prefilled with the
+   project's usual one and confirmed there, then the form posts the
+   same "halten" the page always had. */
+function fixDialog(target, pr, project, directors, place, label, cls = '') {
+  const id = 'fix-' + String(pr.id).replace(/[^A-Za-z0-9_-]/g, '');
+  const who = pr.group.map(b => `<span class="chip">${h(b)}</span>`).join('') +
+    directors.filter(b => !pr.group.includes(b)).map(b =>
+      `<span class="chip muted" title="${h(t('date.director'))}">${h(b)}</span>`).join('');
+  return `<button type="button" class="${cls}" data-dialog="${id}">${h(label)}</button>
+    <dialog id="${id}" class="fixbox">
+      <form method="post" action="${h(target)}">
+        <input type="hidden" name="action" value="halten">
+        <input type="hidden" name="rehearsal" value="${h(pr.id)}">
+        <input type="hidden" name="iso" value="${h(pr.proposal.iso)}">
+        <input type="hidden" name="from" value="${h(pr.proposal.from)}">
+        <input type="hidden" name="to" value="${h(pr.proposal.to)}">
+        <p class="eyebrow">${t('fix.title', { id: h(pr.id) })}</p>
+        <p><b>${t('fix.when', { weekday: h(L.weekday(pr.proposal.weekday)),
+          date: h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' })),
+          from: h(pr.proposal.from), to: h(pr.proposal.to) })}</b></p>
+        <p class="small">${t('fix.with')}: ${who}</p>
+        <label for="${id}-place">${t('fix.place')}</label>
+        <input type="text" id="${id}-place" name="place" value="${h(place || '')}" maxlength="120"
+               placeholder="${h(t('common.place_hint'))}">
+        <p class="small muted">${place ? t('fix.place_what') : t('fix.place_none')}</p>
+        <p><button type="submit">${h(t('fix.go'))}</button>
+           <button type="button" class="quiet" data-close="${id}">${h(t('fix.cancel'))}</button></p>
+      </form>
+    </dialog>`;
+}
+/* The message about a fixed rehearsal, as plain text for a chat:
+   what, when, where, who, and the link to the rehearsal. */
+function rehearsalMessage(project, entry, link) {
+  const pr = (project.plan?.proben || []).find(x => x.id === entry.probe_id);
+  const group = entry.gruppe || pr?.gruppe || [];
+  const directors = (project.personen || []).filter(x => x.regie && !group.includes(x.b)).map(x => x.b);
+  const nameOf = b => { const x = (project.personen || []).find(y => y.b === b); return x?.name || b; };
+  const d = new Date(entry.iso + 'T00:00:00Z');
+  const who = group.map(nameOf).join(', ') +
+    (directors.length ? (group.length ? ' \u00b7 ' : '') + t('date.director') + ': ' + directors.map(nameOf).join(', ') : '');
+  return [
+    t('share.line_head', { id: entry.probe_id, title: project.titel }),
+    t('fix.when', { weekday: L.weekday(d.getUTCDay()), date: L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                    from: entry.von, to: entry.bis }),
+    entry.ort ? t('share.line_place', { place: entry.ort }) : t('share.line_place_open'),
+    t('share.line_with', { who }),
+    t('share.line_link', { link }),
+  ].join('\n');
+}
+const shareBox = (share) => !share ? '' : `<div class="box share" id="sharebox">
+    <b>${t('share.title')}</b>
+    <p class="small muted">${t('share.what')}</p>
+    <pre class="sharetext" id="sharetext">${h(share.text)}</pre>
+    <p><a class="btn" href="https://wa.me/?text=${encodeURIComponent(share.text)}" target="_blank" rel="noopener">${h(t('share.whatsapp'))}</a>
+       <button type="button" class="quiet" id="sharebtn" hidden>${h(t('share.share'))}</button>
+       <button type="button" class="quiet" id="sharecopy">${h(t('share.copy'))}</button>
+       <span class="small muted" id="sharenote"></span></p>
+  </div>`;
+/* Opens the dialogs and drives the share box. Once per dates page. */
+const datesScript = () => `<script>
+(function () {
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-dialog]');
+    if (b) { var d = document.getElementById(b.dataset.dialog); if (!d) return;
+      if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+      var f = d.querySelector('input[name=place]'); if (f) { f.focus(); f.select(); } return; }
+    var c = e.target.closest('[data-close]');
+    if (c) { var x = document.getElementById(c.dataset.close); if (x) { if (x.close) x.close(); else x.removeAttribute('open'); } }
+  });
+  var pre = document.getElementById('sharetext'); if (!pre) return;
+  var text = pre.textContent, sb = document.getElementById('sharebtn'), cp = document.getElementById('sharecopy'), note = document.getElementById('sharenote');
+  if (navigator.share) { sb.hidden = false; sb.addEventListener('click', function () { navigator.share({ text: text }).catch(function () {}); }); }
+  cp.addEventListener('click', function () {
+    var done = function () { note.textContent = ${JSON.stringify(t('share.copied'))}; };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+    else { var r = document.createRange(); r.selectNodeContents(pre); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); done(); } catch (x) {} }
+  });
+})();
+</script>`;
+
 function whyNot(pr) {
   if (pr.withoutEntry?.length)
     return t('why.waiting', { folks: pr.withoutEntry.map(h).join(', ') });
@@ -456,6 +536,18 @@ function projectPage(p, m) {
           <input type="date" id="von" name="von" value="${h(p.einstellungen?.von || '')}"></div>
         <div><label for="bis">${t('proj.period_to')}</label>
           <input type="date" id="bis" name="bis" value="${h(p.einstellungen?.bis || '')}"></div>
+        <div><button type="submit" class="quiet" style="margin-top:0">${h(t('common.save'))}</button></div>
+      </div>
+    </form>
+
+    <h2>${t('proj.place')}</h2>
+    <p class="small muted">${t('proj.place_what')}</p>
+    <form method="post" action="/theater/projekt">
+      <input type="hidden" name="action" value="ort">
+      <div class="row">
+        <div><label for="ort">${t('proj.place_label')}</label>
+          <input type="text" id="ort" name="ort" maxlength="120" value="${h(p.einstellungen?.ort || '')}"
+                 placeholder="${h(t('common.place_hint'))}"></div>
         <div><button type="submit" class="quiet" style="margin-top:0">${h(t('common.save'))}</button></div>
       </div>
     </form>
@@ -1084,7 +1176,7 @@ function companyPage(p, m, base) {
 
 /* ---------- company member: coming in through the group link ---------- */
 
-function pickNamePage(project, token, m) {
+function pickNamePage(project, token, m, zu = '') {
   const folks = (project.personen || []).slice()
     .sort((a, b) => (a.name || a.b).localeCompare(b.name || b.b, L.locale));
   return page({ title: project.titel, narrow: true, body: `
@@ -1095,7 +1187,8 @@ function pickNamePage(project, token, m) {
     ${folks.length ? `<div class="box">
       ${folks.map(x => `<form method="post" action="/theater/gruppe/${
         h(token)}" class="choice">
-        <input type="hidden" name="person" value="${h(x.id)}">
+        <input type="hidden" name="person" value="${h(x.id)}">${zu ? `
+        <input type="hidden" name="zu" value="${h(zu)}">` : ''}
         <button type="submit" class="quiet wide">
           <span class="chip">${h(x.b)}</span> ${h(x.name || '')}
         </button></form>`).join('')}
@@ -1560,12 +1653,9 @@ function myDatesPage(project, person, result, m, opt = {}) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.proposal')}</div>`;
-      button = actionForm('/theater/mit/termine', 'halten',
-        { rehearsal: pr.id, iso: pr.proposal.iso,
-          from: pr.proposal.from, to: pr.proposal.to },
-        `<input type="text" name="place" placeholder="${h(t('common.place_hint'))}"
-                style="max-width:12rem"><button class="mini">` +
-        h(t('date.confirm')) + '</button>');
+      const was = (project.termine || []).find(x => x.probe_id === pr.id);
+      button = fixDialog('/theater/mit/termine', pr, project, directors,
+        was?.ort || project.einstellungen?.ort || '', t('date.confirm'), 'mini fixbtn');
     } else {
       date = `<span class="open">${t('date.none_yet')}</span>
         <div class="small muted">${whyNot(pr)}</div>`;
@@ -1589,6 +1679,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
       <a href="/theater/mit/termine?alle=1"${showAll ? ' class="on"' : ''}>${t('mdate.all')}</a>
       <a href="/theater/mit/heft#adhoc" class="btn quiet mini" style="margin-left:.5rem">${h(t('mdate.adhoc'))}</a></p>
     ${notice(m)}
+    ${shareBox(opt.share)}
     ${showAll ? `<p class="small muted">${t('mdate.all_what')}</p>` : ''}
     ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
       <h2>${t('mdate.fixed')}${fixed.length ? ` (${fixed.length})` : ''}</h2>
@@ -1600,12 +1691,13 @@ function myDatesPage(project, person, result, m, opt = {}) {
       <p class="small muted">${t('mdate.proposal_what')}</p>
       ${unresolved.length
         ? `<table>${header}${unresolved.map(row).join('')}</table>`
-        : `<p class="small muted">${t('mdate.all_arranged')}</p>`}`}` });
+        : `<p class="small muted">${t('mdate.all_arranged')}</p>`}`}
+    ${datesScript()}` });
 }
 
 /* ---------- Termine ---------- */
 
-function datesPage(p, result, m) {
+function datesPage(p, result, m, share = null) {
   const directors = result.directors || [];
   const rows = result.rehearsals.map(pr => {
     const who = pr.group.map(b => {
@@ -1629,12 +1721,9 @@ function datesPage(p, result, m) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <span class="small muted"><br>${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })}</span>`;
-      button = actionForm('/theater/termine', 'halten',
-        { rehearsal: pr.id, iso: pr.proposal.iso,
-          from: pr.proposal.from, to: pr.proposal.to },
-        `<input type="text" name="place" placeholder="${h(t('common.place_hint'))}"
-                style="max-width:12rem"><button class="small" style="padding:.25rem .7rem">` +
-        h(t('date.fix')) + '</button>');
+      const was = (p.termine || []).find(x => x.probe_id === pr.id);
+      button = fixDialog('/theater/termine', pr, p, directors,
+        was?.ort || p.einstellungen?.ort || '', t('date.fix'), 'small fixbtn');
     } else {
       date = `<span class="open">${t('date.none_possible')}</span>`;
     }
@@ -1658,6 +1747,7 @@ function datesPage(p, result, m) {
   return page({ title: t('date.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('date.step')}</p><h1>${t('date.title_long')}</h1>
     ${notice(m)}
+    ${shareBox(share)}
     <p class="muted">${t('date.until', { date: h(result.until
       ? L.date(result.until, { year: 'numeric', month: 'long', day: 'numeric' }) : '') })}</p>
     <p class="small muted">${t('date.what')}${fixedCount
@@ -1667,7 +1757,8 @@ function datesPage(p, result, m) {
       ? `<table><tr><th>${t('date.col_rehearsal')}</th><th>${t('date.col_cast')}</th>
          <th>${t('date.col_date')}</th><th></th></tr>
          ${rows}</table>`
-      : `<p>${t('date.no_plan')}</p>`}` });
+      : `<p>${t('date.no_plan')}</p>`}
+    ${datesScript()}` });
 }
 
 /* ---------- Ensemble-Mitglied ---------- */
@@ -2658,5 +2749,5 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
-           settingsPage, playPage, offlinePage };
+           settingsPage, playPage, offlinePage, rehearsalMessage };
 }

@@ -430,6 +430,14 @@ const t_ = (code, key) => language(code).t(key);
 const baseOf = (request) => process.env.THEATER_BASIS ||
   ('https://' + (request.headers['x-forwarded-host'] || request.headers.host || 'joku.tv'));
 
+/* The link to one rehearsal for the whole cast: through the company
+   link, which signs a newcomer in by name and sends everybody else
+   straight on. Without a company token, the member page itself. */
+const rehearsalLink = (project, id, base) => project.gruppen_token
+  ? base + '/theater/gruppe/' + project.gruppen_token + '/plan/' + encodeURIComponent(id)
+  : base + '/theater/mit/plan/' + encodeURIComponent(id);
+const safeTarget = zu => /^plan\/[A-Za-z0-9_-]{1,20}$/.test(zu) ? zu : '';
+
 /* ---------- Wegweiser ---------- */
 
 export async function handle(request, response, path) {
@@ -857,13 +865,20 @@ export async function handle(request, response, path) {
     if (!project) { await drainBody(request); return html(response,
       A.errorPage('f.link_gone3_t', 'f.link_gone3'), 404); }
     projectLanguage(project);
-    if (!post) return html(response, A.pickNamePage(project, token, null));
+    const zu = safeTarget(parts.slice(2).join('/'));
+    if (!post) {
+      // Already in as somebody of this company: straight to the page.
+      const who = zu ? await memberFrom(request) : null;
+      if (who && who.project.id === project.id) return redirect(response, '/theater/mit/' + zu);
+      return html(response, A.pickNamePage(project, token, null, zu));
+    }
     const { fields } = await readForm(request);
     const person = (project.personen || []).find(x => x.id === String(fields.person || ''));
     if (!person) return html(response, A.pickNamePage(project, token, {
-      kind: 'error', key: 'r.name_gone' }));
+      kind: 'error', key: 'r.name_gone' }, zu));
     setMemberCookie(response, project.id, person.id);
-    return redirect(response, '/theater/mit');
+    const onward = safeTarget(String(fields.zu || '')) || zu;
+    return redirect(response, '/theater/mit' + (onward ? '/' + onward : ''));
   }
 
   /* --- Bereich eines Ensemble-Mitglieds --- */
@@ -1061,21 +1076,24 @@ export async function handle(request, response, path) {
       }
 
       project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
+      let share = null;
       if (fields.action === 'halten' && date(fields.iso)) {
-        project.termine.push({
+        const entry = {
           probe_id: rehearsal, iso: fields.iso,
           von: time(fields.from) || '', bis: time(fields.to) || '',
           gruppe: mine.gruppe, bestaetigt: true,
-          ort: String(fields.place || '').trim().slice(0, 120) || old?.ort || '',
+          ort: String(fields.place || '').trim().slice(0, 120) || old?.ort || project.einstellungen?.ort || '',
           gehalten: new Date().toISOString(), von_wem: person.b,
-        });
+        };
+        project.termine.push(entry);
         m = { kind: 'good', key: 'r.now_fixed', values: { p1: h(rehearsal) } };
+        share = { text: A.rehearsalMessage(project, entry, rehearsalLink(project, rehearsal, baseOf(request))) };
       } else if (fields.action === 'loesen') {
         m = { kind: 'good', key: 'r.released', values: { p1: h(rehearsal) } };
       }
       await S.write(project);
       Reminders.refresh(project);
-      return html(response, A.myDatesPage(project, person, proposeDates(project), m));
+      return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, share }));
     }
 
     /* The part book for the screen: passage by passage, with the
@@ -1352,6 +1370,12 @@ export async function handle(request, response, path) {
       await S.write(project);
       projectLanguage(project);
       return html(response, A.projectPage(project, { kind: 'good', key: 'r.language_saved' }));
+    }
+    if (String(fields.action) === 'ort') {
+      project.einstellungen = project.einstellungen || {};
+      project.einstellungen.ort = String(fields.ort || '').trim().slice(0, 120);
+      await S.write(project);
+      return html(response, A.projectPage(project, { kind: 'good', key: 'r.place_saved' }));
     }
     if (String(fields.action) !== 'zeitraum')
       return html(response, A.projectPage(project, { kind: 'error', key: 'r.unknown_action' }));
@@ -1871,21 +1895,24 @@ export async function handle(request, response, path) {
         { kind: 'error', key: 'msg.rehearsal_gone' }));
     }
     project.termine = (project.termine || []).filter(t => t.probe_id !== rehearsal);
+    let share = null;
     if (fields.action === 'halten' && date(fields.iso)) {
-      project.termine.push({
+      const entry = {
         probe_id: rehearsal, iso: fields.iso,
         von: time(fields.from) || '', bis: time(fields.to) || '',
         gruppe: pr.gruppe, bestaetigt: true,
-        ort: String(fields.place || '').trim().slice(0, 120) || before?.ort || '',
+        ort: String(fields.place || '').trim().slice(0, 120) || before?.ort || project.einstellungen?.ort || '',
         gehalten: new Date().toISOString(),
-      });
+      };
+      project.termine.push(entry);
       m = { kind: 'good', key: 'r.fixed', values: { p1: h(rehearsal) } };
+      share = { text: A.rehearsalMessage(project, entry, rehearsalLink(project, rehearsal, baseOf(request))) };
     } else if (fields.action === 'loesen') {
       m = { kind: 'good', key: 'r.released2', values: { p1: h(rehearsal) } };
     }
     await S.write(project);
     Reminders.refresh(project);
-    return html(response, A.datesPage(project, proposeDates(project), m));
+    return html(response, A.datesPage(project, proposeDates(project), m, share));
   }
 
   return html(response, A.errorPage('f.not_found3_t', 'f.not_found3'), 404);

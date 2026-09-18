@@ -366,6 +366,17 @@ export const STYLE = `
   #kalender-quellen .row input { margin:0 }
   .ics-ev { margin:.15rem 0 }
   .figures { margin:.4rem 0 .8rem }
+  /* --- fixing a date: the dialog, the message to pass on --- */
+  dialog.fixbox { border:1px solid var(--rule); border-radius:4px; padding:1.2rem 1.4rem; width:calc(100% - 2rem);
+                  max-width:26rem; background:var(--card); color:var(--ink); box-shadow:0 12px 40px rgba(0,0,0,.25) }
+  dialog.fixbox::backdrop { background:rgba(0,0,0,.45) }
+  dialog.fixbox p { margin:0 0 .6rem } dialog.fixbox label { margin-top:.6rem }
+  dialog.fixbox .chip { margin:0 .2rem .2rem 0 }
+  dialog.fixbox button { margin-top:.8rem }
+  button.fixbtn { white-space:normal; text-align:left; line-height:1.3 }
+  .share .sharetext { white-space:pre-wrap; word-break:break-word; font:inherit; font-size:.95rem; background:var(--chip);
+                      color:var(--chip-ink); padding:.7rem .9rem; border-radius:3px; margin:.5rem 0 .3rem }
+  .share .btn, .share button { margin:.4rem .3rem 0 0 }
   .remind { margin:.4rem 0 1.2rem; border:1px solid var(--rule); border-radius:4px; padding:.5rem .9rem; background:var(--card) }
   .remind summary { cursor:pointer; font-weight:600 }
   .remind summary svg { width:1em; height:1em; vertical-align:-.15em; margin-right:.2em }
