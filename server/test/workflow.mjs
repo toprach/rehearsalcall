@@ -686,6 +686,17 @@ for (const b of cast) {
     cookies = keep;
     d = await post('/theater/mit/termine', { action: 'place', rehearsal: target, place: 'Stage <left>' });
     check('enter the place from the company', good(d) && /Stage &lt;left&gt;/.test(d.text), say(d));
+    {
+      // somebody else's rehearsal: neither the date nor the place is mine to set
+      const foreign = planIds.find(id => !groupOf(planHtml, id).includes(cast[cast.length - 1]));
+      if (foreign) {
+        const f1 = await post('/theater/mit/termine', { action: 'place', rehearsal: foreign, place: 'Elsewhere' });
+        check('the place of a foreign rehearsal is refused as well', !good(f1) && !/Elsewhere/.test(f1.text), say(f1));
+        const all = await call('GET', '/theater/mit/termine?alle=1');
+        const row = new RegExp('/theater/mit/plan/' + foreign + '"[\\s\\S]*?</tr>').exec(all.text);
+        check('the list of all rehearsals offers no fixing for a foreign one', !!row && !/data-dialog="fix-/.test(row[0]) && !/name="place"/.test(row[0]));
+      }
+    }
     d = await post('/theater/mit/termine', { action: 'halten', rehearsal: 'P99', iso: mine[1], from: mine[2], to: mine[3] });
     check('a foreign rehearsal is refused', errorNotice(d), say(d));
   }

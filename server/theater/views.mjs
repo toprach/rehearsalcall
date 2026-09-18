@@ -1734,6 +1734,10 @@ function myDatesPage(project, person, result, m, opt = {}) {
       `<span class="chip muted" title="${h(t('date.director'))}">${h(b)}</span>`).join('')
       || `<span class="small muted">${t('mdate.alone')}</span>`;
 
+    /* Fixing a date and entering its place is for those who are in the
+       rehearsal, and for the director and the assistant - the list of
+       all rehearsals shows the others' dates without the means. */
+    const may = pr.group.includes(person.b) || !!opt.mayDirect;
     let date, button = '';
     if (pr.proposal && pr.fixed) {
       const e = (project.termine || []).find(x => x.probe_id === pr.id) || {};
@@ -1741,15 +1745,16 @@ function myDatesPage(project, person, result, m, opt = {}) {
           h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.fixed')}</div>
-        ${placeField('/theater/mit/termine', pr.id, e.ort)}
+        ${may ? placeField('/theater/mit/termine', pr.id, e.ort)
+              : (e.ort ? `<div class="small">${h(e.ort)}</div>` : '')}
         ${opt.mayDirect ? directorTools('/theater/mit/termine', pr, e) : ''}`;
     } else if (pr.proposal) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.proposal')}</div>`;
       const was = (project.termine || []).find(x => x.probe_id === pr.id);
-      button = fixDialog('/theater/mit/termine', pr, project, directors,
-        was?.ort || project.einstellungen?.ort || '', t('date.confirm'), 'mini fixbtn');
+      button = may ? fixDialog('/theater/mit/termine', pr, project, directors,
+        was?.ort || project.einstellungen?.ort || '', t('date.confirm'), 'mini fixbtn') : '';
     } else {
       date = `<span class="open">${t('date.none_yet')}</span>
         <div class="small muted">${whyNot(pr)}</div>`;

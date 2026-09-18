@@ -570,8 +570,7 @@ export const en = {
   'mdate.with':         'with {who}',
   'mdate.col_with':     'with',
   'mdate.fixed':        'Firmly arranged',
-  'mdate.fixed_place':    'Anyone can enter the <b>place</b>. The program sends nothing '
-                    + '\u2013 please tell the others as well.',
+  'mdate.fixed_place': 'The <b>place</b> is entered by those in the rehearsal, the director or the assistant – and only they fix a date. The program sends nothing – please tell the others as well.',
   'mdate.nothing_fixed': 'Nothing confirmed yet.',
   'mdate.proposals': 'Proposals',
   'mdate.proposal_what':'These are recomputed on every visit and can change as long as '

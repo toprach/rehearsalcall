@@ -568,8 +568,7 @@ export const de = {
   'mdate.with':         'mit {who}',
   'mdate.col_with':     'mit',
   'mdate.fixed':        'Fest vereinbart',
-  'mdate.fixed_place':    'Den <b>Ort</b> kann jede und jeder eintragen. Das Programm '
-                    + 'verschickt nichts – sagen Sie ihn bitte auch den anderen.',
+  'mdate.fixed_place': 'Den <b>Ort</b> tragen die Teilnehmenden der Probe, die Regie oder die Assistenz ein – ebenso fixieren nur sie den Termin. Das Programm verschickt nichts – sagen Sie ihn bitte auch den anderen.',
   'mdate.nothing_fixed': 'Noch nichts bestätigt.',
   'mdate.proposals': 'Vorschläge',
   'mdate.proposal_what':'Diese rechnen sich bei jedem Aufruf neu und können sich ändern, '

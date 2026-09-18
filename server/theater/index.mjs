@@ -1124,7 +1124,7 @@ export async function handle(request, response, path) {
       const allowed = (mine && (mine.gruppe.includes(person.b) || mayDirect)) || (historyAction && mayDirect);
       if (!allowed)
         return html(response, A.myDatesPage(project, person, proposeDates(project), {
-          kind: 'error', key: 'r.not_yours' }, view));
+          kind: 'error', key: 'r.not_yours' }, { ...view, mayDirect }));
       const old = (project.termine || []).find(t => t.probe_id === rehearsal);
       let m = null;
 
@@ -1136,7 +1136,7 @@ export async function handle(request, response, path) {
           m = placeNotice(rehearsal, old.ort);
         }
         await S.write(project);
-        return html(response, A.myDatesPage(project, person, proposeDates(project), m));
+        return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, mayDirect }));
       }
 
       const done = dateAction(A, project, mine, fields, { by: person.b, mayDirect, base: baseOf(request), director: false });
