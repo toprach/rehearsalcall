@@ -35,7 +35,9 @@ check('without the flag a person without entries is waited for', r.rehearsals[0]
 
 const states = dayStates(project, project.personen[0], calendarDays(project));
 check('the struck day is marked blocked', states[day(3)]?.blocked === true);
-check('the director counts as able to come on a free day', (states[day(5)]?.canCome || []).includes('RITA'), JSON.stringify(states[day(5)]));
+check('the director is not listed as having time - struck days say where the director is', !(states[day(5)]?.canCome || []).includes('RITA'), JSON.stringify(states[day(5)]));
+check('and does not count towards the colour: nobody else needed, so the day is fully green',
+      states[day(5)]?.level === 3 && states[day(5)]?.best?.total === 0 && !(states[day(5)].best.missing || []).includes('RITA'), JSON.stringify(states[day(5)]));
 
 console.log('');
 console.log(failed ? failed + ' check(s) failed' : 'dates: all checks passed');

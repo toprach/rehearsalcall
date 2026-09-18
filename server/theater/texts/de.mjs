@@ -574,7 +574,7 @@ export const de = {
   'my.saved':         'gespeichert {when}',
   'my.save_failed':   'Speichern fehlgeschlagen \u2013 bitte noch einmal.',
   /* fremde Kalender, nur in diesem Browser */
-  'my.sources_title': 'Meine Kalender einblenden',
+  'my.sources_title': 'Mit meinem Kalender verkn\u00fcpfen',
   'my.sources_what':  'Adressen eigener Kalender eintragen (etwa der private ICS-Link eines Google-Kalenders) oder eine '
                     + '.ics-Datei laden, gern mehrere. Der Server holt einen Kalender f\u00fcr Sie ab und vergisst ihn '
                     + 'sofort. Die Adressen sind mit einem vierstelligen PIN verschl\u00fcsselt und liegen so auch am '
@@ -639,7 +639,7 @@ export const de = {
   'my.day_full': 'ganz frei',
   'my.legend_nein': 'von mir gestrichen',
   'my.pref_title': 'Bevorzugtes Zeitfenster',
-  'my.pref_what':  'Das Ja tr\u00e4gt diese Zeiten ein; gr\u00fcn im Kalender zeigt, wie viel davon an einem Tag laut Ihren Kalendern noch frei ist.',
+  'my.legend':     'Legende',
   'my.time_wrong':  'Die Zeit „bis“ muss nach „ab“ liegen.',
   'my.legend_blocked': 'von der Regie gestrichen',
   'my.blocked':     'Die Regie hat diesen Tag gestrichen \u2013 keine Probe, wer auch immer k\u00f6nnte.',

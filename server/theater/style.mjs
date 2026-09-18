@@ -158,8 +158,11 @@ export const STYLE = `
   .calhead { display:flex; align-items:center; gap:.8rem; margin:1.5rem 0 .6rem }
   .calhead b { font-size:1.05rem }
   .calhead .small { margin-left:auto }
-  .legend { display:flex; flex-wrap:wrap; gap:.3rem 1rem; align-items:center;
-            color:var(--muted); margin-bottom:.6rem }
+  .legendwrap { margin:0 0 .6rem; color:var(--muted) }
+  .legendwrap summary { cursor:pointer }
+  .legend { display:flex; flex-direction:column; gap:.25rem; margin:.4rem 0 0 .2rem }
+  .legend > div { display:flex; align-items:center; gap:.5rem }
+  details.box > summary { cursor:pointer } details.box > summary b { font-weight:700 }
   .dot { display:inline-block; width:.8rem; height:.8rem; border-radius:2px;
          vertical-align:-1px; margin-right:.15rem; border:1px solid var(--rule) }
   table.cal { width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed }

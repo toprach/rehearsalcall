@@ -1867,7 +1867,6 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         <b>${t('my.pref_title')}</b>
         <label class="inline">${t('my.from')} <input type="time" id="pref-von" step="900" value="${h(preset.von)}"></label>
         <label class="inline">${t('my.to')} <input type="time" id="pref-bis" step="900" value="${h(preset.bis)}"></label>
-        <span class="muted">${t('my.pref_what')}</span>
       </div>
       <div class="calhead">
         <button type="button" id="zurueck" class="quiet mini">&lsaquo;</button>
@@ -1877,16 +1876,15 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           h(t('my.evenings_n', { n: count }))}</span>
       </div>
 
-      <div class="legend small">
-        <span class="dot fixed"></span> ${t('my.fixed_with_me')}
-        <span class="dot level3 me"></span> ${t('my.all_with_me')}
-        <span class="dot level3"></span> ${t('my.all_others')}
-        <span class="dot level2"></span> ${t('my.half')}
-        <span class="dot level1"></span> ${t('my.one')}
-        <span class="dot me"></span> ${t('my.me')}
-        <span class="dot blocked"></span> ${t('my.legend_blocked')}
-        <span class="dot nein"></span> ${t('my.legend_nein')}
-      </div>
+      <details class="legendwrap small">
+        <summary>${t('my.legend')}</summary>
+        <div class="legend">
+          ${[['fixed', 'my.fixed_with_me'], ['level3 me', 'my.all_with_me'], ['level3', 'my.all_others'],
+             ['level2', 'my.half'], ['level1', 'my.one'], ['me', 'my.me'],
+             ['blocked', 'my.legend_blocked'], ['nein', 'my.legend_nein']].map(([cls, key]) =>
+            `<div><span class="dot ${cls}"></span> <span>${t(key)}</span></div>`).join('')}
+        </div>
+      </details>
 
       ${months.map(monthTable).join('')}
       <div id="schleier" class="overlay" hidden><div id="tafel" class="box"></div></div>
@@ -1908,7 +1906,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
       >${h(pr.id)}</span>`).join('')}</p>` : ''}
 
-    <div class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
+    <details class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
       remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
       n_events: t('my.source_n', { n: '#' }), day_title: t('my.day_title'), day_free: t('my.day_free'), allday: t('my.allday'),
       bad_url: t('my.bad_url'), bad_file: t('my.bad_file'), day_full: t('my.day_full'),
@@ -1918,7 +1916,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       pin_forget: t('my.pin_forget'), pin_forget_what: t('my.pin_forget_what'), pin_forget_confirm: t('my.pin_forget_confirm'),
       local_only: t('my.source_local') }))}"
       data-person="${h(person.id)}">
-      <b>${t('my.sources_title')}</b>
+      <summary><b>${t('my.sources_title')}</b></summary>
       <p class="muted">${t('my.sources_what')}</p>
       <div class="pin"></div>
       <div class="quellen"></div>
@@ -1931,7 +1929,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         <p style="margin:.6rem 0 0"><label class="btn quiet mini" style="cursor:pointer">${h(t('my.source_file'))}
           <input type="file" id="quelle-file" accept=".ics,text/calendar" hidden></label></p>
       </div>
-    </div>
+    </details>
     ${ics ? `<div class="box small">
       <b>${t('my.ics_title')}</b>
       <p class="muted">${t('my.ics_what')}</p>

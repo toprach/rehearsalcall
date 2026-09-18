@@ -342,14 +342,15 @@ export function dayStates(project, person, days) {
     if (!d) continue;
     if (blocked.has(t.iso)) { states[t.iso] = { level: 0, best: null, canCome: [], fixed: [], blocked: true }; continue; }
 
-    // Who can make this day at all?
+    // Who can make this day at all? The directors are not counted: they
+    // plan by striking days, and are there on every other one.
     const canCome = (project.personen || [])
-      .filter(x => windowOfPerson(x, project.verfuegbar, d))
+      .filter(x => !directors.includes(x.b) && windowOfPerson(x, project.verfuegbar, d))
       .map(x => x.b);
 
     let level = 0, best = null;
     for (const pr of mine) {
-      const others = [...new Set([...pr.gruppe, ...directors])].filter(b => b !== person.b);
+      const others = pr.gruppe.filter(b => b !== person.b && !directors.includes(b));
       const here = others.filter(b => canOn(b, d));
       const share = others.length ? here.length / others.length : 1;
       const st = share >= 1 ? 3 : (share >= 0.5 ? 2 : (here.length ? 1 : 0));

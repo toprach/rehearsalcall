@@ -575,7 +575,7 @@ export const en = {
   'my.saved':         'saved {when}',
   'my.save_failed':   'Saving failed \u2013 please try again.',
   /* other calendars, kept in this browser only */
-  'my.sources_title': 'Show my own calendars',
+  'my.sources_title': 'Link my calendar',
   'my.sources_what':  'Add the addresses of your own calendars (the private ICS link of a Google calendar, say) or load '
                     + 'an .ics file; several at once are fine. The server fetches a feed for you and forgets it at once. '
                     + 'The addresses are encrypted with a four-digit PIN and kept that way on the server too \u2013 on the '
@@ -639,7 +639,7 @@ export const en = {
   'my.day_full': 'all free',
   'my.legend_nein': 'struck by me',
   'my.pref_title': 'Preferred window',
-  'my.pref_what':  'A yes enters these times; green in the calendar shows how much of the window is still free that day according to your calendars.',
+  'my.legend':     'Legend',
   'my.cannot':   'Strike the day for me',
   'my.time_wrong':  'The \u201cuntil\u201d time has to be later than \u201cfrom\u201d.',
   'my.legend_blocked': 'struck by the director',
