@@ -2368,6 +2368,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
       check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
       check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
+      hint_touch: t('kd.hint_touch'),
       more: t('kd.more'), font: t('kd.font'), adhoc: t('kd.adhoc'), adhoc_title: t('kd.adhoc_title'),
       adhoc_what: t('kd.adhoc_what'), adhoc_start: t('kd.adhoc_start'), adhoc_change: t('kd.adhoc_change'),
       adhoc_end: t('kd.adhoc_end'), adhoc_chosen: t('kd.adhoc_chosen'), adhoc_speeches: t('kd.adhoc_speeches'),
@@ -2456,6 +2457,14 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-sheet .who-row .n { font-size:.85em; color:#6b655c }
   /* display:flex above would beat the hidden attribute on its own */
   .kmt-sheet[hidden], .kmt-sheet-veil[hidden] { display:none }
+  /* A long press is how the comment is reached on a phone. The system
+     wants the same gesture for selecting a word and showing it in the
+     dictionary, and wins - so selection comes off the lines, but only
+     where the pointer is a finger. A mouse keeps it, and with it
+     double-click and copying. */
+  @media (pointer: coarse) {
+    main p, main td p { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
+  }
   body.kmt-has-bar { padding-top:3.2rem }
   body { zoom:var(--kmt-zoom, 1) }
   @media print { body { zoom:1 } }
@@ -2587,17 +2596,57 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       });
     }
     /* double click on a line: comment on it (or on the last cue before it) */
-    document.addEventListener('dblclick', function (e) {
-      var p = e.target.closest ? e.target.closest('main p, main td p') : null;
-      if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return;
-      if (p.classList.contains('kmt-veiled')) return;
+    /* Which line is meant, and what is its number? A continuation
+       paragraph carries none - then the one above it counts. */
+    var lineNr = function (target) {
+      var p = target && target.closest ? target.closest('main p, main td p') : null;
+      if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return null;
+      if (p.classList.contains('kmt-veiled')) return null;
       var nr = p.dataset.nr;
       if (!nr) { var q = p; while (q && !nr) { q = q.previousElementSibling; if (q && q.dataset && q.dataset.nr) nr = q.dataset.nr; } }
-      if (!nr) return;
+      return nr || null;
+    };
+    var openComment = function (nr) {
       var sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges();
       showNew(nr);
+    };
+    document.addEventListener('dblclick', function (e) {
+      var nr = lineNr(e.target); if (nr) openComment(nr);
     });
-    if (D.me) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = T.hint; document.body.appendChild(h); }
+
+    /* On a phone the double tap belongs to the system: it selects the
+       word and opens the dictionary, so the comment never appeared.
+       Touch gets its own gesture - press and hold. The stylesheet takes
+       text selection off the lines on coarse pointers, otherwise the
+       system would claim this press too. */
+    var holdTimer = null, holdFrom = null;
+    var dropHold = function () { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    document.addEventListener('touchstart', function (e) {
+      dropHold();
+      if (e.touches.length !== 1) return;
+      if (e.target.closest && e.target.closest('button, select, a, .kmt-bar, .kmt-veil, .kmt-badge')) return;
+      var nr = lineNr(e.target);
+      if (!nr) return;
+      var t = e.touches[0];
+      holdFrom = { x: t.clientX, y: t.clientY };
+      holdTimer = setTimeout(function () {
+        holdTimer = null;
+        if (navigator.vibrate) { try { navigator.vibrate(12); } catch (x) {} }
+        openComment(nr);
+      }, 500);
+    }, { passive: true });
+    /* Scrolling is not a press: a finger that travels gives up. */
+    document.addEventListener('touchmove', function (e) {
+      if (!holdTimer || !holdFrom || !e.touches.length) return;
+      var t = e.touches[0];
+      if (Math.abs(t.clientX - holdFrom.x) > 10 || Math.abs(t.clientY - holdFrom.y) > 10) dropHold();
+    }, { passive: true });
+    document.addEventListener('touchend', dropHold, { passive: true });
+    document.addEventListener('touchcancel', dropHold, { passive: true });
+
+    var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    var HINT = coarse ? T.hint_touch : T.hint;
+    if (D.me) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = HINT; document.body.appendChild(h); }
 
     /* ---- the rehearsal plan: jump between the scenes of a rehearsal ---- */
     var scenes = [];
@@ -2831,7 +2880,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       if (was) { unveil(); }
       markPeople(activeNames());
       showStrip();
-      if (was) veil();
+      if (was) veilMine();
       padBar();
     };
 
@@ -2960,7 +3009,12 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         })
         .catch(function () { alert(T.failed); });
     };
-    var veil = function () {
+    /* Not "veil": that is the comment dialog's backdrop element, a few
+       hundred lines up and in this same scope. Naming a function the
+       same overwrote it, so close() - which every open() calls first -
+       read parentNode off a function and threw. The comment box has
+       been unreachable ever since, by double click as by long press. */
+    var veilMine = function () {
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) {
         if (p.classList.contains('kmt-veiled')) return;
         var span = document.createElement('span'); span.className = 'kmt-text';
@@ -2993,8 +3047,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     var setChecking = function (on) {
       checking = on;
       if (chkBtn) chkBtn.classList.toggle('on', on);
-      if (on) { veil(); if (!hintEl) { hintEl = document.createElement('div'); hintEl.className = 'kmt-hint'; document.body.appendChild(hintEl); } hintEl.textContent = T.check_hint; }
-      else { unveil(); if (hintEl) { if (D.me) hintEl.textContent = T.hint; else { hintEl.parentNode.removeChild(hintEl); hintEl = null; } } }
+      if (on) { veilMine(); if (!hintEl) { hintEl = document.createElement('div'); hintEl.className = 'kmt-hint'; document.body.appendChild(hintEl); } hintEl.textContent = T.check_hint; }
+      else { unveil(); if (hintEl) { if (D.me) hintEl.textContent = HINT; else { hintEl.parentNode.removeChild(hintEl); hintEl = null; } } }
     };
     if (chkBtn) chkBtn.onclick = function () { setChecking(!checking); };
     document.addEventListener('click', function (e) {

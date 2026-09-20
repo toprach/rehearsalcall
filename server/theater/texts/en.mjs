@@ -1159,6 +1159,7 @@ export const en = {
   'kd.signin':       'To comment, open the script through your company link or your part book '
                    + '\u2013 then the comment carries your name.',
   'kd.hint':         'Double-click a line to comment on it.',
+  'kd.hint_touch':      'Press and hold a line to comment on it.',
   'kd.scenes':       'Scenes of this rehearsal',
   'kd.all_rehearsals': 'All rehearsals',
   'kd.failed':       'That could not be saved.',

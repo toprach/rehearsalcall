@@ -1162,6 +1162,7 @@ export const de = {
   'kd.signin':       'Zum Kommentieren das Skript \u00fcber den Ensemble-Link oder das eigene '
                    + 'Rollenheft \u00f6ffnen \u2013 dann tr\u00e4gt der Kommentar Ihren Namen.',
   'kd.hint':         'Doppelklick auf eine Zeile: Kommentar dazu.',
+  'kd.hint_touch':      'Lang auf eine Zeile drücken: Kommentar dazu.',
   'kd.scenes':       'Szenen dieser Probe',
   'kd.all_rehearsals': 'Alle Proben',
   'kd.failed':       'Das lie\u00df sich nicht speichern.',
