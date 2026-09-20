@@ -62,15 +62,16 @@ function windowOn(entry, date) {
    usually up to the dress rehearsal. Without a setting we take three
    months.
 
-   It always starts tomorrow: no rehearsal can be arranged for this
-   evening any more, and the search for dates starts there too.        */
+   It starts today. This evening is still an evening: a company that
+   decides at noon to meet tonight would otherwise find today missing
+   from the calendar, and a rehearsal fixed for today would drop out of
+   the proposals although it has not been held yet.                    */
 export function period(project) {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() + 1);
 
   // The director may push the start out - rehearsals begin after the
-  // casting is done, say - but never behind tomorrow.
+  // casting is done, say - but never behind today.
   const from = asDate(project?.einstellungen?.von);
   if (from && from > start) { start.setTime(from.getTime()); }
 

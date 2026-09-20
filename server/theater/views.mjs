@@ -300,10 +300,14 @@ function historySection(target, project) {
         `<button class="quiet mini" type="submit" data-confirm="${h(t('hist.remove_confirm'))}">${h(t('hist.remove'))}</button>`)}</td>
     </tr>`;
   }).join('');
-  return `<h2 id="verlauf">${t('hist.title')} (${list.length})</h2>
+  /* Folded away: what has been is rarely what one came for, and on a
+     phone it would push the coming dates off the screen. */
+  return `<details class="box archiv" id="verlauf">
+    <summary><b>${t('hist.archive')}</b> <span class="small muted">${t('hist.archive_n', { n: list.length })}</span></summary>
     <p class="small muted">${t('hist.what')}</p>
     <table class="histtable"><tr><th>${t('date.col_date')}</th><th>${t('date.col_rehearsal')}</th>
-      <th>${t('hist.sits')}</th><th></th></tr>${rows}</table>`;
+      <th>${t('hist.sits')}</th><th></th></tr>${rows}</table>
+    </details>`;
 }
 
 /* The message about a fixed rehearsal, as plain text for a chat:
@@ -2364,6 +2368,10 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
       check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
       check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
+      more: t('kd.more'), font: t('kd.font'), adhoc: t('kd.adhoc'), adhoc_title: t('kd.adhoc_title'),
+      adhoc_what: t('kd.adhoc_what'), adhoc_start: t('kd.adhoc_start'), adhoc_change: t('kd.adhoc_change'),
+      adhoc_end: t('kd.adhoc_end'), adhoc_chosen: t('kd.adhoc_chosen'), adhoc_speeches: t('kd.adhoc_speeches'),
+      adhoc_none: t('kd.adhoc_none'), jump_who: t('kd.jump_who'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -2406,6 +2414,48 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-bar button { font:inherit; padding:.15rem .6rem; border:1px solid #a9a29a; border-radius:.3rem;
     background:#fff; color:#1c1a18; cursor:pointer }
   .kmt-bar .cnt { color:#6b655c }
+  /* The bar carries one row of the few buttons that are always wanted,
+     and above it a line saying whom stepping follows. Everything else
+     lives in a sheet that slides up over the text. */
+  .kmt-bar { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:.3rem }
+  .kmt-row { display:flex; gap:.4rem; align-items:stretch }
+  .kmt-row button { flex:0 0 auto; min-height:2.7rem; font-weight:600 }
+  .kmt-row button.wide { flex:1 1 auto; min-width:0 }
+  .kmt-row button.accent { border-color:#b3272d; color:#b3272d }
+  .kmt-strip { display:flex; align-items:center; gap:.5rem; min-height:1.4rem; color:#6b655c }
+  .kmt-strip .names { font-weight:700; color:#b3272d }
+  .kmt-strip .grow { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .kmt-strip button { font:inherit; padding:.1rem .5rem; border:1px solid #a9a29a; border-radius:.3rem;
+    background:#fff; color:#1c1a18; cursor:pointer }
+  .kmt-sheet-veil { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.35); z-index:65 }
+  .kmt-sheet { position:fixed; left:0; right:0; bottom:0; z-index:70; background:#fff; color:#1c1a18;
+    border-top:1px solid #d8d3cc; border-radius:.6rem .6rem 0 0; box-shadow:0 -10px 30px rgba(0,0,0,.2);
+    padding:.8rem 1rem 1.1rem; max-height:82vh; overflow:auto; display:flex; flex-direction:column; gap:.7rem;
+    font:15px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif }
+  .kmt-sheet .head { display:flex; align-items:center; gap:.6rem }
+  .kmt-sheet .head h3 { margin:0; font-size:1.05rem; flex:1 1 auto }
+  .kmt-sheet .slbl { display:block; font-size:.85em; color:#6b655c; margin-bottom:.2rem }
+  /* The sheet sits inside the bar, so the bar's own narrow rules - the
+     phone one especially - would squeeze its fields. Outrank them. */
+  .kmt-bar .kmt-sheet select, .kmt-bar .kmt-sheet button { font:inherit; max-width:none }
+  .kmt-sheet select { width:100%; box-sizing:border-box; min-height:2.7rem; padding:.2rem .4rem;
+    border:1px solid #a9a29a; border-radius:.3rem; background:#fff; color:#1c1a18 }
+  .kmt-sheet button { min-height:2.7rem; padding:.2rem .8rem; border:1px solid #a9a29a; border-radius:.3rem;
+    background:#fff; color:#1c1a18; cursor:pointer }
+  .kmt-sheet button.go { border-color:#b3272d; background:#b3272d; color:#fff; font-weight:600 }
+  .kmt-sheet .pair { display:flex; gap:.6rem }
+  .kmt-sheet .pair > * { flex:1 1 0; min-width:0 }
+  .kmt-sheet .who-list { border:1px solid #d8d3cc; border-radius:.4rem; overflow:hidden }
+  .kmt-sheet .who-row { display:flex; align-items:center; gap:.7rem; padding:0 .7rem; min-height:2.9rem;
+    border-bottom:1px solid #f0ece6; cursor:pointer }
+  .kmt-sheet .who-row:last-child { border-bottom:0 }
+  .kmt-sheet .who-row.on { background:#fbf6f6 }
+  .kmt-sheet .who-row input { width:1.15rem; height:1.15rem; accent-color:#b3272d }
+  /* the booklet's own stylesheet underlines names; not here */
+  .kmt-sheet .who-row .nm { flex:1 1 auto; font-weight:600; text-decoration:none; color:#1c1a18 }
+  .kmt-sheet .who-row .n { font-size:.85em; color:#6b655c }
+  /* display:flex above would beat the hidden attribute on its own */
+  .kmt-sheet[hidden], .kmt-sheet-veil[hidden] { display:none }
   body.kmt-has-bar { padding-top:3.2rem }
   body { zoom:var(--kmt-zoom, 1) }
   @media print { body { zoom:1 } }
@@ -2589,28 +2639,46 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     /* whose lines are marked: the signed-in person to begin with, any
        person by choice - the director works with the view that way */
     var personB = D.me ? D.me.b : (D.people[0] ? D.people[0].b : '');
-    if (D.people.length) inner += '<label><span class="lbl">' + esc(T.person) + '</span> <select id="kmt-person">' +
+    /* An ad-hoc rehearsal needs everybody's lines in front of one, so
+       it is offered in the whole booklet, not in a single part book. */
+    var mayAdhoc = D.doc !== 'rolle' && D.people.length > 1;
+    /* What the sheet behind "more" holds: everything one reaches for
+       now and then. The four buttons that are wanted all the time stay
+       on the bar itself. */
+    var more = '';
+    if (D.people.length) more += '<div><span class="slbl">' + esc(T.person) + '</span><select id="kmt-person">' +
       D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x.b === personB ? ' selected' : '') + '>' + esc(x.b) + '</option>'; }).join('') +
-      '</select></label>';
-    if (D.people.length) inner += '<button type="button" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>';
+      '</select></div>';
     if (scenes.length) {
       // rehearsals in their order 1..N, scenes all of them
       var probeNr = function (pn) { var m = /(\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
       var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
       probes.sort(function (a, b) { return probeNr(a) - probeNr(b) || a.localeCompare(b); });
-      inner += '<label><span class="lbl">' + esc(T.rehearsal) + '</span> <select id="kmt-probe">' +
-        probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></label>' +
-        '<label><span class="lbl">' + esc(T.scene) + '</span> <select id="kmt-scene">' +
+      more += '<div class="pair"><div><span class="slbl">' + esc(T.rehearsal) + '</span><select id="kmt-probe">' +
+        probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></div>' +
+        '<div><span class="slbl">' + esc(T.scene) + '</span><select id="kmt-scene">' +
         scenes.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' \u00b7 ' + esc(s.probe) + '</option>'; }).join('') +
-        '</select></label>';
+        '</select></div></div>';
     }
-    inner += '<span class="grp"><button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '">\u25c0 <span class="who"></span></button>' +
-             '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '"><span class="who"></span> \u25b6</button></span>' +
-             '<span class="grp"><button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
-             '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button>' +
-             '<span class="cnt" id="kmt-cnt"></span></span>' +
-             '<span class="grp zoom"><button type="button" id="kmt-zoom-out" title="' + esc(T.zoom_out) + '">A\u2212</button>' +
-             '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></span>';
+    more += '<div><span class="slbl">' + esc(T.comments) + ' <span class="cnt" id="kmt-cnt"></span></span>' +
+      '<div class="pair"><button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
+      '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button></div></div>' +
+      '<div><span class="slbl">' + esc(T.font) + '</span><div class="pair">' +
+      '<button type="button" id="kmt-zoom-out" title="' + esc(T.zoom_out) + '">A\u2212</button>' +
+      '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></div></div>';
+
+    inner = '<div class="kmt-strip" id="kmt-strip"></div>' +
+      '<div class="kmt-row">' +
+      '<button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '" aria-label="' + esc(T.prev_mine) + '">\u25c0</button>' +
+      (D.people.length ? '<button type="button" class="wide" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>' : '<span class="wide"></span>') +
+      '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '" aria-label="' + esc(T.next_mine) + '">\u25b6</button>' +
+      (mayAdhoc ? '<button type="button" class="accent" id="kmt-adhoc">' + esc(T.adhoc) + '</button>' : '') +
+      '<button type="button" id="kmt-more" title="' + esc(T.more) + '" aria-label="' + esc(T.more) + '">\u22ef</button>' +
+      '</div>' +
+      '<div class="kmt-sheet-veil" id="kmt-sheet-veil" hidden></div>' +
+      '<div class="kmt-sheet" id="kmt-sheet-more" hidden><div class="head"><h3>' + esc(T.more) + '</h3>' +
+      '<button type="button" data-close="1" aria-label="' + esc(T.close) + '">\u2715</button></div>' + more + '</div>' +
+      (mayAdhoc ? '<div class="kmt-sheet" id="kmt-sheet-adhoc" hidden></div>' : '');
     bar.innerHTML = inner;
     document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
     /* on a phone the bar sits at the bottom and may wrap to several rows:
@@ -2677,39 +2745,152 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     /* ---- reading as oneself: own lines marked, the own name in the
        directions too, and two buttons that hop from one to the next ---- */
     var isWord = function (c) { return !!c && /[A-Za-z0-9\u00c0-\u024f]/.test(c); };
-    var markPerson = function (name) {
-      // undo the previous person's marks
+    /* An ad-hoc rehearsal: a few people sit together and work their
+       scenes. Stepping, veiling and checking then follow all of them
+       instead of one. The choice stays on the device - shutting the
+       booklet in between does not end the rehearsal. */
+    var STORE = 'kmt-adhoc';
+    var known = D.people.map(function (x) { return x.b; });
+    var group = [];
+    try {
+      var kept = JSON.parse(localStorage.getItem(STORE) || '[]');
+      if (Object.prototype.toString.call(kept) === '[object Array]')
+        group = kept.filter(function (b) { return known.indexOf(b) >= 0; });
+    } catch (e) { group = []; }
+    if (!mayAdhoc) group = [];
+    var keepGroup = function () { try { localStorage.setItem(STORE, JSON.stringify(group)); } catch (e) {} };
+    /* Whose lines are marked: the group if one is running, else the
+       single person chosen in the sheet. */
+    var activeNames = function () { return group.length ? group.slice() : (personB ? [personB] : []); };
+
+    var markPeople = function (names) {
+      // undo the previous marks
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) { p.classList.remove('kmt-mine'); });
       [].forEach.call(document.querySelectorAll('main span.kmt-wrap'), function (sp) { sp.replaceWith(document.createTextNode(sp.textContent)); });
       [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
-      [].forEach.call(bar.querySelectorAll('.who'), function (w) { w.textContent = name; });
-      if (!name) return;
+      if (!names.length) return;
       [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
-        if (p.dataset.ensemble === name) p.classList.add('kmt-mine');
+        if (names.indexOf(p.dataset.ensemble) >= 0) p.classList.add('kmt-mine');
       });
-      var markName = function (text) {
-        var out = '', i = 0, idx;
-        while ((idx = text.indexOf(name, i)) >= 0) {
-          var ok = !isWord(text.charAt(idx - 1)) && !isWord(text.charAt(idx + name.length));
-          out += esc(text.slice(i, idx)) + (ok ? '<mark class="kmt-me">' + esc(name) + '</mark>' : esc(name));
-          i = idx + name.length;
+      /* The names in the stage directions too - whoever is in the room
+         wants to see where they are spoken of. */
+      var markNames = function (text) {
+        var out = '', i = 0;
+        for (;;) {
+          var at = -1, hit = '';
+          names.forEach(function (name) {
+            var idx = text.indexOf(name, i);
+            while (idx >= 0 && (isWord(text.charAt(idx - 1)) || isWord(text.charAt(idx + name.length))))
+              idx = text.indexOf(name, idx + 1);
+            if (idx >= 0 && (at < 0 || idx < at || (idx === at && name.length > hit.length))) { at = idx; hit = name; }
+          });
+          if (at < 0) break;
+          out += esc(text.slice(i, at)) + '<mark class="kmt-me">' + esc(hit) + '</mark>';
+          i = at + hit.length;
         }
         return out + esc(text.slice(i));
       };
       [].forEach.call(document.querySelectorAll('main [data-sem="regieanweisung"], main .dir'), function (d) {
         var walker = document.createTreeWalker(d, NodeFilter.SHOW_TEXT), nodes = [], n;
-        while ((n = walker.nextNode())) if (n.nodeValue.indexOf(name) >= 0) nodes.push(n);
+        while ((n = walker.nextNode()))
+          if (names.some(function (name) { return n.nodeValue.indexOf(name) >= 0; })) nodes.push(n);
         nodes.forEach(function (tn) {
-          var html = markName(tn.nodeValue);
+          var html = markNames(tn.nodeValue);
           if (html.indexOf('<mark') < 0) return;
           var span = document.createElement('span'); span.className = 'kmt-wrap'; span.innerHTML = html;
           tn.parentNode.replaceChild(span, tn);
         });
       });
     };
-    markPerson(personB);
+
+    /* The line above the buttons: whom the arrows follow, and while an
+       ad-hoc rehearsal runs the way out of it. */
+    var strip = bar.querySelector('#kmt-strip');
+    var adhocBtn = bar.querySelector('#kmt-adhoc');
+    var showStrip = function () {
+      var names = activeNames();
+      if (adhocBtn) adhocBtn.classList.toggle('on', group.length > 0);
+      if (!names.length) { strip.textContent = ''; return; }
+      if (!group.length) {
+        strip.innerHTML = '<span class="grow">' +
+          esc(T.jump_who).replace('{who}', '<span class="names">' + esc(names[0]) + '</span>') + '</span>';
+        return;
+      }
+      strip.innerHTML = '<span class="grow"><span class="names">' + names.map(esc).join(' · ') + '</span></span>' +
+        '<button type="button" id="kmt-adhoc-change">' + esc(T.adhoc_change) + '</button>' +
+        '<button type="button" id="kmt-adhoc-end">' + esc(T.adhoc_end) + '</button>';
+      strip.querySelector('#kmt-adhoc-change').onclick = function () { openAdhoc(); };
+      strip.querySelector('#kmt-adhoc-end').onclick = function () {
+        group = []; keepGroup(); refresh();
+      };
+    };
+    /* After any change of who is followed: remark, redraw the line, and
+       put the veil back if checking was on. */
+    var refresh = function () {
+      var was = checking;
+      if (was) { unveil(); }
+      markPeople(activeNames());
+      showStrip();
+      if (was) veil();
+      padBar();
+    };
+
+    markPeople(activeNames());
     var selPerson = bar.querySelector('#kmt-person');
-    if (selPerson) selPerson.onchange = function () { unveil(); markPerson(selPerson.value); if (checking) veil(); };
+    if (selPerson) selPerson.onchange = function () { personB = selPerson.value; refresh(); };
+
+    /* The two sheets. Only ever one of them open, and the dark ground
+       behind closes whichever it is. */
+    var sheetVeil = bar.querySelector('#kmt-sheet-veil');
+    var sheetMore = bar.querySelector('#kmt-sheet-more');
+    var sheetAdhoc = bar.querySelector('#kmt-sheet-adhoc');
+    var closeSheets = function () {
+      sheetVeil.hidden = true; sheetMore.hidden = true;
+      if (sheetAdhoc) sheetAdhoc.hidden = true;
+    };
+    var openSheet = function (el) { closeSheets(); sheetVeil.hidden = false; el.hidden = false; };
+    sheetVeil.onclick = closeSheets;
+    bar.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('[data-close]')) closeSheets();
+    });
+    bar.querySelector('#kmt-more').onclick = function () { openSheet(sheetMore); };
+
+    var speechCount = function (b) {
+      return document.querySelectorAll('main p.speech[data-ensemble="' + b.replace(/"/g, '\\\\"') + '"]').length;
+    };
+    var openAdhoc = function () {
+      if (!sheetAdhoc) return;
+      var rows = D.people.map(function (x) {
+        var on = group.indexOf(x.b) >= 0;
+        return '<label class="who-row' + (on ? ' on' : '') + '">' +
+          '<input type="checkbox" value="' + esc(x.b) + '"' + (on ? ' checked' : '') + '>' +
+          '<span class="nm">' + esc(x.b) + '</span>' +
+          '<span class="n">' + esc(T.adhoc_speeches).replace('{n}', speechCount(x.b)) + '</span></label>';
+      }).join('');
+      sheetAdhoc.innerHTML = '<div class="head"><h3>' + esc(T.adhoc_title) + '</h3>' +
+        '<button type="button" data-close="1" aria-label="' + esc(T.close) + '">✕</button></div>' +
+        '<div class="slbl">' + esc(T.adhoc_what) + '</div>' +
+        '<div class="who-list">' + rows + '</div>' +
+        '<div class="pair"><span class="slbl" id="kmt-adhoc-n"></span>' +
+        '<button type="button" class="go" id="kmt-adhoc-go">' + esc(T.adhoc_start) + '</button></div>';
+      var boxes = [].slice.call(sheetAdhoc.querySelectorAll('input[type=checkbox]'));
+      var tell = function () {
+        var n = boxes.filter(function (b) { return b.checked; }).length;
+        sheetAdhoc.querySelector('#kmt-adhoc-n').textContent =
+          n ? T.adhoc_chosen.replace('{n}', n) : T.adhoc_none;
+      };
+      boxes.forEach(function (b) {
+        b.onchange = function () { b.parentNode.classList.toggle('on', b.checked); tell(); };
+      });
+      tell();
+      sheetAdhoc.querySelector('#kmt-adhoc-go').onclick = function () {
+        group = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+        keepGroup(); closeSheets(); refresh();
+      };
+      openSheet(sheetAdhoc);
+    };
+    if (adhocBtn) adhocBtn.onclick = function () { openAdhoc(); };
+    showStrip();
 
     /* ---- checking: the chosen person's lines veiled. A tap shows the
        initials, another the words; then a tick or a cross records the
@@ -2721,7 +2902,13 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     var firstLetters = function (text) {
       return text.replace(/[\\p{L}\\p{N}\\u2019']+/gu, function (w) { return w.charAt(0) + '\\u00b7'.repeat(Math.min(w.length - 1, 6)); });
     };
-    var whoNow = function () { return selPerson ? selPerson.value : personB; };
+    /* Whose line is this? Its own speaker - with several people in the
+       room every speech is recorded for the one who says it. Only
+       where a key exists is a tick offered, and the server hands out
+       keys for oneself, or for everybody to the director. */
+    var whoOf = function (head) {
+      return (head && head.dataset && head.dataset.ensemble) || (selPerson ? selPerson.value : personB);
+    };
     var headOf = function (p) {
       var q = p;
       while (q && !q.dataset.nr && q.classList.contains('cont')) q = q.previousElementSibling;
@@ -2740,7 +2927,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         if (ph && tx) ph.textContent = state === 1 ? firstLetters(tx.textContent) : '';
       });
       var ui = last.querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
-      var name = whoNow(), key = (D.keys[name] || {})[head.dataset.nr];
+      var name = whoOf(head), key = (D.keys[name] || {})[head.dataset.nr];
       if (state === 2 && key && D.me) {
         ui = document.createElement('span'); ui.className = 'kmt-check-ui';
         ui.innerHTML = '<button type="button" class="ok">\u2713 ' + esc(T.check_ok) + '</button><button type="button" class="no">\u2717 ' + esc(T.check_no) + '</button>';
@@ -2750,7 +2937,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       }
     };
     var stepBadge = function (head) {
-      var name = whoNow(), key = (D.keys[name] || {})[head.dataset.nr];
+      var name = whoOf(head), key = (D.keys[name] || {})[head.dataset.nr];
       var old = head.querySelector('.kmt-step'); if (old) old.parentNode.removeChild(old);
       var s = key != null && D.steps[name] ? D.steps[name][key] : null;
       if (s == null) return;
@@ -2758,7 +2945,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       var who = head.querySelector('.who'); if (who) who.appendChild(b);
     };
     var record = function (head, key, rating) {
-      var name = whoNow();
+      var name = whoOf(head);
       var body = 'key=' + encodeURIComponent(key) + '&antwort=' + rating + '&fuer=' + encodeURIComponent(name);
       fetch('/theater/mit/heft', { method: 'POST', credentials: 'same-origin',
         headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
