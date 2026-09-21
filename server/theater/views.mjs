@@ -2754,12 +2754,13 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
           (present ? '<button class="q" id="kmt-adhoc-all">' + esc(T.adhoc_all) + '</button>' : '') +
           '<button class="q" id="kmt-cancel">' + esc(T.cancel) + '</button>');
         box.querySelector('#kmt-cancel').onclick = close;
-        var all = box.querySelector('#kmt-adhoc-all'); if (all) all.onclick = function () { present = null; applyAdhoc(); close(); };
+        var all = box.querySelector('#kmt-adhoc-all'); if (all) all.onclick = function () { present = null; applyAdhoc(); unveilLines(); markCurrent(); if (checking) veilLines(); close(); };
         box.querySelector('#kmt-adhoc-go').onclick = function () {
           var ticked = [].map.call(box.querySelectorAll('input:checked'), function (i) { return i.value; });
           present = ticked.length ? ticked : null;
           var ok = applyAdhoc();
           if (present && !ok.length) { box.querySelector('#kmt-adhoc-note').hidden = false; return; }
+          unveilLines(); markCurrent(); if (checking) veilLines();
           close();
           if (present && ok[0]) { selP.value = ok[0].probe; selS.value = String(ok[0].i); jump(document.getElementById('szk-' + ok[0].i)); }
         };
@@ -2821,19 +2822,26 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     /* ---- reading as oneself: own lines marked, the own name in the
        directions too, and two buttons that hop from one to the next ---- */
     var isWord = function (c) { return !!c && /[A-Za-z0-9\u00c0-\u024f]/.test(c); };
-    var markPerson = function (name) {
-      // undo the previous person's marks
+    /* one person as a rule; everybody present in an ad hoc rehearsal */
+    var markPeople = function (names) {
+      names = (names || []).filter(Boolean);
+      // undo the previous marks
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) { p.classList.remove('kmt-mine'); });
       [].forEach.call(document.querySelectorAll('main span.kmt-wrap'), function (sp) { sp.replaceWith(document.createTextNode(sp.textContent)); });
       [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
-      [].forEach.call(bar.querySelectorAll('.who'), function (w) { w.textContent = name; });
-      if (!name) return;
+      var label = names.length > 3 ? names.slice(0, 2).join(', ') + ' +' + (names.length - 2) : names.join(', ');
+      [].forEach.call(bar.querySelectorAll('.who'), function (w) { w.textContent = label; w.title = names.join(', '); });
+      if (!names.length) return;
       [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
-        if (p.dataset.ensemble === name) p.classList.add('kmt-mine');
+        if (names.indexOf(p.dataset.ensemble) >= 0) p.classList.add('kmt-mine');
       });
       var markName = function (text) {
-        var out = '', i = 0, idx;
-        while ((idx = text.indexOf(name, i)) >= 0) {
+        var out = '', i = 0;
+        while (i < text.length) {
+          // the earliest of the names from here on
+          var idx = -1, name = '';
+          names.forEach(function (nm) { var j = text.indexOf(nm, i); if (j >= 0 && (idx < 0 || j < idx)) { idx = j; name = nm; } });
+          if (idx < 0) break;
           var ok = !isWord(text.charAt(idx - 1)) && !isWord(text.charAt(idx + name.length));
           out += esc(text.slice(i, idx)) + (ok ? '<mark class="kmt-me">' + esc(name) + '</mark>' : esc(name));
           i = idx + name.length;
@@ -2842,7 +2850,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       };
       [].forEach.call(document.querySelectorAll('main [data-sem="regieanweisung"], main .dir'), function (d) {
         var walker = document.createTreeWalker(d, NodeFilter.SHOW_TEXT), nodes = [], n;
-        while ((n = walker.nextNode())) if (n.nodeValue.indexOf(name) >= 0) nodes.push(n);
+        while ((n = walker.nextNode())) if (names.some(function (nm) { return n.nodeValue.indexOf(nm) >= 0; })) nodes.push(n);
         nodes.forEach(function (tn) {
           var html = markName(tn.nodeValue);
           if (html.indexOf('<mark') < 0) return;
@@ -2851,9 +2859,13 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         });
       });
     };
-    markPerson(personB);
+    var markPerson = function (name) { markPeople(name ? [name] : []); };
+    /* whose lines are marked now: the people present while an ad hoc
+       rehearsal is on, else the person chosen in the bar */
+    var markCurrent = function () { if (present) markPeople(present); else markPerson(selPerson ? selPerson.value : personB); };
     var selPerson = bar.querySelector('#kmt-person');
-    if (selPerson) selPerson.onchange = function () { unveilLines(); markPerson(selPerson.value); if (checking) veilLines(); };
+    markCurrent();
+    if (selPerson) selPerson.onchange = function () { unveilLines(); present = null; if (applyAdhoc) applyAdhoc(); markPerson(selPerson.value); if (checking) veilLines(); };
 
     /* ---- checking: the chosen person's lines veiled. A tap shows the
        initials, another the words; then a tick or a cross records the
