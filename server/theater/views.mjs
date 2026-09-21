@@ -1852,7 +1852,9 @@ function datesPage(p, result, m, share = null) {
           h(L.date(x.date, { day: '2-digit', month: '2-digit' }))}</span>`).join('')}</div>` : '';
 
     return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
-      <td>${h(pr.id)}${historyLine(pr.history)}</td>
+      <td>${p.drucklink
+        ? `<a href="${h(p.drucklink)}/probenplan#probe-${encodeURIComponent(pr.id)}" title="${h(t('date.open_script'))}"><b>${h(pr.id)}</b></a>`
+        : h(pr.id)}${historyLine(pr.history)}</td>
       <td>${who}<div class="small muted">${t('date.scenes_min', {
           scenes: (pr.scenes || []).length, min: Math.round(pr.minutes) })}</div>${
           optionalLine(pr.optional, pr.fixed ? [] : pr.proposal?.optional)}</td>
@@ -2375,6 +2377,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       cancel: t('kd.cancel'), comments: t('kd.comments'), answer: t('kd.answer'),
       del: t('kd.delete'), signin: t('kd.signin'), hint: t('kd.hint'), scenes: t('kd.scenes'),
       who: t('kd.who'), who_hint: t('kd.who_hint'), who_go: t('kd.who_go'),
+      adhoc: t('kd.adhoc'), adhoc_what: t('kd.adhoc_what'), adhoc_go: t('kd.adhoc_go'), adhoc_all: t('kd.adhoc_all'),
+      adhoc_count: t('kd.adhoc_count'), adhoc_missing: t('kd.adhoc_missing'), adhoc_none: t('kd.adhoc_none'),
       rehearsals: t('kd.all_rehearsals'), close: t('kd.close'), question_mark: t('kd.question_mark'),
       done: t('kd.done'), failed: t('kd.failed'),
       rehearsal: t('kd.rehearsal'), scene: t('kd.scene'), prev: t('kd.prev_comment'),
@@ -2415,6 +2419,13 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-nav a.on { font-weight:700 }
   .kmt-nav .grp { margin-top:.8rem; font-weight:600; color:#6b655c; font-size:.85em; text-transform:uppercase; letter-spacing:.05em }
   main.plan .szkopf, main.plan p.szende { cursor:pointer }
+  /* the ad hoc rehearsal: scenes the people present can do, and the rest */
+  main.plan .szkopf.kmt-fit { border-color:#166b34; box-shadow:inset 4px 0 0 #166b34 }
+  main.plan .szkopf.kmt-nofit { opacity:.45 }
+  .kmt-miss { display:block; margin-top:.4mm; font:600 .8em/1.3 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#b3272d }
+  .kmt-box .choices { display:flex; flex-wrap:wrap; gap:.3rem .9rem; margin:.4rem 0 }
+  .kmt-box .choices label { display:inline-flex; gap:.3rem; align-items:center; margin:0 }
+  @media print { .kmt-miss { display:none } main.plan .szkopf.kmt-nofit { opacity:1 } main.plan .szkopf.kmt-fit { box-shadow:none; border-color:#000 } }
   p.speech.kmt-mine { border-left:3px solid #b3272d; padding-left:.5em; margin-left:-.5em; background:rgba(179,39,45,.05) }
   mark.kmt-me { background:#ffe58a; color:inherit; font-weight:700; padding:0 .1em }
   @media print { p.speech.kmt-mine { background:transparent } }
@@ -2660,6 +2671,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         '<label><span class="lbl">' + esc(T.scene) + '</span> <select id="kmt-scene">' +
         scenes.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' \u00b7 ' + esc(s.probe) + '</option>'; }).join('') +
         '</select></label>';
+      if (D.people.length) inner += '<span class="grp"><button type="button" id="kmt-adhoc" title="' + esc(T.adhoc_what) + '">' + esc(T.adhoc) + '</button>' +
+        '<span class="cnt" id="kmt-adhoc-cnt"></span></span>';
     }
     inner += '<span class="grp"><button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '">\u25c0 <span class="who"></span></button>' +
              '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '"><span class="who"></span> \u25b6</button></span>' +
@@ -2695,6 +2708,71 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       var firstOf = function (pn) { return scenes.filter(function (s) { return s.probe === pn; })[0]; };
       selP.onchange = function () { var f = firstOf(selP.value); if (f) { selS.value = String(f.i); jump(document.getElementById('szk-' + f.i)); } };
       selS.onchange = function () { var s = scenes[Number(selS.value)]; if (s) { selP.value = s.probe; jump(document.getElementById('szk-' + s.i)); } };
+
+      /* ---- the ad hoc rehearsal: whoever is here, and the scenes they
+         can do. The head of a scene names its cast, short name and actor;
+         a scene fits when all of them are ticked. Fitting heads are
+         marked, the others dimmed and told who is missing, and the two
+         selects offer only what fits. Kept for the tab, as the name
+         one comments under. ---- */
+      var ADHOC_KEY = 'kmt-adhoc:' + D.token;
+      var castOf = function (s) { return s.who.split('·').map(function (x) { return x.replace(/\\(.*$/, '').trim(); }).filter(Boolean); };
+      var present = null;
+      try { var kept = JSON.parse(sessionStorage.getItem(ADHOC_KEY) || 'null'); if (kept && kept.length) present = kept; } catch (e) {}
+      var adhocBtn = bar.querySelector('#kmt-adhoc'), adhocCnt = bar.querySelector('#kmt-adhoc-cnt');
+      var fits = function (s) { return !present || castOf(s).every(function (b) { return present.indexOf(b) >= 0; }); };
+      var applyAdhoc = function () {
+        var k = 0;
+        scenes.forEach(function (s) {
+          var el = document.getElementById('szk-' + s.i); if (!el) return;
+          var old = el.querySelector('.kmt-miss'); if (old) old.parentNode.removeChild(old);
+          el.classList.remove('kmt-fit'); el.classList.remove('kmt-nofit');
+          if (!present) return;
+          if (fits(s)) { el.classList.add('kmt-fit'); k++; return; }
+          el.classList.add('kmt-nofit');
+          var miss = castOf(s).filter(function (b) { return present.indexOf(b) < 0; });
+          var tag = document.createElement('span'); tag.className = 'kmt-miss';
+          tag.textContent = T.adhoc_missing.replace('{who}', miss.join(', '));
+          var wer = el.querySelector('.szwer'); (wer || el).appendChild(tag);
+        });
+        var ok = scenes.filter(fits);
+        var okProbes = probes.filter(function (pn) { return ok.some(function (s) { return s.probe === pn; }); });
+        selP.innerHTML = okProbes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('');
+        selS.innerHTML = ok.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' · ' + esc(s.probe) + '</option>'; }).join('');
+        firstOf = function (pn) { return ok.filter(function (s) { return s.probe === pn; })[0]; };
+        if (adhocBtn) adhocBtn.classList.toggle('on', !!present);
+        if (adhocCnt) adhocCnt.textContent = present ? T.adhoc_count.replace('{k}', k).replace('{n}', scenes.length) : '';
+        try { if (present) sessionStorage.setItem(ADHOC_KEY, JSON.stringify(present)); else sessionStorage.removeItem(ADHOC_KEY); } catch (e) {}
+        return ok;
+      };
+      if (adhocBtn) adhocBtn.onclick = function () {
+        var box = open('<h3>' + esc(T.adhoc) + '</h3><p class="hint">' + esc(T.adhoc_what) + '</p><div class="choices">' +
+          D.people.map(function (x) { return '<label><input type="checkbox" value="' + esc(x.b) + '"' + (present && present.indexOf(x.b) >= 0 ? ' checked' : '') + '> ' +
+            esc(x.name) + (x.name !== x.b ? ' (' + esc(x.b) + ')' : '') + '</label>'; }).join('') + '</div>' +
+          '<p class="hint" id="kmt-adhoc-note" hidden>' + esc(T.adhoc_none) + '</p>' +
+          '<button id="kmt-adhoc-go">' + esc(T.adhoc_go) + '</button>' +
+          (present ? '<button class="q" id="kmt-adhoc-all">' + esc(T.adhoc_all) + '</button>' : '') +
+          '<button class="q" id="kmt-cancel">' + esc(T.cancel) + '</button>');
+        box.querySelector('#kmt-cancel').onclick = close;
+        var all = box.querySelector('#kmt-adhoc-all'); if (all) all.onclick = function () { present = null; applyAdhoc(); close(); };
+        box.querySelector('#kmt-adhoc-go').onclick = function () {
+          var ticked = [].map.call(box.querySelectorAll('input:checked'), function (i) { return i.value; });
+          present = ticked.length ? ticked : null;
+          var ok = applyAdhoc();
+          if (present && !ok.length) { box.querySelector('#kmt-adhoc-note').hidden = false; return; }
+          close();
+          if (present && ok[0]) { selP.value = ok[0].probe; selS.value = String(ok[0].i); jump(document.getElementById('szk-' + ok[0].i)); }
+        };
+      };
+      if (present) applyAdhoc();
+      /* #probe-<id>: a link from the dates page lands on the first
+         scene of that rehearsal (the head says "Probe 7" for P07) */
+      var want = /^#probe-(.+)$/.exec(location.hash);
+      if (want) {
+        var pn = 'Probe ' + decodeURIComponent(want[1]).replace(/^P0?/, '');
+        var hit = scenes.filter(function (s) { return s.probe === pn; })[0];
+        if (hit) { selP.value = hit.probe; selS.value = String(hit.i); setTimeout(function () { jump(document.getElementById('szk-' + hit.i)); }, 50); }
+      }
       var syncing = false;
       window.addEventListener('scroll', function () {
         if (syncing) return; syncing = true;
