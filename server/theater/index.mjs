@@ -480,7 +480,10 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
     }
   }
   // The director and the assistant keep the application's head above the document.
-  const head = mayAll ? A.docHead(project, doc) : '';
+  // The print link is only worked out on the director's pages; here
+  // the token in hand is enough for the links of the head.
+  const link = project.drucklink || '/theater/druck/' + encodeURIComponent(token || '');
+  const head = mayAll ? A.docHead({ ...project, drucklink: link }, doc) : '';
   return A.docExtras(token || '', doc, me, visible, mayAll, people, learn, head);
 }
 const t_ = (code, key) => language(code).t(key);
