@@ -251,7 +251,9 @@ const optionalLine = (optional, canThatEvening) => !optional?.length ? '' :
    message again, call it off. */
 function directorTools(target, pr, e) {
   const id = 'chg-' + String(pr.id).replace(/[^A-Za-z0-9_-]/g, '');
+  const zu = target === '/theater/mit/termine' ? 'mit' : 'termine';
   return `<div class="datetools">
+    <a class="btn quiet mini" href="/theater/plan/${encodeURIComponent(pr.id)}/erweitern?zu=${zu}" title="${h(t('date.extend_long'))}">${h(t('date.extend'))}</a>
     <button type="button" class="quiet mini" data-dialog="${id}">${h(t('date.change'))}</button>
     ${actionForm(target, 'nachricht', { rehearsal: pr.id },
       `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
@@ -1007,6 +1009,64 @@ function planPage(p, m, acts = []) {
 }
 
 /* ---------------------------------------------------------------------
+   Extending a rehearsal by hand.
+
+   The plan's answer is one cast and its scenes. Somebody else can come
+   that evening? Then this page says what the larger cast could do as
+   well, and the director picks - a rehearsal programme of their own,
+   the fixed date kept. Who can that evening stands beside every name.
+   --------------------------------------------------------------------- */
+function extendPage(p, pr, v, zu, m) {
+  const target = `/theater/plan/${encodeURIComponent(pr.id)}/erweitern`;
+  const back = zu === 'mit' ? '/theater/mit/termine' : zu === 'termine' ? '/theater/termine'
+             : '/theater/plan/' + encodeURIComponent(pr.id);
+  const av = (a) => !a ? '' : `<span class="small avail ${h(a.state)}">${
+    a.state === 'yes' ? t('ext.av_yes', { from: h(a.from), to: h(a.to) })
+    : a.state === 'partly' ? t('ext.av_part', { from: h(a.from), to: h(a.to) })
+    : a.state === 'no' ? t('ext.av_no') : t('ext.av_unknown')}</span>`;
+  const person = (x) => `<label class="choice block"><input type="checkbox" name="pers:${h(x.b)}" value="1"${x.checked ? ' checked' : ''}>
+      <b>${h(x.b)}</b> ${x.name && x.name !== x.b ? h(x.name) : ''}${
+      x.reads ? ` <span class="small muted">\u00b7 ${t('ext.reads_n', { n: x.reads })}</span>` : ''} ${av(x.avail)}</label>`;
+  // the act is a number in the plan; the heading of the act would need the text
+  const line = (s) => t('ext.scene_line', { act: /^\d+$/.test(String(s.act ?? '')) ? t('ext.act_n', { n: s.act }) : h(s.act || ''),
+    from: s.cueFrom ?? '?', to: s.cueTo ?? '?', min: Math.max(1, Math.round(s.minutes || 0)), share: L.percent(s.share || 0) });
+  const existing = (s, i) => `<label class="choice block"><input type="checkbox" name="sz:alt:${i}" value="1" checked>
+      <b>${t('text.scene', { n: s.szene })}</b> <span class="small muted">${line(s)}</span>${
+      s.preview ? `<div class="small muted preview">${h(s.preview)}</div>` : ''}</label>`;
+  const candidate = (s) => `<label class="choice block"><input type="checkbox" name="sz:neu:${s.from}-${s.to}" value="1">
+      <span class="small">${line(s)}</span>${s.also.length
+        ? ` <span class="small muted">\u00b7 ${t('ext.also_in', { ids: s.also.map(h).join(', ') })}</span>` : ''}${
+      s.preview ? `<div class="small muted preview">${h(s.preview)}</div>` : ''}</label>`;
+  let when = '';
+  if (v.date) {
+    const d = new Date(v.date.iso + 'T00:00:00');
+    when = `${L.weekday(d.getDay())}, ${L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' })}${
+      v.date.von ? ', ' + t('date.clock', { from: h(v.date.von), to: h(v.date.bis) }) : ''}${v.date.ort ? ' \u00b7 ' + h(v.date.ort) : ''}`;
+  }
+  return page({ title: t('ext.title', { id: pr.id }), nav: navDirector(p), narrow: true, body: `
+    <p class="eyebrow"><a href="${h(back)}">${t('ext.back')}</a></p>
+    <h1>${t('ext.title', { id: h(pr.id) })}</h1>
+    ${notice(m)}
+    <p class="muted">${t('ext.what')}</p>
+    <p>${v.group.map(x => `<span class="chip">${h(x)}</span>`).join('')}
+      <span class="small muted">\u00b7 ${v.date ? t('ext.date', { when }) : t('ext.no_date')}</span></p>
+    <form method="post" action="${h(target)}">
+      <input type="hidden" name="zu" value="${h(zu)}">
+      <h2>${t('ext.people')}</h2>
+      ${v.people.length ? `<div class="choices column">${v.people.map(person).join('')}</div>`
+                        : `<p class="small muted">${t('ext.nobody')}</p>`}
+      <p><button type="submit" name="action" value="zeigen" class="quiet">${h(t('ext.show'))}</button></p>
+      <h2>${t('ext.scenes_now')}</h2>
+      <div class="choices column">${v.scenes.map(existing).join('')}</div>
+      <h2>${t('ext.scenes_more', { who: v.group.map(h).join(', ') })}</h2>
+      ${v.candidates.length ? `<div class="choices column">${v.candidates.map(candidate).join('')}</div>`
+                            : `<p class="small muted">${t('ext.scenes_none')}</p>`}
+      <p style="margin-top:1.2rem"><button type="submit" name="action" value="speichern">${h(t('ext.save'))}</button>
+         <a class="btn quiet" href="${h(back)}">${h(t('fix.cancel'))}</a></p>
+    </form>` });
+}
+
+/* ---------------------------------------------------------------------
    What actually comes up in this rehearsal?
 
    The plan page names the cast and the minutes; whether the cut is any
@@ -1063,7 +1123,8 @@ function passagesPage(p, d, m, opt = {}) {
     <p class="eyebrow"><a href="${back}">${opt.member ? t('text.back_member') : t('text.back')}</a></p>
     <h1>${t('text.title', { id: h(pr.id) })}</h1>
     ${notice(m)}
-    <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
+    <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}${opt.member ? '' :
+      ` <a class="btn quiet mini" href="/theater/plan/${encodeURIComponent(pr.id)}/erweitern">${h(t('date.extend_long'))}</a>`}</p>
     ${optionalLine(substitutesOf(p.skript, pr))}
     ${historyLine(historyOf(p, pr))}
     ${opt.member && pr.gruppe.includes(opt.member.b) ? `<p><a class="btn" href="/theater/mit/heft?probe=${encodeURIComponent(pr.id)}">${h(t('text.learn_this'))}</a>
@@ -3070,6 +3131,6 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage, versionPage, docExtras, docHead, commentsPage, myCommentsPage, bookPage,
+           adminLoginPage, adminPage, versionPage, docExtras, docHead, extendPage, commentsPage, myCommentsPage, bookPage,
            settingsPage, playPage, offlinePage, rehearsalMessage };
 }

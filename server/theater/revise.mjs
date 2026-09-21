@@ -170,6 +170,40 @@ export function changeCast(project, rehearsalId, person, joining) {
                      share: { share: pr.ersatz_anteil || 0, digits: 0 } } };
 }
 
+/* Extending a rehearsal by hand: people come in, of the scenes some are
+   kept, and passages the larger cast can do are added (as unit spans).
+   The scene numbers run through the whole plan in text order, as after
+   a derivation; a fixed date takes the new cast along. */
+export function extendRehearsal(project, rehearsalId, people, keep, add) {
+  const plan = project.plan;
+  const pr = plan?.proben?.find(x => x.id === rehearsalId);
+  if (!pr) return { kind: 'error', key: 'msg.rehearsal_gone' };
+  const known = new Set((project.personen || []).map(x => x.b));
+  const joining = [...new Set(people)].filter(b => known.has(b) && !pr.gruppe.includes(b));
+  const { units } = loadTimeline(project.skript);
+  const kept = (pr.szenen || []).filter((sz, i) => keep.includes(i));
+  const fresh = [];
+  for (const [a, b] of add) {
+    if (!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b < units.length && a <= b)) continue;
+    let cueFrom = null, cueTo = null;
+    for (let i = a; i <= b && cueFrom == null; i++) cueFrom = units[i].cueFrom;
+    for (let i = b; i >= a && cueTo == null; i--) cueTo = units[i].cueTo;
+    fresh.push({ szene: 0, akt: units[a].act, nr_von: cueFrom, nr_bis: cueTo, von: a, bis: b,
+                 minuten: 0, ersatz_anteil: 0, anfang: units[a].preview, nachlese: false, dazu: true });
+  }
+  if (!kept.length && !fresh.length) return { kind: 'error', key: 'msg.needs_scene' };
+  pr.gruppe = [...pr.gruppe, ...joining].sort();
+  pr.szenen = [...kept, ...fresh].sort((x, y) => (x.von ?? 0) - (y.von ?? 0));
+  const all = plan.proben.flatMap(p => p.szenen || []).sort((x, y) => (x.von ?? 0) - (y.von ?? 0));
+  all.forEach((sz, i) => { sz.szene = i + 1; });
+  recompute(project.skript, plan);
+  sortPlan(plan);
+  for (const t of project.termine || []) if (t.probe_id === rehearsalId) t.gruppe = pr.gruppe;
+  return { kind: 'good', key: 'msg.extended',
+           values: { id: rehearsalId, people: joining.length, added: fresh.length,
+                     scenes: pr.szenen.length, min: Math.round(pr.minuten || 0) } };
+}
+
 /* One note per rehearsal - for everything that fits nowhere else. */
 export function setNote(project, rehearsalId, text) {
   const pr = project.plan?.proben?.find(x => x.id === rehearsalId);

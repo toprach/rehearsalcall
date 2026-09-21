@@ -274,6 +274,12 @@ export const STYLE = `
   .themepick button { margin:0; padding:.25rem .5rem; line-height:1; font-size:1rem;
                       border-radius:6px }
   .whopick { display:inline-block; margin:0 }
+  /* extending a rehearsal: one choice per line, with the availability */
+  .choices.column { display:flex; flex-direction:column; gap:.4rem }
+  label.choice.block { display:block; padding:.4rem .6rem; border:1px solid var(--rule); border-radius:6px; background:var(--card) }
+  label.choice.block .preview { margin:.15rem 0 0 1.6rem; font-style:italic }
+  .avail.yes { color:var(--good); font-weight:600 } .avail.partly { color:var(--good) }
+  .avail.no { color:var(--accent) } .avail.unknown { color:var(--muted) }
   /* --- a member on a phone: the links move into a bar at the bottom --- */
   .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; justify-content:center;
             background:var(--card); border-top:1px solid var(--rule);

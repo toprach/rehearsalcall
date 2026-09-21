@@ -182,6 +182,14 @@ for (const { code } of LANGUAGES) {
       [{ b: 'OBERON', name: 'O. <x>', regie: true }, { b: 'PUCK', name: 'PUCK' }], { keys: {}, steps: {} },
       A.docHead(project, 'probenplan')) + '</html>',
     docHead: () => A.docHead(project, 'gesamt'),
+    extendPage: () => A.extendPage(project, project.plan.proben[0], {
+      date: { iso: '2026-10-01', von: '19:00', bis: '20:00', ort: 'Stage <x>' }, group: ['OBERON', 'PUCK', 'TITANIA'],
+      people: [{ b: 'TITANIA', name: 'T. Ania', reads: 3, checked: true, avail: { state: 'yes', from: '19:00', to: '22:00' } },
+               { b: 'X <y>', name: '', reads: 0, checked: false, avail: { state: 'unknown' } }],
+      scenes: [{ szene: 1, act: 'ACT I', cueFrom: 1, cueTo: 9, minutes: 12.4, share: 0.1, preview: 'How now <spirit>' }],
+      candidates: [{ from: 3, to: 7, act: 'ACT I', cueFrom: 10, cueTo: 20, minutes: 5, share: 0.2, preview: 'Ill met', also: ['P02'] }] }, 'mit', null),
+    extendEmpty: () => A.extendPage(project, project.plan.proben[0], { date: null, group: ['OBERON'], people: [], scenes: [], candidates: [] }, '',
+      { kind: 'error', key: 'msg.needs_scene' }),
     bookPage: () => A.bookPage(project, person, [
       { i: 1, nr: 3, act: 'ACT I', chapter: 'SCENE I', cue: { who: 'PUCK', text: 'How now, spirit!', nr: 2 },
         before: ['Enter OBERON.'], lines: [{ who: 'OBERON', text: 'Ill met by moonlight, <proud> Titania.' },

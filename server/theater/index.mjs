@@ -18,7 +18,8 @@ import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
-import { proposeDates, calendarDays, dayStates, directorsOf, archivePast } from './dates.mjs';
+import { proposeDates, calendarDays, dayStates, directorsOf, archivePast, substitutesOf, availabilityOn } from './dates.mjs';
+import { scenesFor } from './scenes.mjs';
 import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -485,6 +486,36 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
   const link = project.drucklink || '/theater/druck/' + encodeURIComponent(token || '');
   const head = mayAll ? A.docHead({ ...project, drucklink: link }, doc) : '';
   return A.docExtras(token || '', doc, me, visible, mayAll, people, learn, head);
+}
+/* What the page for extending a rehearsal shows: the people not yet in
+   it (those the director reads for first), each with their availability
+   on the fixed date; the rehearsal's scenes; and the passages the cast
+   with the ticked people could do besides - minus what this rehearsal
+   already holds, and told when another rehearsal has them too. */
+function extendView(project, pr, ticked) {
+  const fixed = (project.termine || []).find(x => x.probe_id === pr.id && x.bestaetigt && x.iso) || null;
+  const group = [...new Set([...pr.gruppe, ...ticked])].sort();
+  const reads = new Map(substitutesOf(project.skript, pr).map(o => [o.b, o.speeches]));
+  const people = (project.personen || []).filter(x => !pr.gruppe.includes(x.b))
+    .map(x => ({ b: x.b, name: x.name || '', reads: reads.get(x.b) || 0, checked: ticked.includes(x.b),
+                 avail: fixed ? availabilityOn(project, x.b, fixed.iso, fixed.von, fixed.bis) : null }))
+    .sort((a, b) => (b.reads - a.reads) || a.b.localeCompare(b.b));
+  const scenes = (pr.szenen || []).map(sz => ({ szene: sz.szene, act: sz.akt, cueFrom: sz.nr_von, cueTo: sz.nr_bis,
+    minutes: sz.minuten || 0, share: sz.ersatz_anteil || 0, preview: sz.anfang || '' }));
+  const { scenes: found, units } = scenesFor(project.skript, group, project.plan?.ersatzanteil ?? 0.2);
+  const spansOf = (p) => (p.szenen || []).map(sz => B.unitsOf(units, sz)).filter(Boolean);
+  const overlap = (span, r) => Math.max(0, Math.min(span[1], r.to) - Math.max(span[0], r.from) + 1);
+  const own = spansOf(pr);
+  const others = project.plan.proben.filter(p => p !== pr).map(p => ({ id: p.id, spans: spansOf(p) }));
+  const candidates = found.filter(r => {
+    const len = r.to - r.from + 1;
+    const had = own.reduce((a, sp) => a + overlap(sp, r), 0);
+    return had < 0.9 * len;
+  }).map(r => ({ from: r.from, to: r.to, act: r.act, cueFrom: r.cueFrom, cueTo: r.cueTo, minutes: r.minutes,
+    share: r.share, preview: r.preview, group: r.group,
+    also: others.filter(o => o.spans.some(sp => overlap(sp, r) >= 0.5 * (r.to - r.from + 1))).map(o => o.id) }));
+  return { date: fixed ? { iso: fixed.iso, von: fixed.von || '', bis: fixed.bis || '', ort: fixed.ort || '' } : null,
+           group, people, scenes, candidates };
 }
 const t_ = (code, key) => language(code).t(key);
 
@@ -1704,6 +1735,44 @@ export async function handle(request, response, path) {
   }
 
   if (first === 'plan') {
+    /* --- extending one rehearsal by hand: who else comes, what more
+           can be done. Shown with the people ticked so far (GET ?mit=,
+           or the form sent back with "zeigen"); "speichern" applies it
+           and returns to where the director came from. --- */
+    if (parts[1] && parts[2] === 'erweitern') {
+      const id = decodeURIComponent(parts[1]);
+      const pr = project.plan?.proben?.find(x => x.id === id);
+      if (!project.skript || !pr) { await drainBody(request); return html(response,
+        A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404); }
+      const known = new Set((project.personen || []).map(x => x.b));
+      let fields = null, ticked, zu;
+      if (post) {
+        ({ fields } = await readForm(request));
+        ticked = Object.keys(fields).filter(k => k.startsWith('pers:') && fields[k] === '1').map(k => k.slice(5));
+        zu = String(fields.zu || '');
+      } else {
+        await drainBody(request);
+        const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+        ticked = query.getAll('mit'); zu = query.get('zu') || '';
+      }
+      ticked = [...new Set(ticked.map(String).filter(b => known.has(b) && !pr.gruppe.includes(b)))];
+      zu = ['mit', 'termine'].includes(zu) ? zu : '';
+      const backOf = () => zu === 'mit' ? '/theater/mit/termine' : zu === 'termine' ? '/theater/termine'
+                         : '/theater/plan/' + encodeURIComponent(id);
+      if (post && String(fields.action) === 'speichern') {
+        const keep = [], add = [];
+        for (const k of Object.keys(fields)) {
+          if (fields[k] !== '1') continue;
+          let m = /^sz:alt:(\d+)$/.exec(k); if (m) { keep.push(Number(m[1])); continue; }
+          m = /^sz:neu:(\d+)-(\d+)$/.exec(k); if (m) add.push([Number(m[1]), Number(m[2])]);
+        }
+        const m = B.extendRehearsal(project, id, ticked, keep, add);
+        if (m.kind === 'good') { await S.write(project); Reminders.refresh(project); return redirect(response, backOf()); }
+        return html(response, A.extendPage(project, pr, extendView(project, pr, ticked), zu, m));
+      }
+      return html(response, A.extendPage(project, pr, extendView(project, pr, ticked), zu, null));
+    }
+
     /* --- the passages of one rehearsal ---
 
        The plan names only the cast and the minutes. Whether the cut is

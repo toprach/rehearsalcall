@@ -374,6 +374,24 @@ export function proposeDates(project) {
   };
 }
 
+/* Can this person make a given date and time? For extending a fixed
+   rehearsal: who else could come that evening. 'yes' when their window
+   holds the whole time, 'partly' when it overlaps, 'no' when they have
+   entered times but not then, 'unknown' when they have entered nothing. */
+export function availabilityOn(project, b, iso, from, to) {
+  const person = (project.personen || []).find(x => x.b === b);
+  const d = asDate(iso);
+  if (!person || !d) return null;
+  const entry = project.verfuegbar?.[person.id];
+  const entered = !!person.regie || !!(entry && (Object.keys(entry.tage || {}).length || (entry.wochentage || []).length));
+  const w = windowOfPerson(person, project.verfuegbar || {}, d);
+  if (!w) return { state: entered ? 'no' : 'unknown' };
+  const a = asMinutes(from), z = asMinutes(to);
+  const whole = a == null || z == null || (w.from <= a && w.to >= z);
+  const overlap = a == null || z == null || (w.from < z && w.to > a);
+  return { state: whole ? 'yes' : overlap ? 'partly' : 'no', from: clock(w.from), to: clock(w.to) };
+}
+
 /* ---------------------------------------------------------------------
    How does one day stand?
 

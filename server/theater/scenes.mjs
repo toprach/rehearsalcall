@@ -154,6 +154,42 @@ export function findScenes(structure, opt = {}) {
   return { scenes, units, people, s };
 }
 
+/* The passages one given cast can rehearse - for extending a rehearsal
+   by hand: the director names who is coming, this says what they could
+   do. The same search as above, for this one group only, so it stays
+   quick with a large company. */
+export function scenesFor(structure, group, share = 0.2, opt = {}) {
+  const s = { ...KNOBS, ...opt };
+  const { units } = loadTimeline(structure);
+  const G = new Set(group);
+  const lambda = share > 0 ? (1 - share) / share : 1e9;
+  const out = [];
+  for (const [a, b] of passages(units, G, lambda, s)) {
+    let x = a, y = b;
+    while (x <= y && weigh(units[x], G).own === 0) x++;
+    while (y >= x && weigh(units[y], G).own === 0) y--;
+    if (y < x) continue;
+    let own = 0, foreign = 0, speeches = 0;
+    const speaking = new Set();
+    for (let i = x; i <= y; i++) {
+      const w = weigh(units[i], G);
+      own += w.own; foreign += w.foreign; speeches += units[i].speeches;
+      for (const q of units[i].speaks.keys()) if (G.has(q)) speaking.add(q);
+    }
+    if (own < s.minOwnWords || speeches < s.minSpeeches) continue;
+    const r = { from: x, to: y, group: [...speaking].sort(), p: share, own, foreign, speeches,
+                share: foreign / (own + foreign) };
+    r.act = units[x].act;
+    r.cueFrom = units[x].cueFrom; r.cueTo = units[y].cueTo;
+    for (let i = x; i <= y && r.cueFrom == null; i++) r.cueFrom = units[i].cueFrom;
+    for (let i = y; i >= x && r.cueTo == null; i--) r.cueTo = units[i].cueTo;
+    r.minutes = (own + foreign) / WPM;
+    r.preview = units[x].preview;
+    out.push(r);
+  }
+  return { scenes: out, units };
+}
+
 /* ---------------------------------------------------------------------
    The scoring function
    --------------------
