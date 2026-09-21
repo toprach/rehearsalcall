@@ -464,7 +464,7 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
   const visible = (project.kommentare || [])
     .filter(c => mayAll || (me && c.wer === me.b))
     .map(c => ({ ...c, name: nameOf(c.wer) }));
-  const people = (project.personen || []).map(x => ({ b: x.b, name: x.name || x.b }));
+  const people = (project.personen || []).map(x => ({ b: x.b, name: x.name || x.b, regie: !!(x.regie || x.assistenz) }));
   /* Checking lines in the document: speech number -> learning key, and
      the step reached, for everybody the viewer may record for - the
      director for the whole company, a member for themselves. */
@@ -479,7 +479,9 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
       learn.steps[x.b] = Object.fromEntries(Object.entries(project.lernen?.[x.id] || {}).map(([k, r]) => [k, r.s]));
     }
   }
-  return A.docExtras(token || '', doc, me, visible, mayAll, people, learn);
+  // The director and the assistant keep the application's head above the document.
+  const head = mayAll ? A.docHead(project, doc) : '';
+  return A.docExtras(token || '', doc, me, visible, mayAll, people, learn, head);
 }
 const t_ = (code, key) => language(code).t(key);
 
@@ -1905,7 +1907,7 @@ export async function handle(request, response, path) {
       } else if (action === 'probenplan') {
         text = buildDocument(project.drehbuch, cast, tokenMap, 'probenplan',
                             { plan: project.plan });
-        name = `${shortName} – Probenplan.html`;
+        name = `${shortName} – Proben Skript.html`;
       } else {
         text = buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
         name = `${shortName} – Gesamtskript.html`;

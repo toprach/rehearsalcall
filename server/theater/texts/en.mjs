@@ -23,12 +23,13 @@ export const en = {
   'nav.company':    'Company',
   'nav.script':      'Script',
   'nav.casting':   'Casting',
-  'nav.rehearsals':        'Rehearsals',
+  'nav.rehearsals':        'Planning',
   'nav.dates':     'Dates',
   'nav.print':     'Print',
   'nav.audiobook':    'Audiobook',
   'nav.signout':    'Sign out',
   'nav.comments':   'Comments',
+  'nav.plan_script': 'Rehearsal script',
   'nav.project':    'Project',
   'nav.calendar_for': 'calendar for \u2026',
 
@@ -108,7 +109,7 @@ export const en = {
                     + 'mode; the printable version is on the scripts page',
   'mem.no_script':    '<span class="muted">no script yet</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt">open</a>',
-  'mem.plan_book':   'Rehearsal plan in the script',
+  'mem.plan_book':   'Rehearsal script',
   'mem.plan_open':   '<a href="{url}">open</a> \u2013 the whole '
                     + 'play with the rehearsals drawn in',
   'mem.docs':        'All scripts and part books in one place: <a href="{url}">Scripts</a> \u2013 '
@@ -223,7 +224,7 @@ export const en = {
   'docs.what':      'Open one, then choose <i>Print</i> in the browser. This page always '
                     + 'shows the current state.',
   'docs.full':   'Full script',
-  'docs.plan':     'Rehearsal plan drawn into the script',
+  'docs.plan':     'Rehearsal script',
   'docs.original': 'Original file ({name})',
   'docs.booklets':    'Part books',
 
@@ -296,7 +297,7 @@ export const en = {
 
   /* ---------- rehearsal plan ---------- */
   'plan.step':     'Step 3',
-  'plan.title':       'Rehearsal plan',
+  'plan.title':       'Rehearsal planning',
   'plan.no_cast':   'The <a href="/theater/besetzung">casting has to be taken over</a> '
                     + 'first.',
   'plan.what':         'The program looks for the passages that can be rehearsed in small '
@@ -420,7 +421,7 @@ export const en = {
   'print.full':       'Full script',
   'print.full_what':   'The whole play with speaker names resolved.',
   'print.open':      'Open',
-  'print.plan':         'Rehearsal plan in the script',
+  'print.plan':         'Rehearsal script',
   'print.plan_what':     'The whole play with the rehearsals drawn in: a vertical bar beside '
                     + 'the text, and at every change a header block with the cast and a '
                     + 'line for the date.',
@@ -1019,7 +1020,7 @@ export const en = {
   'book.what':       'Every passage with its cue. Tick \u201clearning\u201d and the own lines are '
                    + 'hidden until you reveal them; \u201csits\u201d marks what you know, and that '
                    + 'is remembered on this device.',
-  'book.plan_doc':   'rehearsal plan',
+  'book.plan_doc':   'rehearsal script',
   'book.filter_note': 'Only the passages of rehearsal {id}.',
   'book.filter_adhoc': 'Ad-hoc rehearsal with {who}: only the cues you get from them.',
   'book.adhoc_title': 'Ad-hoc rehearsal',
@@ -1157,6 +1158,9 @@ export const en = {
   'kd.signin':       'To comment, open the script through your company link or your part book '
                    + '\u2013 then the comment carries your name.',
   'kd.hint':         'Double-click a line to comment on it.',
+  'kd.who':          'Comment as whom?',
+  'kd.who_hint':     'Remembered for this session; the comment carries that name.',
+  'kd.who_go':       'Continue',
   'kd.scenes':       'Scenes of this rehearsal',
   'kd.all_rehearsals': 'All rehearsals',
   'kd.failed':       'That could not be saved.',
@@ -1198,7 +1202,7 @@ export const en = {
   'cmt.at':          'cue {nr}',
   'cmt.doc_gesamt':  'full script',
   'cmt.doc_rolle':   'part book',
-  'cmt.doc_probenplan': 'rehearsal plan',
+  'cmt.doc_probenplan': 'rehearsal script',
   'mcmt.title':      'My comments',
   'mcmt.what':       'Double-click a line in the script, your part book or the rehearsal plan to '
                    + 'comment on it. Tick \u201cquestion to the director\u201d and the answer '

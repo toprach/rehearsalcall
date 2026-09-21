@@ -177,6 +177,11 @@ for (const { code } of LANGUAGES) {
     docExtras: () => '<html>' + A.docExtras('tok', 'probenplan', person, [
       { id: 'c1', nr: 12, text: 'a <b>', wer: 'OBERON', name: 'O.', datum: '2026-09-01T10:00:00Z', frage: true, antwort: null, erledigt: false }], true,
       [{ b: 'OBERON', name: 'O. <x>' }], { keys: { OBERON: { 3: 'k1.a' } }, steps: { OBERON: { 'k1.a': 2 } } }) + '</html>',
+    /* the director by the access code: nobody signed in, the head on top */
+    docExtrasDirector: () => '<html>' + A.docExtras('tok', 'probenplan', null, [], true,
+      [{ b: 'OBERON', name: 'O. <x>', regie: true }, { b: 'PUCK', name: 'PUCK' }], { keys: {}, steps: {} },
+      A.docHead(project, 'probenplan')) + '</html>',
+    docHead: () => A.docHead(project, 'gesamt'),
     bookPage: () => A.bookPage(project, person, [
       { i: 1, nr: 3, act: 'ACT I', chapter: 'SCENE I', cue: { who: 'PUCK', text: 'How now, spirit!', nr: 2 },
         before: ['Enter OBERON.'], lines: [{ who: 'OBERON', text: 'Ill met by moonlight, <proud> Titania.' },

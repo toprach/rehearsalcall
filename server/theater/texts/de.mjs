@@ -20,12 +20,13 @@ export const de = {
   'nav.company':    'Ensemble',
   'nav.script':      'Skript',
   'nav.casting':   'Besetzung',
-  'nav.rehearsals':        'Probenplan',
+  'nav.rehearsals':        'Probenplanung',
   'nav.dates':     'Termine',
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',
   'nav.signout':    'Abmelden',
   'nav.comments':   'Kommentare',
+  'nav.plan_script': 'Proben Skript',
   'nav.project':    'Projekt',
   'nav.calendar_for': 'Kalender f\u00fcr \u2026',
 
@@ -106,7 +107,7 @@ export const de = {
                     + 'die Druckfassung liegt auf der Skripte-Seite',
   'mem.no_script':    '<span class="muted">noch kein Drehbuch</span>',
   'mem.full_open':   '<a href="/theater/mit/gesamt">öffnen</a>',
-  'mem.plan_book':   'Probenplan im Drehbuch',
+  'mem.plan_book':   'Proben Skript',
   'mem.plan_open':   '<a href="{url}">öffnen</a> \u2013 das ganze '
                     + 'St\u00fcck mit eingezeichneten Proben',
   'mem.docs':        'Alle Skripte und Rollenhefte an einer Stelle: <a href="{url}">Skripte</a> \u2013 '
@@ -220,7 +221,7 @@ export const de = {
   'docs.what':      'Öffnen, dann im Browser <i>Drucken</i> wählen. Diese Seite zeigt '
                     + 'immer den aktuellen Stand.',
   'docs.full':   'Gesamtskript',
-  'docs.plan':     'Probenplan im Drehbuch',
+  'docs.plan':     'Proben Skript',
   'docs.original': 'Originaldatei ({name})',
   'docs.booklets':    'Rollenhefte',
 
@@ -293,7 +294,7 @@ export const de = {
 
   /* ---------- rehearsal plan ---------- */
   'plan.step':     'Schritt 3',
-  'plan.title':       'Probenplan',
+  'plan.title':       'Probenplanung',
   'plan.no_cast':   'Zuerst muss die <a href="/theater/besetzung">Besetzung '
                     + 'übernommen</a> werden.',
   'plan.what':         'Das Programm sucht die Abschnitte, die sich in kleinen Gruppen '
@@ -373,7 +374,7 @@ export const de = {
                     + 'dabei drankommen.',
 
   /* ---------- the passages of one rehearsal ---------- */
-  'text.back':     '\u2190 Probenplan',
+  'text.back':     '\u2190 Probenplanung',
   'text.title':       'Probe {id}',
   'text.figures':  '{scenes} Szenen \u00b7 {min} min Spielzeit \u00b7 Ersatzanteil '
                     + '{substitution}.',
@@ -399,7 +400,7 @@ export const de = {
   'text.onstage':       'auf der Bühne',
   'text.director_reads': '\u2013 Regie liest',
   'text.carries_on':      '\u2013 Rede läuft schon',
-  'text.back_long':'\u2190 zurück zum Probenplan',
+  'text.back_long':'\u2190 zurück zur Probenplanung',
   'text.back_member': '\u2190 Proben',
 
   /* ---------- printing ---------- */
@@ -418,7 +419,7 @@ export const de = {
   'print.full':       'Gesamtskript',
   'print.full_what':   'Das ganze Stück mit aufgelösten Sprechernamen.',
   'print.open':      'Öffnen',
-  'print.plan':         'Probenplan im Drehbuch',
+  'print.plan':         'Proben Skript',
   'print.plan_what':     'Das ganze Stück mit eingezeichneten Proben: senkrechter Strich neben '
                     + 'dem Text, bei jedem Wechsel ein Kopfblock mit Besetzung und einer '
                     + 'Zeile für den Termin.',
@@ -1022,7 +1023,7 @@ export const de = {
   'book.what':       'Jede Passage mit ihrem Stichwort. Mit \u201eLernen\u201c sind die eigenen Zeilen '
                    + 'verdeckt, bis Sie sie einblenden; \u201esitzt\u201c markiert, was Sie k\u00f6nnen, '
                    + 'und das merkt sich dieses Ger\u00e4t.',
-  'book.plan_doc':   'Probenplan',
+  'book.plan_doc':   'Proben Skript',
   'book.filter_note': 'Nur die Passagen der Probe {id}.',
   'book.filter_adhoc': 'Ad-hoc-Probe mit {who}: nur die Eins\u00e4tze, die Sie von ihnen bekommen.',
   'book.adhoc_title': 'Ad-hoc-Probe',
@@ -1160,6 +1161,9 @@ export const de = {
   'kd.signin':       'Zum Kommentieren das Skript \u00fcber den Ensemble-Link oder das eigene '
                    + 'Rollenheft \u00f6ffnen \u2013 dann tr\u00e4gt der Kommentar Ihren Namen.',
   'kd.hint':         'Doppelklick auf eine Zeile: Kommentar dazu.',
+  'kd.who':          'Als wer kommentieren?',
+  'kd.who_hint':     'Wird f\u00fcr diese Sitzung gemerkt; der Kommentar tr\u00e4gt diesen Namen.',
+  'kd.who_go':       'Weiter',
   'kd.scenes':       'Szenen dieser Probe',
   'kd.all_rehearsals': 'Alle Proben',
   'kd.failed':       'Das lie\u00df sich nicht speichern.',
@@ -1181,7 +1185,7 @@ export const de = {
   'kd.check_no':     'nochmal',
   'kd.check_step':   'Stufe {s}',
   'cmt.title':       'Kommentare',
-  'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und in den Probenplan '
+  'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und ins Proben Skript '
                    + 'geschrieben hat. Fragen an die Regie stehen zuerst; eine Antwort geht an die '
                    + 'Person zur\u00fcck und erscheint neben der Zeile in ihrem Skript.',
   'cmt.questions':   'Fragen an die Regie',
@@ -1201,9 +1205,9 @@ export const de = {
   'cmt.at':          'Stichwort {nr}',
   'cmt.doc_gesamt':  'Gesamtskript',
   'cmt.doc_rolle':   'Rollenheft',
-  'cmt.doc_probenplan': 'Probenplan',
+  'cmt.doc_probenplan': 'Proben Skript',
   'mcmt.title':      'Meine Kommentare',
-  'mcmt.what':       'Doppelklick auf eine Zeile im Skript, im Rollenheft oder im Probenplan: '
+  'mcmt.what':       'Doppelklick auf eine Zeile im Skript, im Rollenheft oder im Proben Skript: '
                    + 'Kommentar dazu. Mit H\u00e4kchen \u201eFrage an die Regie\u201c erscheint die '
                    + 'Antwort hier und neben der Zeile.',
   'mcmt.none':       'Noch keine Kommentare.',

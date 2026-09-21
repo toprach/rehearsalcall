@@ -453,13 +453,19 @@ const entryPage = (m, demos = []) => page({
 /* The director's links in four groups: the project, the road from the
    script to the plan, what runs during rehearsals, the output. The
    page being shown is marked. */
-const navDirector = (p) => {
-  const a = (href, key) => `<a href="${href}"${pfad === href || pfad.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
+/* 'current' is the page being shown - the request path as a rule; a
+   document under the print link names itself. */
+const navDirector = (p, current = pfad) => {
+  const a = (href, key) => `<a href="${h(href)}"${current === href || current.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
   const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
+  /* The rehearsal script - the play with the rehearsals drawn in - is a
+     document behind the print link, not a page; once there is a plan it
+     stands right after the comments. */
+  const planScript = p?.plan?.proben?.length && p?.drucklink ? [a(p.drucklink + '/probenplan', 'nav.plan_script')] : [];
   return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
   ${grp(a('/theater/skript', 'nav.script'), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
-  ${grp(a('/theater/termine', 'nav.dates'), a('/theater/kommentare', 'nav.comments'))}
+  ${grp(a('/theater/termine', 'nav.dates'), a('/theater/kommentare', 'nav.comments'), ...planScript)}
   ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
     <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('nav.calendar_for'))}">
@@ -468,6 +474,18 @@ const navDirector = (p) => {
         .map(x => `<option value="${h(x.id)}">${h(x.name || x.b)}</option>`).join('')}
     </select></form>` : ''}</nav>`;
 };
+
+/* The application's head over a document, for the director and the
+   assistant: the name and the director's links, so that the rehearsal
+   script does not become a dead end. Styles of its own - the document
+   brings the tool's and knows nothing of the application's classes.
+   docExtras fixes it to the top of a desk's screen; on a phone the bar
+   at the bottom is the way back, and this stays out of the way. */
+function docHead(p, doc) {
+  const current = p?.drucklink ? p.drucklink + '/' + doc : '';
+  return `<div class="kmt-head"><a class="brand" href="/theater/projekt">${h(t('app.name').toUpperCase())}</a>${
+    navDirector(p, current)}</div>`;
+}
 
 function printPage(p, m) {
   const d = p.drehbuch;
@@ -2343,7 +2361,7 @@ function adminPage(projects, m, fresh, entry) {
    click, and - in the rehearsal plan - a way to jump between the
    scenes of a rehearsal. Nothing of it prints.
    --------------------------------------------------------------------- */
-function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { keys: {}, steps: {} }) {
+function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { keys: {}, steps: {} }, head = '') {
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
@@ -2356,6 +2374,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       new_: t('kd.new'), text: t('kd.text'), question: t('kd.question'), save: t('kd.save'),
       cancel: t('kd.cancel'), comments: t('kd.comments'), answer: t('kd.answer'),
       del: t('kd.delete'), signin: t('kd.signin'), hint: t('kd.hint'), scenes: t('kd.scenes'),
+      who: t('kd.who'), who_hint: t('kd.who_hint'), who_go: t('kd.who_go'),
       rehearsals: t('kd.all_rehearsals'), close: t('kd.close'), question_mark: t('kd.question_mark'),
       done: t('kd.done'), failed: t('kd.failed'),
       rehearsal: t('kd.rehearsal'), scene: t('kd.scene'), prev: t('kd.prev_comment'),
@@ -2407,6 +2426,19 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     background:#fff; color:#1c1a18; cursor:pointer }
   .kmt-bar .cnt { color:#6b655c }
   body.kmt-has-bar { padding-top:3.2rem }
+  /* the application's head, for the director: above the bar on a desk */
+  .kmt-head { position:fixed; top:0; left:0; right:0; z-index:46; display:flex; flex-wrap:wrap; gap:.4rem 1.2rem;
+    align-items:baseline; padding:.5rem .8rem; background:#fff; border-bottom:1px solid #d8d3cc;
+    font:13px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#1c1a18 }
+  .kmt-head a.brand { font-weight:800; letter-spacing:.18em; font-size:.85rem; text-decoration:none; color:#1c1a18; white-space:nowrap }
+  .kmt-head .subnav { display:flex; flex-wrap:wrap; gap:.35rem 1.1rem; margin:0; padding:0; border:0; flex:1 1 0; min-width:0 }
+  .kmt-head .subnav a { font-size:.88rem; text-decoration:none; color:#6b655c }
+  .kmt-head .subnav a.on { color:#1c1a18; font-weight:700 }
+  .kmt-head .subnav .grp { display:inline-flex; gap:.7rem; padding-left:.9rem; border-left:1px solid #d8d3cc }
+  .kmt-head .subnav .grp:first-child { padding-left:0; border-left:0 }
+  .kmt-head .whopick { display:inline-block; margin:0 } .kmt-head .whopick select { font:inherit; padding:.15rem .3rem }
+  .kmt-box select { font:inherit; padding:.3rem .4rem; max-width:100%; margin:.4rem 0 }
+  .kmt-box .hint { color:#6b655c; font-size:.9em }
   body { zoom:var(--kmt-zoom, 1) }
   @media print { body { zoom:1 } }
   .kmt-cur { outline:2px solid #b3272d; outline-offset:3px; border-radius:3px }
@@ -2429,6 +2461,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   @media print { .kmt-text { color:inherit !important; background:none !important; display:inline !important }
     .kmt-check-ui, .kmt-veil-ph, .kmt-step { display:none !important } }
   @media (max-width:700px) {
+    .kmt-head { display:none }
     .kmt-bar { top:auto; bottom:0; border-bottom:0; border-top:1px solid #d8d3cc; font-size:14px; gap:.3rem .35rem; padding:.4rem .5rem }
     .kmt-bar select, .kmt-bar button { font-size:14px; padding:.3rem .4rem; max-width:9.5rem }
     .kmt-bar .lbl, .kmt-bar .cnt { display:none }
@@ -2447,9 +2480,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     main.plan .szkopf .lin { width:34vw } main.plan .szkopf .lin.kurz { width:16vw }
     .kmt-box { font-size:16px }
   }
-  @media print { .kmt-badge, .kmt-hint, .kmt-veil, .kmt-bar { display:none !important }
-    body.kmt-has-bar { padding:0 } }
-  </style>
+  @media print { .kmt-badge, .kmt-hint, .kmt-veil, .kmt-bar, .kmt-head { display:none !important }
+    body.kmt-has-bar { padding:0 !important } }
+  </style>${head}
   <script id="kmt-data" type="application/json">${json}</script>
   <script>
   // The script sits right after <body>; the document below it is not
@@ -2457,6 +2490,12 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   document.addEventListener('DOMContentLoaded', function () {
     var D = JSON.parse(document.getElementById('kmt-data').textContent);
     var T = D.t, byNr = {};
+    /* The director by the access code is nobody in particular. Asked
+       once whom to comment as, the answer holds for this tab (the
+       session), and the badges and the bar take that person too. */
+    var WHO_KEY = 'kmt-who:' + D.token;
+    var personOf = function (b) { return D.people.filter(function (x) { return x.b === b; })[0] || null; };
+    if (!D.me && D.all) { try { D.me = personOf(sessionStorage.getItem(WHO_KEY) || ''); } catch (e) {} }
     D.comments.forEach(function (c) { (byNr[c.nr] = byNr[c.nr] || []).push(c); });
     var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -2513,9 +2552,24 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       return fetch('/theater/druck/' + D.token + '/kommentar', { method: 'POST', credentials: 'same-origin',
         headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body }).then(function (r) { return r.json(); });
     }
+    function askWho(then) {
+      var pick = D.people.filter(function (x) { return x.regie; })[0] || D.people[0];
+      var box = open('<h3>' + esc(T.who) + '</h3><select id="kmt-who">' +
+        D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x === pick ? ' selected' : '') + '>' +
+          esc(x.name) + (x.name !== x.b ? ' (' + esc(x.b) + ')' : '') + '</option>'; }).join('') + '</select>' +
+        '<p class="hint">' + esc(T.who_hint) + '</p>' +
+        '<button id="kmt-who-go">' + esc(T.who_go) + '</button><button class="q" id="kmt-cancel">' + esc(T.cancel) + '</button>');
+      box.querySelector('#kmt-cancel').onclick = close;
+      box.querySelector('#kmt-who-go').onclick = function () {
+        D.me = personOf(box.querySelector('#kmt-who').value); if (!D.me) return;
+        try { sessionStorage.setItem(WHO_KEY, D.me.b); } catch (e) {}
+        close(); then();
+      };
+    }
     function showNew(nr) {
       var p = document.getElementById('nr-' + nr);
       var snip = p ? p.textContent.replace(/\s+/g, ' ').trim().slice(0, 140) : '';
+      if (!D.me && D.all && D.people.length) { askWho(function () { showNew(nr); }); return; }
       if (!D.me) { open('<p>' + esc(T.signin) + '</p><button class="q" id="kmt-close">' + esc(T.close) + '</button>').querySelector('#kmt-close').onclick = close; return; }
       var box = open('<h3>' + esc(T.new_).replace('{nr}', nr) + '</h3><div class="snip">' + esc(snip) + '</div>' +
         '<textarea id="kmt-text"></textarea>' +
@@ -2542,12 +2596,15 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return;
       if (p.classList.contains('kmt-veiled')) return;
       var nr = p.dataset.nr;
-      if (!nr) { var q = p; while (q && !nr) { q = q.previousElementSibling; if (q && q.dataset && q.dataset.nr) nr = q.dataset.nr; } }
+      /* a direction has no number: it goes with the last cue before it
+         in the reading order - across a cell of the two-column table
+         as well, where the siblings are directions only */
+      if (!nr) { for (var i = paras.length - 1; i >= 0; i--) if (paras[i].compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING) { nr = paras[i].dataset.nr; break; } }
       if (!nr) return;
       var sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges();
       showNew(nr);
     });
-    if (D.me) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = T.hint; document.body.appendChild(h); }
+    if (D.me || D.all) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = T.hint; document.body.appendChild(h); }
 
     /* ---- the rehearsal plan: jump between the scenes of a rehearsal ---- */
     var scenes = [];
@@ -2615,15 +2672,24 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
     /* on a phone the bar sits at the bottom and may wrap to several rows:
        keep the page's end and the hint clear of it */
+    var head = document.querySelector('.kmt-head');
+    var topHeight = function () { return bar.offsetHeight + (head ? head.offsetHeight : 0); };
     var padBar = function () {
       var hint = document.querySelector('.kmt-hint');
       if (window.innerWidth <= 700) {
+        bar.style.top = '';
+        document.body.style.paddingTop = '';
         document.body.style.paddingBottom = (bar.offsetHeight + 14) + 'px';
         if (hint) hint.style.bottom = (bar.offsetHeight + 8) + 'px';
-      } else { document.body.style.paddingBottom = ''; if (hint) hint.style.bottom = ''; }
+      } else {
+        // on a desk the director's head sits above the bar; both stay put
+        bar.style.top = head ? head.offsetHeight + 'px' : '';
+        document.body.style.paddingTop = (topHeight() + 10) + 'px';
+        document.body.style.paddingBottom = ''; if (hint) hint.style.bottom = '';
+      }
     };
     padBar(); window.addEventListener('resize', padBar); setTimeout(padBar, 300);
-    var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
+    var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -topHeight() - 8); } };
     if (scenes.length) {
       var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
       var firstOf = function (pn) { return scenes.filter(function (s) { return s.probe === pn; })[0]; };
@@ -2709,7 +2775,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     };
     markPerson(personB);
     var selPerson = bar.querySelector('#kmt-person');
-    if (selPerson) selPerson.onchange = function () { unveil(); markPerson(selPerson.value); if (checking) veil(); };
+    if (selPerson) selPerson.onchange = function () { unveilLines(); markPerson(selPerson.value); if (checking) veilLines(); };
 
     /* ---- checking: the chosen person's lines veiled. A tap shows the
        initials, another the words; then a tick or a cross records the
@@ -2773,7 +2839,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         })
         .catch(function () { alert(T.failed); });
     };
-    var veil = function () {
+    /* not 'veil': that is the dialog's backdrop above */
+    var veilLines = function () {
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) {
         if (p.classList.contains('kmt-veiled')) return;
         var span = document.createElement('span'); span.className = 'kmt-text';
@@ -2794,7 +2861,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         if (headOf(p) === p) { p.dataset.kmtState = '0'; paint(p, 0); stepBadge(p); }
       });
     };
-    var unveil = function () {
+    var unveilLines = function () {
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-veiled'), function (p) {
         var span = p.querySelector('.kmt-text');
         [].forEach.call(p.querySelectorAll('.kmt-veil-ph, .kmt-check-ui, .kmt-step'), function (x) { x.parentNode.removeChild(x); });
@@ -2806,8 +2873,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     var setChecking = function (on) {
       checking = on;
       if (chkBtn) chkBtn.classList.toggle('on', on);
-      if (on) { veil(); if (!hintEl) { hintEl = document.createElement('div'); hintEl.className = 'kmt-hint'; document.body.appendChild(hintEl); } hintEl.textContent = T.check_hint; }
-      else { unveil(); if (hintEl) { if (D.me) hintEl.textContent = T.hint; else { hintEl.parentNode.removeChild(hintEl); hintEl = null; } } }
+      if (on) { veilLines(); if (!hintEl) { hintEl = document.createElement('div'); hintEl.className = 'kmt-hint'; document.body.appendChild(hintEl); } hintEl.textContent = T.check_hint; }
+      else { unveilLines(); if (hintEl) { if (D.me || D.all) hintEl.textContent = T.hint; else { hintEl.parentNode.removeChild(hintEl); hintEl = null; } } }
     };
     if (chkBtn) chkBtn.onclick = function () { setChecking(!checking); };
     document.addEventListener('click', function (e) {
@@ -2902,6 +2969,6 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
-           adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
+           adminLoginPage, adminPage, versionPage, docExtras, docHead, commentsPage, myCommentsPage, bookPage,
            settingsPage, playPage, offlinePage, rehearsalMessage };
 }
