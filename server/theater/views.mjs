@@ -2607,9 +2607,20 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return;
       if (p.classList.contains('kmt-veiled')) return;
       var nr = p.dataset.nr;
-      /* a direction has no number: it goes with the last cue before it
-         in the reading order - across a cell of the two-column table
-         as well, where the siblings are directions only */
+      /* a direction has no number: in the two-column table it goes with
+         the cue of the same row at the same height (the columns run in
+         parallel, the left one is directions only), elsewhere with the
+         last cue before it in the reading order */
+      if (!nr) {
+        var row = p.closest('tr');
+        var inRow = row ? [].slice.call(row.querySelectorAll('p[data-nr]')) : [];
+        if (inRow.length) {
+          var lh = parseFloat(getComputedStyle(p).lineHeight) || 20;
+          var top = p.getBoundingClientRect().top + lh * 0.6, pick = null;
+          inRow.forEach(function (q) { if (q.getBoundingClientRect().top <= top) pick = q; });
+          nr = (pick || inRow[0]).dataset.nr;
+        }
+      }
       if (!nr) { for (var i = paras.length - 1; i >= 0; i--) if (paras[i].compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING) { nr = paras[i].dataset.nr; break; } }
       if (!nr) return;
       var sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges();
