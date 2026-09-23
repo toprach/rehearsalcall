@@ -282,9 +282,9 @@ function dateDialog(target, pr, e, project) {
         <input type="hidden" name="action" value="aendern">
         <input type="hidden" name="rehearsal" value="${h(pr.id)}">
         <p class="eyebrow">${t('date.change_title', { id: h(pr.id) })}</p>
+        <label for="${id}-iso">${t('date.day')}</label>
+        <input type="date" id="${id}-iso" name="iso" value="${h(e.iso || '')}" required>
         <div class="row">
-          <div><label for="${id}-iso">${t('date.day')}</label>
-            <input type="date" id="${id}-iso" name="iso" value="${h(e.iso || '')}" required></div>
           <div><label for="${id}-from">${t('my.from')}</label>
             <input type="time" id="${id}-from" name="from" step="300" value="${h(e.von || '')}" required></div>
           <div><label for="${id}-to">${t('my.to')}</label>
@@ -341,17 +341,29 @@ function directorTools(target, pr, e, project) {
     ${dateDialog(target, pr, e, project)}</div>`;
 }
 
-/* The fixed rehearsals of "Meine Proben"/"Alle Proben" as a week
-   calendar instead of a table: one page per week, Monday to Sunday,
-   an event spanning the rows its time covers. A table, not a stack of
-   absolutely positioned blocks - the browser lines up hours and events
-   by itself, there is no pixel math to get wrong. Clicking an event
-   opens the same dialog the table's own "aendern" button does
-   (datesScript()'s data-dialog handles that already); this function
-   only has to place data-dialog="chg-<id>" on the right button. */
+/* The fixed rehearsals of "Meine Proben"/"Alle Proben" as a calendar
+   instead of a table: an event spans the rows its time covers, in a
+   plain table - the browser lines up hours and events by itself, no
+   pixel math to get wrong. Clicking an event opens the same dialog the
+   table's own "aendern" button does (datesScript()'s data-dialog
+   handles that already); this function only has to place
+   data-dialog="chg-<id>" on the right button.
+
+   A day without a rehearsal is not a column - a week is mostly empty,
+   and seven columns of nothing say less than three that hold
+   something. Two page sizes exist side by side in the markup and CSS
+   picks one by width (day: the day-panel's own breakpoint): seven
+   columns, a calendar week each, on a desk; three consecutive days
+   that HAVE something, wherever the gaps between them fall, on a
+   phone. Each page keeps only the hours its own days need - a page
+   that starts at 19:00 does not carry the empty afternoon along
+   because some other, unrelated evening runs earlier. */
 function weekCalendar(events, todayIso, clickable) {
   if (!events.length) return '';
-  const STEP = 30; // minutes per row
+  const STEP = 15; // minutes per row - fine enough that ordinary
+  // rehearsal times land exactly on a line; a time that does not is
+  // never dropped either (see the placement fallback in page() below),
+  // only shown starting a few minutes later than it really does.
   const mins = (hm) => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
   const clock = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   const mondayOf = (iso) => {
@@ -361,92 +373,158 @@ function weekCalendar(events, todayIso, clickable) {
   };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 
-  const isos = events.map(e => e.iso).sort();
-  let first = mondayOf(isos[0]), last = mondayOf(isos[isos.length - 1]);
-  const todayMon = mondayOf(todayIso);
-  if (todayMon < first) first = todayMon;
-  if (todayMon > last) last = todayMon;
-  const weeks = [];
-  for (let m = new Date(first); m <= last; m = addDays(m, 7)) weeks.push(new Date(m));
-
-  // The same hours on every page, so paging does not jump the grid.
-  let lo = 17 * 60, hi = 22 * 60;
-  events.forEach(e => { lo = Math.min(lo, mins(e.from)); hi = Math.max(hi, mins(e.to)); });
-  lo = Math.max(0, Math.floor((lo - 30) / STEP) * STEP);
-  hi = Math.min(24 * 60, Math.ceil((hi + 30) / STEP) * STEP);
-  const rows = [];
-  for (let m = lo; m < hi; m += STEP) rows.push(m);
-
-  const byCell = new Map(); // "mondayIso|weekday 0=Mon" -> event
+  /* Every rehearsal that day, not just one - a day can hold several,
+     one after another, and a plain "day -> event" map would silently
+     drop all but the last written. */
+  const byDay = new Map(); // iso -> event[], earliest first
   for (const e of events) {
-    const d = new Date(e.iso + 'T00:00:00');
-    byCell.set(isoDate(mondayOf(e.iso)) + '|' + ((d.getDay() + 6) % 7), e);
+    if (!byDay.has(e.iso)) byDay.set(e.iso, []);
+    byDay.get(e.iso).push(e);
   }
+  for (const list of byDay.values()) list.sort((a, b) => mins(a.from) - mins(b.from));
+  const activeDays = [...byDay.keys()].sort();
 
-  const upcoming = events.filter(e => e.iso >= todayIso).sort((a, b) => a.iso.localeCompare(b.iso))[0];
-  const anchorIso = upcoming ? upcoming.iso : isos[isos.length - 1];
-  const anchorMon = isoDate(mondayOf(anchorIso));
-  let start = weeks.findIndex(w => isoDate(w) === anchorMon);
-  if (start < 0) start = 0;
+  const anchor = activeDays.find(d => d >= todayIso) || activeDays[activeDays.length - 1];
 
-  const weekTable = (mon, i) => {
-    const days = Array.from({ length: 7 }, (_, k) => addDays(mon, k));
-    const covered = new Array(7).fill(0); // rows still to skip, per day column
+  /* The hours a page needs: only what its own days hold, padded by
+     half an hour and rounded to the row size. */
+  const hoursFor = (days) => {
+    let lo = Infinity, hi = -Infinity;
+    days.forEach(iso => (byDay.get(iso) || []).forEach(e => {
+      lo = Math.min(lo, mins(e.from)); hi = Math.max(hi, mins(e.to));
+    }));
+    if (lo === Infinity) return { lo: 17 * 60, hi: 22 * 60 };
+    return { lo: Math.max(0, Math.floor((lo - 30) / STEP) * STEP),
+             hi: Math.min(24 * 60, Math.ceil((hi + 30) / STEP) * STEP) };
+  };
+
+  const dayHead = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    return `<th>${h(L.weekday(d.getDay(), 'short'))} ${h(L.date(d, { day: '2-digit', month: '2-digit' }))}</th>`;
+  };
+  const eventCell = (ev, span) => {
+    const dlgId = 'chg-' + String(ev.id).replace(/[^A-Za-z0-9_-]/g, '');
+    const inner = `<b>${h(ev.title)}</b><span class="small">${h(ev.from)}–${h(ev.to)}${
+        ev.place ? ' · ' + h(ev.place) : ''}</span>`;
+    const title = `${h(ev.title)}${ev.place ? ' · ' + h(ev.place) : ''}`;
+    return `<td rowspan="${span}" class="ev">${clickable
+      ? `<button type="button" class="evbtn" data-dialog="${h(dlgId)}" title="${title}">${inner}</button>`
+      : `<div class="evbtn plain" title="${title}">${inner}</div>`}</td>`;
+  };
+
+  /* One page: the days given, whichever hours those days need. Several
+     events on the same day just stack as separate rowspans in the same
+     column, one after another - each still has its own start time, so
+     it gets its own cell in the row where it begins. */
+  const page = (days, i, cls) => {
+    const { lo, hi } = hoursFor(days);
+    const rows = []; for (let m = lo; m < hi; m += STEP) rows.push(m);
+    const covered = new Array(days.length).fill(0);
+    const placed = days.map(() => new Set()); // indices into that day's list already drawn
     const body = rows.map((rowM) => {
-      const cells = days.map((d, col) => {
+      const cells = days.map((iso, col) => {
         if (covered[col] > 0) { covered[col]--; return ''; }
-        const ev = byCell.get(isoDate(mon) + '|' + col);
-        if (ev && mins(ev.from) === rowM) {
-          const span = Math.max(1, Math.round((mins(ev.to) - mins(ev.from)) / STEP));
+        const list = byDay.get(iso) || [];
+        /* The earliest event of this day not yet drawn whose start has
+           come. Ordinarily that is exactly this row - a time that does
+           not fall on a grid line (nothing requires rehearsals to run
+           in round quarter-hours) starts at the row just before it
+           instead of being skipped over and lost, and two rehearsals
+           back to back never fight over the same row: whichever is
+           still running keeps covered[col] up, so the next one simply
+           waits for the row after. */
+        const idx = list.findIndex((e, k) => !placed[col].has(k) && Math.floor(mins(e.from) / STEP) * STEP <= rowM);
+        if (idx >= 0) {
+          placed[col].add(idx);
+          const ev = list[idx];
+          const span = Math.max(1, Math.ceil((mins(ev.to) - rowM) / STEP));
           covered[col] = span - 1;
-          const dlgId = 'chg-' + String(ev.id).replace(/[^A-Za-z0-9_-]/g, '');
-          const inner = `<b>${h(ev.title)}</b><span class="small">${h(ev.from)}–${h(ev.to)}${
-              ev.place ? ' · ' + h(ev.place) : ''}</span>`;
-          const title = `${h(ev.title)}${ev.place ? ' · ' + h(ev.place) : ''}`;
-          return `<td rowspan="${span}" class="ev">${clickable
-            ? `<button type="button" class="evbtn" data-dialog="${h(dlgId)}" title="${title}">${inner}</button>`
-            : `<div class="evbtn plain" title="${title}">${inner}</div>`}</td>`;
+          return eventCell(ev, span);
         }
         return '<td></td>';
       }).join('');
       return `<tr><th class="hr">${rowM % 60 === 0 ? clock(rowM) : ''}</th>${cells}</tr>`;
     }).join('');
-    return `<div class="week" data-nr="${i}"${i === start ? '' : ' hidden'}>
+    return `<div class="week ${cls}" data-nr="${i}"${i === 0 ? '' : ' hidden'}>
       <table class="weekcal">
-        <tr><th></th>${days.map(d => `<th>${h(L.weekday(d.getDay(), 'short'))} ${
-          h(L.date(d, { day: '2-digit', month: '2-digit' }))}</th>`).join('')}</tr>
+        <tr><th></th>${days.map(dayHead).join('')}</tr>
         ${body}
       </table></div>`;
   };
 
-  const weekNames = weeks.map(w => t('date.week_of', {
-    from: L.date(w, { day: '2-digit', month: '2-digit' }),
-    to: L.date(addDays(w, 6), { day: '2-digit', month: '2-digit', year: 'numeric' }) }));
+  /* Desk: one page per calendar week that has something in it - weeks
+     with nothing are never a page at all, so paging never lands on an
+     empty one. */
+  const byWeek = new Map(); // mondayIso -> iso[]
+  for (const iso of activeDays) {
+    const wk = isoDate(mondayOf(iso));
+    if (!byWeek.has(wk)) byWeek.set(wk, []);
+    byWeek.get(wk).push(iso);
+  }
+  const weekKeys = [...byWeek.keys()].sort();
+  const deskPages = weekKeys.map(wk => byWeek.get(wk));
+  const deskNames = weekKeys.map(wk => {
+    const mon = new Date(wk + 'T00:00:00');
+    return t('date.week_of', { from: L.date(mon, { day: '2-digit', month: '2-digit' }),
+                                to: L.date(addDays(mon, 6), { day: '2-digit', month: '2-digit', year: 'numeric' }) });
+  });
+  let deskStart = weekKeys.findIndex(wk => byWeek.get(wk).includes(anchor));
+  if (deskStart < 0) deskStart = 0;
 
-  return `<div class="calhead">
-      <button type="button" id="wkzurueck" class="quiet mini">&lsaquo;</button>
-      <b id="wkname"></b>
-      <button type="button" id="wkvor" class="quiet mini">&rsaquo;</button>
-    </div>
-    ${weeks.map(weekTable).join('')}
+  /* Phone: three days at a time, wherever they fall - a narrow screen
+     cannot read seven columns, and after hiding the empty ones "the
+     next calendar week" would often mean one or two lonely columns
+     anyway. */
+  const phonePages = [];
+  for (let i = 0; i < activeDays.length; i += 3) phonePages.push(activeDays.slice(i, i + 3));
+  const dayLabel = (iso) => { const d = new Date(iso + 'T00:00:00');
+    return h(L.weekday(d.getDay(), 'short')) + ' ' + h(L.date(d, { day: '2-digit', month: '2-digit' })); };
+  const phoneNames = phonePages.map(days => days.length > 1
+    ? dayLabel(days[0]) + ' – ' + dayLabel(days[days.length - 1]) : dayLabel(days[0]));
+  let phoneStart = phonePages.findIndex(days => days.includes(anchor));
+  if (phoneStart < 0) phoneStart = 0;
+
+  const nav = (idBase) => `<div class="calhead">
+      <button type="button" id="${idBase}zurueck" class="quiet mini">&lsaquo;</button>
+      <b id="${idBase}name"></b>
+      <button type="button" id="${idBase}vor" class="quiet mini">&rsaquo;</button>
+    </div>`;
+  /* Two independent pagers, one per page size - only one is ever visible
+     (CSS decides by width), but both keep their own state so switching
+     between them (rotating a tablet, say) does not lose the other's
+     place. */
+  const pager = (idBase, pageClass, names, start) => `
     <script>
     (function () {
-      var weeks = [].slice.call(document.querySelectorAll('.week'));
-      if (!weeks.length) return;
-      var names = ${JSON.stringify(weekNames)};
+      var pages = [].slice.call(document.querySelectorAll('.${pageClass}'));
+      if (!pages.length) return;
+      var names = ${JSON.stringify(names)};
       var current = ${start};
       function zeige(i) {
-        current = Math.max(0, Math.min(weeks.length - 1, i));
-        weeks.forEach(function (w, k) { w.hidden = k !== current; });
-        document.getElementById('wkname').textContent = names[current];
-        document.getElementById('wkzurueck').disabled = current === 0;
-        document.getElementById('wkvor').disabled = current === weeks.length - 1;
+        current = Math.max(0, Math.min(pages.length - 1, i));
+        pages.forEach(function (w, k) { w.hidden = k !== current; });
+        document.getElementById('${idBase}name').textContent = names[current];
+        document.getElementById('${idBase}zurueck').disabled = current === 0;
+        document.getElementById('${idBase}vor').disabled = current === pages.length - 1;
       }
-      document.getElementById('wkzurueck').onclick = function () { zeige(current - 1); };
-      document.getElementById('wkvor').onclick = function () { zeige(current + 1); };
+      document.getElementById('${idBase}zurueck').onclick = function () { zeige(current - 1); };
+      document.getElementById('${idBase}vor').onclick = function () { zeige(current + 1); };
       zeige(current);
     })();
     </script>`;
+
+  return `<div class="weekcal-wrap">
+    <div class="weekcal-page desk-page">
+      ${nav('wk')}
+      ${deskPages.map((days, i) => page(days, i, 'desk')).join('')}
+    </div>
+    <div class="weekcal-page phone-page">
+      ${nav('ph')}
+      ${phonePages.map((days, i) => page(days, i, 'phone')).join('')}
+    </div>
+    </div>
+    ${pager('wk', 'desk', deskNames, deskStart)}
+    ${pager('ph', 'phone', phoneNames, phoneStart)}`;
 }
 
 /* The rehearsals that have taken place, newest first: the director or

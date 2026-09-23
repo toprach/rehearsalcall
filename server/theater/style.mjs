@@ -219,10 +219,15 @@ export const STYLE = `
   /* dates: the director's tools on a fixed date, the history */
   .datetools { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; align-items:center }
   .datetools form.inline { margin:0 }
-  /* the fixed rehearsals as a week calendar: hours down the rows (only
-     every full hour is labelled, half-hours stay blank so the axis
-     does not get noisy), the seven days across, an event spans the
-     rows its time covers via rowspan - no pixel positioning at all. */
+  /* the fixed rehearsals as a calendar: hours down the rows (only every
+     full hour is labelled, half-hours stay blank so the axis does not
+     get noisy), the days that actually have something across - empty
+     days are never a column - an event spans the rows its time covers
+     via rowspan, no pixel positioning at all. Full width: a wide
+     screen has room the fixed .frame does not use, and a calendar
+     reads better broad than tall. */
+  .weekcal-wrap { width:100vw; position:relative; left:50%; margin-left:-50vw;
+    padding:0 1.5rem; box-sizing:border-box }
   .week[hidden] { display:none }
   table.weekcal { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:1rem }
   table.weekcal th { font-size:.75rem; font-weight:600; color:var(--muted); padding:.2rem; text-align:center }
@@ -237,6 +242,20 @@ export const STYLE = `
   .evbtn b { font-size:.78rem; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .evbtn .small { color:#fff; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .evbtn.plain { cursor:default }
+  /* two page sizes for the same data: seven columns on a desk, three
+     on a phone (a day column needs real width to be legible - seven
+     of them do not fit). Only one is ever shown. */
+  .weekcal-page.phone-page { display:none }
+  @media (max-width:700px) {
+    .weekcal-wrap { padding:0 .6rem }
+    .weekcal-page.desk-page { display:none }
+    .weekcal-page.phone-page { display:block }
+    table.weekcal th:first-child { width:2.4rem }
+    table.weekcal th.hr { font-size:.62rem; padding-right:.2rem }
+    .evbtn { padding:.15rem .25rem }
+    .evbtn b { font-size:.72rem }
+    .evbtn .small { font-size:.66rem }
+  }
   .hist { margin-top:.25rem }
   .hist .chip { margin-left:.2rem }
   table.histtable input { margin:0 }
