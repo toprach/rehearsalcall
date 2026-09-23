@@ -448,9 +448,21 @@ export function dayStates(project, person, days) {
       const w = windowOfPerson(personByShort.get(b), project.verfuegbar, d);
       if (w) windows[b] = [w.from, w.to];
     }
+    /* For the director's own calendar: can this rehearsal actually be
+       fixed on this day - does a time exist where the WHOLE cast (not
+       just "others", the director too) is free? Only then is there a
+       sensible default to offer; asking them to fix on a day nobody
+       agreed to would be a promise the app cannot back up. */
+    const commonWindow = (rehearsalId) => {
+      const pr = mine.find(p => p.id === rehearsalId);
+      const needed = [...new Set([...(pr?.gruppe || []), ...directors])];
+      const w = windowFor(needed, d, project.verfuegbar || {}, personByShort);
+      return w.ok ? { from: clock(w.from), to: clock(w.to) } : null;
+    };
     states[t.iso] = {
       level, best, canCome, windows,
-      suits: worth.slice(0, 4).map(x => ({ rehearsal: x.rehearsal, here: x.here, total: x.total })),
+      suits: worth.slice(0, 4).map(x => ({ rehearsal: x.rehearsal, here: x.here, total: x.total,
+        ...(isDirector ? commonWindow(x.rehearsal) : null) })),
       // Fixed dates of MY rehearsals (the director's: all of them).
       fixed: [...fixed.values()].filter(x => x.iso === t.iso &&
           (isDirector || (x.gruppe || []).includes(person.b) ||

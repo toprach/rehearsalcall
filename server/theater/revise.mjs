@@ -170,6 +170,51 @@ export function changeCast(project, rehearsalId, person, joining) {
                      share: { share: pr.ersatz_anteil || 0, digits: 0 } } };
 }
 
+/* Moving a scene from wherever it is now into a different rehearsal.
+   Scene numbers are unique across the whole plan (derivePlan hands them
+   out once, over the whole text, before splitting into rehearsals), so
+   one is never in two places - moving it out of its old rehearsal and
+   into the new one is enough, nothing needs to change about the scene
+   itself. */
+export function moveScene(project, sceneNr, toId) {
+  const plan = project.plan;
+  const to = plan.proben.find(x => x.id === toId);
+  if (!to) return { kind: 'error', key: 'msg.rehearsal_gone' };
+  let scene = null, from = null;
+  for (const pr of plan.proben) {
+    const found = (pr.szenen || []).find(s => s.szene === sceneNr);
+    if (found) { scene = found; from = pr; break; }
+  }
+  if (!scene) return { kind: 'error', key: 'msg.scene_gone' };
+  if (from === to) return { kind: 'error', key: 'msg.scene_already_there' };
+
+  from.szenen = from.szenen.filter(s => s !== scene);
+  to.szenen = [...to.szenen, scene].sort((a, b) => a.szene - b.szene);
+
+  recompute(project.skript, plan);
+  sortPlan(plan);
+  return { kind: 'good', key: 'msg.scene_moved',
+           values: { szene: sceneNr, from: from.id, to: to.id } };
+}
+
+/* Taking a scene out of a rehearsal without giving it to another one -
+   it goes back to open, uncovered text, the way it was before any plan
+   touched it. */
+export function dropScene(project, rehearsalId, sceneNr) {
+  const plan = project.plan;
+  const pr = plan.proben.find(x => x.id === rehearsalId);
+  if (!pr) return { kind: 'error', key: 'msg.rehearsal_gone' };
+  const scene = (pr.szenen || []).find(s => s.szene === sceneNr);
+  if (!scene) return { kind: 'error', key: 'msg.scene_gone' };
+  if (pr.szenen.length <= 1) return { kind: 'error', key: 'msg.needs_one_scene' };
+  pr.szenen = pr.szenen.filter(s => s !== scene);
+
+  recompute(project.skript, plan);
+  sortPlan(plan);
+  return { kind: 'good', key: 'msg.scene_dropped',
+           values: { szene: sceneNr, id: rehearsalId } };
+}
+
 /* One note per rehearsal - for everything that fits nowhere else. */
 export function setNote(project, rehearsalId, text) {
   const pr = project.plan?.proben?.find(x => x.id === rehearsalId);

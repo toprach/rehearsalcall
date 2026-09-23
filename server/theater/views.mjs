@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
-import { substitutesOf, historyOf } from './dates.mjs';
+import { substitutesOf, historyOf, isoDate } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -249,15 +249,35 @@ const optionalLine = (optional, canThatEvening) => !optional?.length ? '' :
 
 /* The director and the assistant on a fixed date: change it, have the
    message again, call it off. */
-function directorTools(target, pr, e) {
+/* Every scene of the plan, with the rehearsal it currently belongs to -
+   for offering a scene to add (it always comes FROM somewhere) and for
+   showing what a rehearsal already has. Scene numbers are unique over
+   the whole plan (see revise.mjs, moveScene). */
+function allScenes(project) {
+  const out = [];
+  for (const pr of project.plan?.proben || [])
+    for (const sz of pr.szenen || []) out.push({ ...sz, probe_id: pr.id });
+  return out.sort((a, b) => a.szene - b.szene);
+}
+
+/* The dialog itself: change when and where a rehearsal is, send the
+   message again, call it off - and, in the same place, who is in it
+   and which scenes it covers. Cast and scenes are the rehearsal's own
+   (project.plan.proben), not the date's; changing them here is the
+   same change as from the plan page, just reached from the date it
+   produced. Self-contained (its own trigger is up to the caller: a
+   button in a table row, or a tap on a calendar block), so it can be
+   opened from wherever a fixed date is shown. */
+function dateDialog(target, pr, e, project) {
   const id = 'chg-' + String(pr.id).replace(/[^A-Za-z0-9_-]/g, '');
-  return `<div class="datetools">
-    <button type="button" class="quiet mini" data-dialog="${id}">${h(t('date.change'))}</button>
-    ${actionForm(target, 'nachricht', { rehearsal: pr.id },
-      `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
-    ${actionForm(target, 'loesen', { rehearsal: pr.id },
-      `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
-    <dialog id="${id}" class="fixbox">
+  const all = (project.personen || []).map(x => x.b);
+  const absent = all.filter(x => !pr.group.includes(x));
+  const scenes = allScenes(project);
+  const mineScenes = scenes.filter(s => s.probe_id === pr.id);
+  const elsewhere = scenes.filter(s => s.probe_id !== pr.id);
+  const act = (action, body) => actionForm(target, action, { rehearsal: pr.id }, body);
+  const sceneLabel = (s) => t('date.scene_n', { n: s.szene }) + (s.anfang ? ' – ' + s.anfang : '');
+  return `<dialog id="${id}" class="fixbox">
       <form method="post" action="${h(target)}">
         <input type="hidden" name="action" value="aendern">
         <input type="hidden" name="rehearsal" value="${h(pr.id)}">
@@ -273,11 +293,160 @@ function directorTools(target, pr, e) {
         <label for="${id}-place">${t('fix.place')}</label>
         <input type="text" id="${id}-place" name="place" value="${h(e.ort || '')}" maxlength="120"
                placeholder="${h(t('common.place_hint'))}">
-        <p class="small muted">${t('date.change_what')}</p>
         <p><button type="submit">${h(t('date.change_go'))}</button>
            <button type="button" class="quiet" data-close="${id}">${h(t('fix.cancel'))}</button></p>
       </form>
-    </dialog></div>`;
+      <p class="datetools">
+        ${actionForm(target, 'nachricht', { rehearsal: pr.id },
+          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+        ${actionForm(target, 'loesen', { rehearsal: pr.id },
+          `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
+      </p>
+
+      <p class="small"><b>${t('date.cast_title')}</b></p>
+      <p>${pr.group.map(x => `<span class="chip">${h(x)}</span>`).join('') || `<span class="small muted">${t('mdate.alone')}</span>`}</p>
+      <p class="datetools">
+        ${absent.length ? act('dazu', `<select name="person"><option value="">${h(t('plan.add'))}</option>
+          ${absent.map(x => `<option value="${h(x)}">${h(x)}</option>`).join('')}</select>
+          <button class="quiet mini" type="submit">+</button>`) : ''}
+        ${pr.group.length > 1 ? act('weg', `<select name="person"><option value="">${h(t('plan.remove'))}</option>
+          ${pr.group.map(x => `<option value="${h(x)}">${h(x)}</option>`).join('')}</select>
+          <button class="quiet mini" type="submit">−</button>`) : ''}
+      </p>
+
+      <p class="small"><b>${t('date.scene_title')}</b></p>
+      <p>${mineScenes.map(s => `<span class="chip" title="${h(s.anfang || '')}">${h(t('date.scene_n', { n: s.szene }))}</span>`).join('')
+        || `<span class="small muted">${t('date.scene_none')}</span>`}</p>
+      <p class="datetools">
+        ${elsewhere.length ? act('szene-dazu', `<select name="szene"><option value="">${h(t('date.scene_add'))}</option>
+          ${elsewhere.map(s => `<option value="${s.szene}" title="${h(s.anfang || '')}">${h(sceneLabel(s))} (${h(s.probe_id)})</option>`).join('')}</select>
+          <button class="quiet mini" type="submit">+</button>`) : ''}
+        ${mineScenes.length > 1 ? act('szene-weg', `<select name="szene"><option value="">${h(t('date.scene_remove'))}</option>
+          ${mineScenes.map(s => `<option value="${s.szene}" title="${h(s.anfang || '')}">${h(sceneLabel(s))}</option>`).join('')}</select>
+          <button class="quiet mini" type="submit">−</button>`) : ''}
+      </p>
+    </dialog>`;
+}
+
+/* The table row's own way in: three quick buttons, plus the dialog
+   above them. */
+function directorTools(target, pr, e, project) {
+  const id = 'chg-' + String(pr.id).replace(/[^A-Za-z0-9_-]/g, '');
+  return `<div class="datetools">
+    <button type="button" class="quiet mini" data-dialog="${id}">${h(t('date.change'))}</button>
+    ${actionForm(target, 'nachricht', { rehearsal: pr.id },
+      `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+    ${actionForm(target, 'loesen', { rehearsal: pr.id },
+      `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
+    ${dateDialog(target, pr, e, project)}</div>`;
+}
+
+/* The fixed rehearsals of "Meine Proben"/"Alle Proben" as a week
+   calendar instead of a table: one page per week, Monday to Sunday,
+   an event spanning the rows its time covers. A table, not a stack of
+   absolutely positioned blocks - the browser lines up hours and events
+   by itself, there is no pixel math to get wrong. Clicking an event
+   opens the same dialog the table's own "aendern" button does
+   (datesScript()'s data-dialog handles that already); this function
+   only has to place data-dialog="chg-<id>" on the right button. */
+function weekCalendar(events, todayIso, clickable) {
+  if (!events.length) return '';
+  const STEP = 30; // minutes per row
+  const mins = (hm) => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
+  const clock = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const mondayOf = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d;
+  };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+  const isos = events.map(e => e.iso).sort();
+  let first = mondayOf(isos[0]), last = mondayOf(isos[isos.length - 1]);
+  const todayMon = mondayOf(todayIso);
+  if (todayMon < first) first = todayMon;
+  if (todayMon > last) last = todayMon;
+  const weeks = [];
+  for (let m = new Date(first); m <= last; m = addDays(m, 7)) weeks.push(new Date(m));
+
+  // The same hours on every page, so paging does not jump the grid.
+  let lo = 17 * 60, hi = 22 * 60;
+  events.forEach(e => { lo = Math.min(lo, mins(e.from)); hi = Math.max(hi, mins(e.to)); });
+  lo = Math.max(0, Math.floor((lo - 30) / STEP) * STEP);
+  hi = Math.min(24 * 60, Math.ceil((hi + 30) / STEP) * STEP);
+  const rows = [];
+  for (let m = lo; m < hi; m += STEP) rows.push(m);
+
+  const byCell = new Map(); // "mondayIso|weekday 0=Mon" -> event
+  for (const e of events) {
+    const d = new Date(e.iso + 'T00:00:00');
+    byCell.set(isoDate(mondayOf(e.iso)) + '|' + ((d.getDay() + 6) % 7), e);
+  }
+
+  const upcoming = events.filter(e => e.iso >= todayIso).sort((a, b) => a.iso.localeCompare(b.iso))[0];
+  const anchorIso = upcoming ? upcoming.iso : isos[isos.length - 1];
+  const anchorMon = isoDate(mondayOf(anchorIso));
+  let start = weeks.findIndex(w => isoDate(w) === anchorMon);
+  if (start < 0) start = 0;
+
+  const weekTable = (mon, i) => {
+    const days = Array.from({ length: 7 }, (_, k) => addDays(mon, k));
+    const covered = new Array(7).fill(0); // rows still to skip, per day column
+    const body = rows.map((rowM) => {
+      const cells = days.map((d, col) => {
+        if (covered[col] > 0) { covered[col]--; return ''; }
+        const ev = byCell.get(isoDate(mon) + '|' + col);
+        if (ev && mins(ev.from) === rowM) {
+          const span = Math.max(1, Math.round((mins(ev.to) - mins(ev.from)) / STEP));
+          covered[col] = span - 1;
+          const dlgId = 'chg-' + String(ev.id).replace(/[^A-Za-z0-9_-]/g, '');
+          const inner = `<b>${h(ev.title)}</b><span class="small">${h(ev.from)}–${h(ev.to)}${
+              ev.place ? ' · ' + h(ev.place) : ''}</span>`;
+          const title = `${h(ev.title)}${ev.place ? ' · ' + h(ev.place) : ''}`;
+          return `<td rowspan="${span}" class="ev">${clickable
+            ? `<button type="button" class="evbtn" data-dialog="${h(dlgId)}" title="${title}">${inner}</button>`
+            : `<div class="evbtn plain" title="${title}">${inner}</div>`}</td>`;
+        }
+        return '<td></td>';
+      }).join('');
+      return `<tr><th class="hr">${rowM % 60 === 0 ? clock(rowM) : ''}</th>${cells}</tr>`;
+    }).join('');
+    return `<div class="week" data-nr="${i}"${i === start ? '' : ' hidden'}>
+      <table class="weekcal">
+        <tr><th></th>${days.map(d => `<th>${h(L.weekday(d.getDay(), 'short'))} ${
+          h(L.date(d, { day: '2-digit', month: '2-digit' }))}</th>`).join('')}</tr>
+        ${body}
+      </table></div>`;
+  };
+
+  const weekNames = weeks.map(w => t('date.week_of', {
+    from: L.date(w, { day: '2-digit', month: '2-digit' }),
+    to: L.date(addDays(w, 6), { day: '2-digit', month: '2-digit', year: 'numeric' }) }));
+
+  return `<div class="calhead">
+      <button type="button" id="wkzurueck" class="quiet mini">&lsaquo;</button>
+      <b id="wkname"></b>
+      <button type="button" id="wkvor" class="quiet mini">&rsaquo;</button>
+    </div>
+    ${weeks.map(weekTable).join('')}
+    <script>
+    (function () {
+      var weeks = [].slice.call(document.querySelectorAll('.week'));
+      if (!weeks.length) return;
+      var names = ${JSON.stringify(weekNames)};
+      var current = ${start};
+      function zeige(i) {
+        current = Math.max(0, Math.min(weeks.length - 1, i));
+        weeks.forEach(function (w, k) { w.hidden = k !== current; });
+        document.getElementById('wkname').textContent = names[current];
+        document.getElementById('wkzurueck').disabled = current === 0;
+        document.getElementById('wkvor').disabled = current === weeks.length - 1;
+      }
+      document.getElementById('wkzurueck').onclick = function () { zeige(current - 1); };
+      document.getElementById('wkvor').onclick = function () { zeige(current + 1); };
+      zeige(current);
+    })();
+    </script>`;
 }
 
 /* The rehearsals that have taken place, newest first: the director or
@@ -1518,10 +1687,10 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
   return page({ title: t('book.title'), nav: navMember(project, person),
                 tabbar: memberTabbar(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p>
-    <h1>${t('book.title_for', { name: h(who) })}</h1>
-    <p class="small muted">${t('book.figures', { passages: passages.length, words })}
-      \u00b7 <a href="${project.druck_token && project.plan?.proben?.length
+    <p><a class="btn quiet mini" href="${project.druck_token && project.plan?.proben?.length
         ? `/theater/druck/${h(project.druck_token)}/probenplan` : '/theater/mit/stueck'}">${t('book.play_link')}</a></p>
+    <h1>${t('book.title_for', { name: h(who) })}</h1>
+    <p class="small muted">${t('book.figures', { passages: passages.length, words })}</p>
     ${filter ? `<div class="notice" id="heft-filter">${filter.mit
         ? t('book.filter_adhoc', { who: filter.mit.map(b => h(nameOf(b))).join(', ') })
         : t('book.filter_note', { id: h(filter.id) })}
@@ -1730,6 +1899,9 @@ function myDatesPage(project, person, result, m, opt = {}) {
   const mine = (showAll || isDirector) ? result.rehearsals
              : result.rehearsals.filter(pr => pr.group.includes(person.b));
 
+  /* Only the proposals still come through here as a table - the fixed
+     ones became the week calendar below, and a rehearsal is never both
+     at once (unresolved = the ones without a fixed date). */
   const row = (pr) => {
     const who = pr.group.filter(b => showAll || b !== person.b).map(b => {
       const x = (project.personen || []).find(y => y.b === b);
@@ -1738,21 +1910,11 @@ function myDatesPage(project, person, result, m, opt = {}) {
       `<span class="chip muted" title="${h(t('date.director'))}">${h(b)}</span>`).join('')
       || `<span class="small muted">${t('mdate.alone')}</span>`;
 
-    /* Fixing a date and entering its place is for those who are in the
-       rehearsal, and for the director and the assistant - the list of
-       all rehearsals shows the others' dates without the means. */
+    /* Fixing a date is for those who are in the rehearsal, and for the
+       director and the assistant. */
     const may = pr.group.includes(person.b) || !!opt.mayDirect;
     let date, button = '';
-    if (pr.proposal && pr.fixed) {
-      const e = (project.termine || []).find(x => x.probe_id === pr.id) || {};
-      date = `<span class="date fixed">\u2713 ${h(L.weekday(pr.proposal.weekday))}, ${
-          h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
-        <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
-          to: h(pr.proposal.to) })} \u00b7 ${t('date.fixed')}</div>
-        ${may ? placeField('/theater/mit/termine', pr.id, e.ort)
-              : (e.ort ? `<div class="small">${h(e.ort)}</div>` : '')}
-        ${opt.mayDirect ? directorTools('/theater/mit/termine', pr, e) : ''}`;
-    } else if (pr.proposal) {
+    if (pr.proposal) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <div class="small muted">${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.proposal')}</div>`;
@@ -1763,7 +1925,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
       date = `<span class="open">${t('date.none_yet')}</span>
         <div class="small muted">${whyNot(pr)}</div>`;
     }
-    return `<tr${pr.fixed ? ' class="isfixed"' : ''}>
+    return `<tr>
       <td><a href="/theater/mit/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
         <div class="small muted">${t('common.minutes', { n: Math.round(pr.minutes) })}</div>
         ${historyLine(pr.history)}</td>
@@ -1777,6 +1939,25 @@ function myDatesPage(project, person, result, m, opt = {}) {
   const fixed = mine.filter(x => x.fixed);
   const unresolved = mine.filter(x => !x.fixed);
 
+  /* The fixed dates as a week calendar: the title built the same way
+     as the calendar feed (ics.mjs's titleFor) - the two ought to say
+     the same thing about the same rehearsal. Clicking an event opens
+     dateDialog's editor, but only for the director and the assistant;
+     everybody else sees the same calendar without a way in, the same
+     boundary the table drew with its own placeField/directorTools. */
+  const icsTitle = (id, group) => {
+    const inIt = isDirector || group.includes(person.b);
+    const others = group.filter(b => b !== person.b);
+    return inIt
+      ? (others.length ? t('ics.with_me', { id, others: others.join(' + ') }) : t('ics.with_me_alone', { id }))
+      : t('ics.without_me', { id, who: group.join(', ') });
+  };
+  const events = fixed.filter(pr => pr.proposal).map(pr => {
+    const e = (project.termine || []).find(x => x.probe_id === pr.id) || {};
+    return { id: pr.id, iso: pr.proposal.iso, from: pr.proposal.from, to: pr.proposal.to,
+             place: e.ort || '', title: icsTitle(pr.id, pr.group) };
+  });
+
   return page({ title: t('date.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${showAll ? t('mdate.all') : t('mdate.title')}</h1>
     <p class="tabs"><a href="/theater/mit/termine"${showAll ? '' : ' class="on"'}>${t('mdate.mine')}</a>
@@ -1787,9 +1968,10 @@ function myDatesPage(project, person, result, m, opt = {}) {
     ${showAll ? `<p class="small muted">${t('mdate.all_what')}</p>` : ''}
     ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
       <h2>${t('mdate.fixed')}${fixed.length ? ` (${fixed.length})` : ''}</h2>
-      ${fixed.length ? `<p class="small muted">${t('mdate.fixed_place')}</p>` : ''}
-      ${fixed.length
-        ? `<table>${header}${fixed.map(row).join('')}</table>`
+      ${events.length ? `<p class="small muted">${t('mdate.fixed_place')}</p>
+        ${weekCalendar(events, isoDate(new Date()), !!opt.mayDirect)}
+        ${opt.mayDirect ? fixed.filter(pr => pr.proposal).map(pr =>
+            dateDialog('/theater/mit/termine', pr, (project.termine || []).find(x => x.probe_id === pr.id) || {}, project)).join('') : ''}`
         : `<p class="small muted">${t('mdate.nothing_fixed')}</p>`}
       <h2>${t('mdate.proposals')}${unresolved.length ? ` (${unresolved.length})` : ''}</h2>
       <p class="small muted">${t('mdate.proposal_what')}</p>
@@ -1819,7 +2001,7 @@ function datesPage(p, result, m, share = null) {
         <span class="small muted"><br>${t('date.clock', { from: h(pr.proposal.from),
           to: h(pr.proposal.to) })} \u00b7 ${t('date.fixed')}</span>
         ${placeField('/theater/termine', pr.id, e.ort)}`;
-      button = directorTools('/theater/termine', pr, e);
+      button = directorTools('/theater/termine', pr, e, p);
     } else if (pr.proposal) {
       date = `<span class="date">${h(L.weekday(pr.proposal.weekday))}, ${h(L.date(pr.proposal.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
         <span class="small muted"><br>${t('date.clock', { from: h(pr.proposal.from),
@@ -2010,9 +2192,9 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         t('my.last_saved', { when: h(L.date(v.stand)) })}</p>` : ''}
     </details>` : ''}
     ${rehearsals.length ? `<p class="small muted">${t('my.needed_for',
-      { n: rehearsals.length })}${rehearsals.map(pr => `<span class="chip"
+      { n: rehearsals.length })}${rehearsals.map(pr => `<a class="chip" href="/theater/mit/plan/${encodeURIComponent(pr.id)}"
       title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
-      >${h(pr.id)}</span>`).join('')}</p>` : ''}
+      >${h(pr.id)}</a>`).join('')}</p>` : ''}
 
     <details class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
       remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
@@ -2076,7 +2258,10 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
                 saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
                 von_n: ${JSON.stringify(t('my.best', { rehearsal: '', here: '#DA#',
-                  total: '#GESAMT#' }).replace(/^:\s*/, ''))} };
+                  total: '#GESAMT#' }).replace(/^:\s*/, ''))},
+                fix_title: ${js('my.fix_title')}, fix_which: ${js('my.fix_which')}, fix_go: ${js('my.fix_go')},
+                fix_confirm: ${JSON.stringify(t('my.fix_confirm', { id: '#ID#', tag: '#TAG#', von: '#VON#', bis: '#BIS#' }))},
+                fix_done: ${js('my.fix_done')}, fix_failed: ${js('my.fix_failed')} };
       var current = 0;
 
       function zeigeMonat(i) {
@@ -2167,9 +2352,58 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           '<button type="button" id="neint" class="quiet">' + W.nein + '</button> ' +
           '<button type="button" id="offen" class="quiet">' + W.offen + '</button>' +
           (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
-             (blocked ? W.unblock : W.block) + '</button>' : '');
+             (blocked ? W.unblock : W.block) + '</button>' : '') +
+          '<div id="tafel-fix"></div>';
 
         document.dispatchEvent(new CustomEvent('tag-geoeffnet', { detail: iso }));
+
+        /* For the director or the assistant: fixing one of the day's
+           rehearsals right here, without a trip to Termine - offered
+           only for a rehearsal whose WHOLE cast (the director along)
+           has a common window that day, and only after they confirm
+           the time, which starts out as that common window. */
+        (function () {
+          if (!regie) return;
+          var passt = []; try { passt = JSON.parse(td.dataset.passt || '[]'); } catch (x) {}
+          var kandidaten = passt.filter(function (x) { return x.from && x.to; });
+          if (!kandidaten.length) return;
+          var box = document.getElementById('tafel-fix');
+          box.innerHTML =
+            '<p class="small" style="margin-top:.8rem"><b>' + W.fix_title + '</b></p>' +
+            '<div class="row">' +
+              '<div><label for="fx-probe">' + W.fix_which + '</label>' +
+                '<select id="fx-probe">' + kandidaten.map(function (x) {
+                  return '<option value="' + x.rehearsal + '" data-von="' + x.from + '" data-bis="' + x.to + '">' +
+                    x.rehearsal + ' (' + x.here + '/' + x.total + ')</option>';
+                }).join('') + '</select></div>' +
+              '<div><label for="fx-von">' + W.von + '</label>' +
+                '<input type="time" id="fx-von" step="300" value="' + kandidaten[0].from + '"></div>' +
+              '<div><label for="fx-bis">' + W.bis + '</label>' +
+                '<input type="time" id="fx-bis" step="300" value="' + kandidaten[0].to + '"></div>' +
+            '</div>' +
+            '<button type="button" id="fx-go" class="quiet mini">' + W.fix_go + '</button> ' +
+            '<span id="fx-note" class="small muted"></span>';
+          var sel = document.getElementById('fx-probe');
+          var fv = document.getElementById('fx-von'), fb = document.getElementById('fx-bis');
+          sel.addEventListener('change', function () {
+            var o = sel.options[sel.selectedIndex];
+            fv.value = o.dataset.von; fb.value = o.dataset.bis;
+          });
+          document.getElementById('fx-go').onclick = function () {
+            var probe = sel.value, von = fv.value, bis = fb.value;
+            if (!von || !bis || bis <= von) { alert(W.falsch); return; }
+            var tag = d.toLocaleDateString(place, { day: '2-digit', month: '2-digit', year: 'numeric' });
+            if (!confirm(W.fix_confirm.replace('#ID#', probe).replace('#TAG#', tag).replace('#VON#', von).replace('#BIS#', bis))) return;
+            var note = document.getElementById('fx-note');
+            var body = new URLSearchParams({ action: 'halten', rehearsal: probe, iso: iso, from: von, to: bis }).toString();
+            fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
+              headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
+              .then(function (r) {
+                note.textContent = r.ok ? W.fix_done : W.fix_failed;
+                if (r.ok) { td.dataset.fixed = probe + ' ' + von + '–' + bis; td.classList.add('fixed'); }
+              }).catch(function () { note.textContent = W.fix_failed; });
+          };
+        })();
 
         /* When the others can: one bar per person on a common time axis,
            my own window across all of them, and what is common to the
@@ -2597,14 +2831,29 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     }
     /* double click on a line: comment on it (or on the last cue before it) */
     /* Which line is meant, and what is its number? A continuation
-       paragraph carries none - then the one above it counts. */
+       paragraph carries none, and neither does a stage direction (it is
+       never itself a speech) - then the nearest speech counts: the one
+       just before it in the document, or, when nothing comes before it
+       (the very first paragraph of a scene), the one just after. Walking
+       only through previousElementSibling missed this for a direction
+       that opens a scene, inside its own <section> or <td> with nothing
+       before it at that level - document order does not care about
+       wrappers, so it always finds something as long as a speech exists
+       anywhere on the page. */
+    var allNr = null;
     var lineNr = function (target) {
       var p = target && target.closest ? target.closest('main p, main td p') : null;
       if (!p || p.classList.contains('szende') || p.closest('.szkopf')) return null;
       if (p.classList.contains('kmt-veiled')) return null;
-      var nr = p.dataset.nr;
-      if (!nr) { var q = p; while (q && !nr) { q = q.previousElementSibling; if (q && q.dataset && q.dataset.nr) nr = q.dataset.nr; } }
-      return nr || null;
+      if (p.dataset.nr) return p.dataset.nr;
+      if (!allNr) allNr = [].slice.call(document.querySelectorAll('main [data-nr]'));
+      var before = null, after = null;
+      for (var i = 0; i < allNr.length; i++) {
+        if (p.compareDocumentPosition(allNr[i]) & Node.DOCUMENT_POSITION_FOLLOWING) { after = allNr[i]; break; }
+        before = allNr[i];
+      }
+      var near = before || after;
+      return near ? near.dataset.nr : null;
     };
     var openComment = function (nr) {
       var sel = window.getSelection && window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges();
@@ -2646,7 +2895,14 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
 
     var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
     var HINT = coarse ? T.hint_touch : T.hint;
-    if (D.me) { var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = HINT; document.body.appendChild(h); }
+    /* Shown once, then out of the way - it would sit over the text
+       forever otherwise. Abpruefen's own hint (set the same way, on
+       the same element) is not touched by this timer: it only fires
+       once, right after the page loads. */
+    if (D.me) {
+      var h = document.createElement('div'); h.className = 'kmt-hint'; h.textContent = HINT; document.body.appendChild(h);
+      setTimeout(function () { if (h && h.parentNode && h.textContent === HINT) { h.parentNode.removeChild(h); } }, 5000);
+    }
 
     /* ---- the rehearsal plan: jump between the scenes of a rehearsal ---- */
     var scenes = [];

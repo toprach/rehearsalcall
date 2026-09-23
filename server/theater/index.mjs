@@ -325,6 +325,29 @@ function dateAction(A, project, pr, fields, opt) {
     current.geaendert = new Date().toISOString();
     return { m: good('r.date_changed'), share: message(current) };
   }
+  /* Cast and scenes belong to the plan (project.plan.proben), not to
+     the fixed date - changing them here changes the rehearsal itself,
+     the same as from the plan page. When the rehearsal is fixed, its
+     termin keeps a snapshot of who is in it (for the history and the
+     message); that snapshot is brought along so it does not go stale. */
+  if (action === 'dazu' || action === 'weg') {
+    if (!opt.mayDirect) return bad('r.not_yours');
+    const who = String(fields.person || '');
+    if (!who) return bad(action === 'dazu' ? 'r.add_whom' : 'r.remove_whom');
+    const msg = B.changeCast(project, id, who, action === 'dazu');
+    if (msg.kind === 'good' && current) {
+      const fresh = (project.plan?.proben || []).find(x => x.id === id);
+      if (fresh) current.gruppe = fresh.gruppe;
+    }
+    return { m: msg, share: null };
+  }
+  if (action === 'szene-dazu' || action === 'szene-weg') {
+    if (!opt.mayDirect) return bad('r.not_yours');
+    const nr = Number(fields.szene);
+    if (!Number.isInteger(nr)) return bad(action === 'szene-dazu' ? 'r.add_scene' : 'r.remove_scene');
+    const msg = action === 'szene-dazu' ? B.moveScene(project, nr, id) : B.dropScene(project, id, nr);
+    return { m: msg, share: null };
+  }
   return { m: null, share: null };
 }
 

@@ -131,7 +131,7 @@ export const STYLE = `
   details.personal { margin-top:.3rem }
   details.personal summary { cursor:pointer; color:var(--muted) }
   .chip { display:inline-block; background:var(--chip);
-          color:var(--chip-ink); border-radius:3px;
+          color:var(--chip-ink); border-radius:3px; text-decoration:none;
           padding:.1rem .45rem; font-size:.82rem; font-weight:600; margin-right:.3rem }
   .date { font-weight:700 }
   .date.fixed { color:var(--good) }
@@ -219,6 +219,24 @@ export const STYLE = `
   /* dates: the director's tools on a fixed date, the history */
   .datetools { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; align-items:center }
   .datetools form.inline { margin:0 }
+  /* the fixed rehearsals as a week calendar: hours down the rows (only
+     every full hour is labelled, half-hours stay blank so the axis
+     does not get noisy), the seven days across, an event spans the
+     rows its time covers via rowspan - no pixel positioning at all. */
+  .week[hidden] { display:none }
+  table.weekcal { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:1rem }
+  table.weekcal th { font-size:.75rem; font-weight:600; color:var(--muted); padding:.2rem; text-align:center }
+  table.weekcal th:first-child { width:3rem }
+  table.weekcal td { border:1px solid var(--rule); height:1.4rem; padding:0 }
+  table.weekcal th.hr { border:0; font-size:.68rem; color:var(--muted); text-align:right;
+    padding-right:.4rem; vertical-align:top; white-space:nowrap }
+  table.weekcal td.ev { border-color:var(--accent); padding:1px; background:transparent }
+  .evbtn { display:flex; flex-direction:column; justify-content:center; width:100%; height:100%;
+    box-sizing:border-box; padding:.2rem .35rem; border:0; border-radius:2px; text-align:left;
+    background:#2f8a4f; color:#fff; font:inherit; cursor:pointer; overflow:hidden }
+  .evbtn b { font-size:.78rem; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .evbtn .small { color:#fff; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .evbtn.plain { cursor:default }
   .hist { margin-top:.25rem }
   .hist .chip { margin-left:.2rem }
   table.histtable input { margin:0 }

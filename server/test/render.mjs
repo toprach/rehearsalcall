@@ -154,6 +154,7 @@ for (const { code } of LANGUAGES) {
                                  'https://x.example/theater/gruppe/tok/plan/P01') }),
     myDatesShare: () => A.myDatesPage(project, person, datesResult, { kind: 'good', key: 'r.now_fixed', values: { p1: 'P01' } },
       { share: { text: A.rehearsalMessage(project, { probe_id: 'P01', iso: '2026-10-01', von: '19:00', bis: '', gruppe: ['OBERON'], ort: '' }, 'https://x.example/l') } }),
+    myDatesDirect: () => A.myDatesPage(project, person, datesResult, null, { mayDirect: true }),
     pickNameTo: () => A.pickNamePage(project, 'tok', null, 'plan/P01'),
     datesEmpty: () => A.datesPage(project, { rehearsals: [], hint: { key: 'msg.no_plan' } }, null),
     myTimesPage: () => A.myTimesPage(project, person, { kind: 'good', key: 'r.times_saved', values: { n: 3 } }, days, states, 'https://x.example/theater/ich/abc/kalender.ics'),
