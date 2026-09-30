@@ -679,6 +679,7 @@ export const de = {
   'my.pref_title': 'Bevorzugtes Zeitfenster',
   'my.legend':     'Legende',
   'my.time_wrong':  'Die Zeit „bis“ muss nach „ab“ liegen.',
+  'my.strike_fixed_confirm': 'Wirklich absagen? Denk daran, die anderen zu informieren, es ist bereits eine Probe ausgemacht.',
   'my.fix_title':       'Probe an diesem Tag fixieren',
   'my.fix_which':       'Probe',
   'my.fix_go':          'fixieren',

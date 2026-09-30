@@ -680,6 +680,7 @@ export const en = {
   'my.legend':     'Legend',
   'my.cannot':   'Strike the day for me',
   'my.time_wrong':  'The \u201cuntil\u201d time has to be later than \u201cfrom\u201d.',
+  'my.strike_fixed_confirm': 'Really cancel? Remember to tell the others \u2013 a rehearsal is already arranged.',
   'my.fix_title':       'Fix a rehearsal on this day',
   'my.fix_which':       'Rehearsal',
   'my.fix_go':          'fix',

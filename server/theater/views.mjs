@@ -2214,13 +2214,13 @@ function myTimesPage(project, person, m, days, states, ics = '') {
 
   const count = Object.values(entered).filter(x => x && x.von).length;
   const shortDate = new Intl.DateTimeFormat(L.locale, { day: '2-digit', month: '2-digit' });
-  const myDays = Object.entries(entered).sort()
+  const myDays = Object.entries(entered).filter(([, z]) => z?.von).sort()
     .map(([iso, z]) => {
       const d = new Date(iso + 'T00:00:00');
-      return WOCHE[mondayIndex(d.getDay())] + ' ' + shortDate.format(d) +
-             ' ' + z.von + '\u2013' + z.bis;
+      return { iso, text: WOCHE[mondayIndex(d.getDay())] + ' ' + shortDate.format(d) +
+             ' ' + z.von + '\u2013' + z.bis };
     });
-  const preset = Object.values(entered)[0] || { von: '19:00', bis: '22:00' };
+  const preset = Object.values(entered).find(z => z?.von) || { von: '19:00', bis: '22:00' };
   const js = (schluessel, werte) => JSON.stringify(t(schluessel, werte));
 
   return page({ title: t('my.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
@@ -2264,7 +2264,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     ${count ? `<details class="box small" style="margin-top:1.2rem">
       <summary><b>${count === 1 ? t('my.holds_1') : t('my.holds', { n: count })}</b></summary>
       <div class="muted" style="margin-top:.4rem; line-height:1.9">
-        ${myDays.map(x => `<span class="chip">${h(x)}</span>`).join('')}
+        ${myDays.map(x => `<span class="chip" data-iso="${x.iso}">${h(x.text)}</span>`).join('')}
       </div>
       ${v.stand ? `<p class="muted" style="margin:.6rem 0 0">${
         t('my.last_saved', { when: h(L.date(v.stand)) })}</p>` : ''}
@@ -2332,7 +2332,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                 bars_me: ${js('my.bars_me')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
                 ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
-                falsch: ${js('my.time_wrong')},
+                falsch: ${js('my.time_wrong')}, streich_fest: ${js('my.strike_fixed_confirm')},
                 autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
                 saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
                 von_n: ${JSON.stringify(t('my.best', { rehearsal: '', here: '#DA#',
@@ -2389,6 +2389,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         var vI = td.querySelector('input[name^="v_"]');
         var bI = td.querySelector('input[name^="b_"]');
         var tI = td.querySelector('input[name^="t_"]');
+        var nI = td.querySelector('input[name^="n_"]');
+        var struck = !!(nI && nI.value === '1');
         // "yes" opens with the preferred window
         var pv = document.getElementById('pref-von'), pb = document.getElementById('pref-bis');
         if (pv && pb && pv.value && pb.value) preset = { von: pv.value, bis: pb.value };
@@ -2421,10 +2423,10 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           '<div class="row">' +
             '<div><label for="tv">' + W.von + '</label>' +
               '<input type="time" id="tv" step="900" value="' +
-              (vI.value || preset.von) + '"></div>' +
+              (struck ? '' : vI.value || preset.von) + '"></div>' +
             '<div><label for="tb">' + W.bis + '</label>' +
               '<input type="time" id="tb" step="900" value="' +
-              (bI.value || preset.bis) + '"></div>' +
+              (struck ? '' : bI.value || preset.bis) + '"></div>' +
           '</div>' +
           '<button type="button" id="jat">' + W.ja + '</button> ' +
           '<button type="button" id="neint" class="quiet">' + W.nein + '</button> ' +
@@ -2535,22 +2537,30 @@ function myTimesPage(project, person, m, days, states, ics = '') {
 
         document.getElementById('jat').onclick = function () {
           var a = document.getElementById('tv').value, b = document.getElementById('tb').value;
+          if (!a && !b) { a = preset.von; b = preset.bis; }
           if (!a || !b || b <= a) { alert(W.falsch); return; }
-          tI.value = '1'; vI.value = a; bI.value = b;
-          td.classList.add('me');
+          tI.value = '1'; vI.value = a; bI.value = b; if (nI) nI.value = '';
+          td.classList.add('me'); td.classList.remove('nein');
           td.querySelector('.time').textContent = a + '\u2013' + b;
           preset = { von: a, bis: b };
           schleier.hidden = true; zaehle(); speichere();
         };
-        var nI = td.querySelector('input[name^="n_"]');
+        // what I had given for the day goes, from the page as well
+        var vergiss = function () {
+          var chip = document.querySelector('.chip[data-iso="' + iso + '"]');
+          if (chip) chip.remove();
+        };
         document.getElementById('neint').onclick = function () {
+          if (td.dataset.fixed && !confirm(W.streich_fest)) return;
           tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '1';
+          vergiss();
           td.classList.remove('me'); td.classList.add('nein');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
         };
         document.getElementById('offen').onclick = function () {
           tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '';
+          vergiss();
           td.classList.remove('me'); td.classList.remove('nein');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
