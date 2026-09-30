@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
-import { substitutesOf, historyOf, isoDate } from './dates.mjs';
+import { substitutesOf, historyOf, isoDate, freeNames, freeDetail } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -328,6 +328,31 @@ function dateDialog(target, pr, e, project) {
     </dialog>`;
 }
 
+/* The same for a free rehearsal (frei: true): no plan behind it, so no
+   cast or scene tools - its people and times are what the director set
+   in the day panel. Place, message, cancel. */
+function freeDialog(target, e, project) {
+  const id = 'chg-' + String(e.probe_id).replace(/[^A-Za-z0-9_-]/g, '');
+  const title = t('free.title', { who: freeNames(project, e) });
+  return `<dialog id="${id}" class="fixbox">
+      <p class="eyebrow">${h(title)}</p>
+      <p class="small">${t('date.clock', { from: h(e.von), to: h(e.bis) })}<br>${h(freeDetail(project, e))}</p>
+      <label>${t('fix.place')}</label>
+      ${placeField(target, e.probe_id, e.ort)}
+      <div class="datetools" style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin:.8rem 0">
+        ${actionForm(target, 'nachricht', { rehearsal: e.probe_id },
+          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+        ${actionForm(target, 'loesen', { rehearsal: e.probe_id },
+          `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
+        <button type="button" class="quiet mini" data-close="${id}">${h(t('fix.cancel'))}</button>
+      </div>
+      <p class="small muted">${t('free.change_hint')}</p>
+    </dialog>`;
+}
+const upcomingFree = (project) => (project.termine || [])
+  .filter(x => x.frei && x.bestaetigt && x.iso && x.iso >= isoDate(new Date()))
+  .sort((a, b) => (a.iso + a.von).localeCompare(b.iso + b.von));
+
 /* The table row's own way in: three quick buttons, plus the dialog
    above them. */
 function directorTools(target, pr, e, project) {
@@ -537,7 +562,9 @@ function historySection(target, project) {
     return `<tr>
       <td>${h(L.weekday(d.getUTCDay(), 'short'))} ${h(L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }))}
         <div class="small muted">${h(v.von || '')}${v.bis ? '\u2013' + h(v.bis) : ''}${v.ort ? ' \u00b7 ' + h(v.ort) : ''}</div></td>
-      <td><b>${h(v.probe_id)}</b> ${(v.gruppe || []).map(b => `<span class="chip">${h(b)}</span>`).join('')}</td>
+      <td><b>${h(v.frei ? t('free.title', { who: freeNames(project, v) }) : v.probe_id)}</b> ${v.frei
+          ? `<div class="small muted">${h(freeDetail(project, v))}</div>`
+          : (v.gruppe || []).map(b => `<span class="chip">${h(b)}</span>`).join('')}</td>
       <td>${actionForm(target, 'sitzt', { rehearsal: v.probe_id, iso: v.iso },
         `<input type="number" name="sitzt" min="0" max="100" step="5" value="${v.sitzt ?? ''}" style="width:4.5rem"
                 aria-label="${h(t('hist.sits'))}"> %
@@ -565,6 +592,15 @@ function rehearsalMessage(project, entry, link) {
   const directors = (project.personen || []).filter(x => x.regie && !group.includes(x.b)).map(x => x.b);
   const nameOf = b => { const x = (project.personen || []).find(y => y.b === b); return x?.name || b; };
   const d = new Date(entry.iso + 'T00:00:00Z');
+  if (entry.frei) return [
+    t('free.title', { who: freeNames(project, entry) }) + ' – ' + project.titel,
+    t('fix.when', { weekday: L.weekday(d.getUTCDay()), date: L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                    from: entry.von, to: entry.bis }),
+    entry.ort ? t('share.line_place', { place: entry.ort }) : t('share.line_place_open'),
+    freeDetail(project, entry, '\n'),
+    ...(directors.length ? [t('date.director') + ': ' + directors.map(nameOf).join(', ')] : []),
+    t('share.line_link', { link }),
+  ].join('\n');
   const who = group.map(nameOf).join(', ') +
     (directors.length ? (group.length ? ' \u00b7 ' : '') + t('date.director') + ': ' + directors.map(nameOf).join(', ') : '');
   return [
@@ -2035,6 +2071,15 @@ function myDatesPage(project, person, result, m, opt = {}) {
     return { id: pr.id, iso: pr.proposal.iso, from: pr.proposal.from, to: pr.proposal.to,
              place: e.ort || '', title: icsTitle(pr.id, pr.group) };
   });
+  // free rehearsals: the director's own, apart from the plan
+  const freeOnes = upcomingFree(project).filter(x => showAll || isDirector || (x.gruppe || []).includes(person.b));
+  for (const x of freeOnes) {
+    const own = !isDirector && x.zeiten?.[person.b];
+    events.push({ id: x.probe_id, iso: x.iso, from: x.von, to: x.bis, place: x.ort || '',
+                  title: t('free.title', { who: freeNames(project, x) }) +
+                         (own ? ' (' + t('free.you', { von: own.von, bis: own.bis }) + ')' : '') });
+  }
+  const fixedCount = fixed.length + freeOnes.length;
 
   return page({ title: t('date.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p><h1>${showAll ? t('mdate.all') : t('mdate.title')}</h1>
@@ -2044,12 +2089,13 @@ function myDatesPage(project, person, result, m, opt = {}) {
     ${notice(m)}
     ${shareBox(opt.share)}
     ${showAll ? `<p class="small muted">${t('mdate.all_what')}</p>` : ''}
-    ${!mine.length ? `<p class="muted">${t('mdate.none')}</p>` : `
-      <h2>${t('mdate.fixed')}${fixed.length ? ` (${fixed.length})` : ''}</h2>
+    ${!mine.length && !freeOnes.length ? `<p class="muted">${t('mdate.none')}</p>` : `
+      <h2>${t('mdate.fixed')}${fixedCount ? ` (${fixedCount})` : ''}</h2>
       ${events.length ? `<p class="small muted">${t('mdate.fixed_place')}</p>
         ${weekCalendar(events, isoDate(new Date()), !!opt.mayDirect)}
         ${opt.mayDirect ? fixed.filter(pr => pr.proposal).map(pr =>
-            dateDialog('/theater/mit/termine', pr, (project.termine || []).find(x => x.probe_id === pr.id) || {}, project)).join('') : ''}`
+            dateDialog('/theater/mit/termine', pr, (project.termine || []).find(x => x.probe_id === pr.id) || {}, project)).join('') +
+            freeOnes.map(x => freeDialog('/theater/mit/termine', x, project)).join('') : ''}`
         : `<p class="small muted">${t('mdate.nothing_fixed')}</p>`}
       <h2>${t('mdate.proposals')}${unresolved.length ? ` (${unresolved.length})` : ''}</h2>
       <p class="small muted">${t('mdate.proposal_what')}</p>
@@ -2107,6 +2153,25 @@ function datesPage(p, result, m, share = null) {
     </tr>`;
   }).join('');
 
+  const freeRows = upcomingFree(p).map(x => {
+    const d = new Date(x.iso + 'T00:00:00Z');
+    const title = t('free.title', { who: freeNames(p, x) });
+    return `<tr class="isfixed">
+      <td>${h(title)}<div class="small muted">${t('free.no_scenes')}</div></td>
+      <td class="small">${h(freeDetail(p, x))}</td>
+      <td><span class="date fixed">✓ ${h(L.weekday(d.getUTCDay()))}, ${
+          h(L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
+        <span class="small muted"><br>${t('date.clock', { from: h(x.von), to: h(x.bis) })} · ${t('date.fixed')}</span>
+        ${placeField('/theater/termine', x.probe_id, x.ort)}</td>
+      <td><div class="datetools">
+        ${actionForm('/theater/termine', 'nachricht', { rehearsal: x.probe_id },
+          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+        ${actionForm('/theater/termine', 'loesen', { rehearsal: x.probe_id },
+          `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
+      </div></td>
+    </tr>`;
+  }).join('');
+
   const fixedCount = result.rehearsals.filter(x => x.fixed).length;
   return page({ title: t('date.title'), nav: navDirector(p), body: `
     <p class="eyebrow">${t('date.step')}</p><h1>${t('date.title_long')}</h1>
@@ -2117,10 +2182,10 @@ function datesPage(p, result, m, share = null) {
     <p class="small muted">${t('date.what')}${fixedCount
       ? t('date.fixed_n', { n: fixedCount, m: result.rehearsals.length }) : ''}.</p>
     ${result.hint ? notice({ kind: 'error', ...result.hint }) : ''}
-    ${result.rehearsals.length
+    ${result.rehearsals.length || freeRows
       ? `<table><tr><th>${t('date.col_rehearsal')}</th><th>${t('date.col_cast')}</th>
          <th>${t('date.col_date')}</th><th></th></tr>
-         ${rows}</table>`
+         ${rows}${freeRows}</table>`
       : `<p>${t('date.no_plan')}</p>`}
     ${historySection('/theater/termine', p)}
     ${datesScript()}` });
@@ -2181,11 +2246,12 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         data-missing="${h((l.best?.missing || []).join(','))}"
         data-rehearsal="${h(l.best?.rehearsal || '')}"
         data-da="${l.best?.here ?? 0}" data-gesamt="${l.best?.total ?? 0}"
-        data-fixed="${h((l.fixed || []).map(f => f.rehearsal + ' ' + f.from + '-' + f.to +
-                       (f.place ? ' @ ' + f.place : '')).join(' | '))}"
+        data-fixed="${h((l.fixed || []).map(f => (f.free ? t('free.title', { who: f.names }) : f.rehearsal) +
+                       ' ' + f.from + '-' + f.to + (f.place ? ' @ ' + f.place : '') +
+                       (f.free ? ' (' + f.detail + ')' : '')).join(' | '))}"
         title="${h(hinweis)}">
       <span class="num">${tg.day}</span>
-      ${(l.fixed || []).map(f => `<span class="fix">${t('kd.rehearsal')} ${h(String(f.rehearsal).replace(/^P0?/, ''))}${
+      ${(l.fixed || []).map(f => `<span class="fix">${t('kd.rehearsal')}${f.free ? '' : ' ' + h(String(f.rehearsal).replace(/^P0?/, ''))}${
           f.from ? ' \u00b7 ' + h(f.from) : ''}</span>`).join('')}
       <span class="time">${e?.von ? h(e.von + '\u2013' + e.bis) : ''}</span>
       <input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
@@ -2339,7 +2405,12 @@ function myTimesPage(project, person, m, days, states, ics = '') {
                   total: '#GESAMT#' }).replace(/^:\s*/, ''))},
                 fix_title: ${js('my.fix_title')}, fix_which: ${js('my.fix_which')}, fix_go: ${js('my.fix_go')},
                 fix_confirm: ${JSON.stringify(t('my.fix_confirm', { id: '#ID#', tag: '#TAG#', von: '#VON#', bis: '#BIS#' }))},
-                fix_done: ${js('my.fix_done')}, fix_failed: ${js('my.fix_failed')} };
+                fix_done: ${js('my.fix_done')}, fix_failed: ${js('my.fix_failed')},
+                frei_title: ${js('free.panel_title')}, frei_what: ${js('free.panel_what')},
+                frei_nobody: ${js('free.nobody')}, frei_go: ${js('free.go')}, frei_pick: ${js('free.pick')},
+                frei_done: ${js('free.done')}, frei_name: ${js('free.title', { who: '#' })},
+                frei_span: ${js('free.span', { von: '#VON#', bis: '#BIS#' })} };
+      var ortStandard = ${JSON.stringify(project.einstellungen?.ort || '')};
       var current = 0;
 
       function zeigeMonat(i) {
@@ -2433,7 +2504,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           '<button type="button" id="offen" class="quiet">' + W.offen + '</button>' +
           (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
              (blocked ? W.unblock : W.block) + '</button>' : '') +
-          '<div id="tafel-fix"></div>';
+          '<div id="tafel-fix"></div>' +
+          '<div id="tafel-frei"></div>';
 
         document.dispatchEvent(new CustomEvent('tag-geoeffnet', { detail: iso }));
 
@@ -2481,6 +2553,92 @@ function myTimesPage(project, person, m, days, states, ics = '') {
               .then(function (r) {
                 note.textContent = r.ok ? W.fix_done : W.fix_failed;
                 if (r.ok) { td.dataset.fixed = probe + ' ' + von + '–' + bis; td.classList.add('fixed'); }
+              }).catch(function () { note.textContent = W.fix_failed; });
+          };
+        })();
+
+        /* For the director or the assistant: a rehearsal of their own
+           making, apart from the scenes. Who comes and from when to when,
+           each person on their own and only within the time they gave
+           for the day; the date runs from the earliest to the latest. */
+        (function () {
+          if (!regie) return;
+          var box = document.getElementById('tafel-frei');
+          var fenster = {}; try { fenster = JSON.parse(td.dataset.fenster || '{}'); } catch (x) {}
+          var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+          var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+          var kurz = function (v) { var m = /^(\\d\\d):(\\d\\d)$/.exec(v); return m ? String(Number(m[1])) + (m[2] === '00' ? '' : ':' + m[2]) : v; };
+          var first = function (b) { return String(names[b] || b).trim().split(/\\s+/)[0]; };
+          var wer = Object.keys(fenster).map(function (b) {
+            var lo = Math.ceil(fenster[b][0] / 15) * 15, hi = Math.floor(Math.min(fenster[b][1], 23 * 60 + 45) / 15) * 15;
+            return { b: b, lo: lo, hi: hi };
+          }).filter(function (x) { return x.hi - x.lo >= 15; });
+          wer.sort(function (a, b) { return a.lo - b.lo || String(names[a.b] || a.b).localeCompare(String(names[b.b] || b.b)); });
+          var opts = function (from, to, sel) {
+            var o = ''; for (var m = from; m <= to; m += 15) o += '<option' + (m === sel ? ' selected' : '') + '>' + hm(m) + '</option>';
+            return o;
+          };
+          box.innerHTML = '<details class="frei"><summary class="small"><b>' + esc(W.frei_title) + '</b></summary>' +
+            '<p class="small muted" style="margin:.4rem 0">' + esc(W.frei_what) + '</p>' +
+            (wer.length ? wer.map(function (x) {
+              return '<div class="frei-zeile" data-b="' + esc(x.b) + '">' +
+                '<label><input type="checkbox"> ' + esc(names[x.b] || x.b) + '</label>' +
+                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(x.lo, x.hi - 15, x.lo) + '</select>' +
+                '<span>–</span>' +
+                '<select class="fb" aria-label="' + esc(W.bis) + '">' + opts(x.lo + 15, x.hi, x.hi) + '</select></span></div>';
+            }).join('') +
+            '<label for="fr-ort">' + esc(${JSON.stringify(t('fix.place'))}) + '</label>' +
+            '<input type="text" id="fr-ort" maxlength="120" value="' + esc(ortStandard) + '">' +
+            '<div class="frei-vorschau small" id="fr-vorschau" hidden></div>' +
+            '<button type="button" id="fr-go" class="quiet">' + esc(W.frei_go) + '</button> ' +
+            '<span id="fr-note" class="small muted"></span>'
+            : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
+            '</details>';
+          if (!wer.length) return;
+          var zeilen = [].slice.call(box.querySelectorAll('.frei-zeile'));
+          var gewaehlt = function () {
+            return zeilen.filter(function (z) { return z.querySelector('input').checked; }).map(function (z) {
+              return { b: z.dataset.b, von: z.querySelector('.fv').value, bis: z.querySelector('.fb').value };
+            }).sort(function (a, b) { return a.von.localeCompare(b.von) || a.bis.localeCompare(b.bis); });
+          };
+          var vorschau = function () {
+            zeilen.forEach(function (z) { z.classList.toggle('an', z.querySelector('input').checked); });
+            var g = gewaehlt(), v = document.getElementById('fr-vorschau');
+            v.hidden = !g.length;
+            if (!g.length) return;
+            var von = g.map(function (x) { return x.von; }).sort()[0], bis = g.map(function (x) { return x.bis; }).sort().pop();
+            v.innerHTML = '<b>' + esc(W.frei_name.replace('#', g.map(function (x) { return first(x.b); }).join('+'))) + '</b><br>' +
+              esc(W.frei_span.replace('#VON#', von).replace('#BIS#', bis)) + '<br>' +
+              esc(g.map(function (x) { return first(x.b) + ' ' + kurz(x.von) + '–' + kurz(x.bis); }).join(' · '));
+          };
+          zeilen.forEach(function (z) {
+            // touching a time means that person is meant
+            [].forEach.call(z.querySelectorAll('select'), function (sel) {
+              sel.addEventListener('change', function () { z.querySelector('input').checked = true; vorschau(); });
+            });
+            z.querySelector('input').addEventListener('change', vorschau);
+          });
+          document.getElementById('fr-go').onclick = function () {
+            var g = gewaehlt(), note = document.getElementById('fr-note');
+            if (!g.length) { alert(W.frei_pick); return; }
+            if (g.some(function (x) { return x.bis <= x.von; })) { alert(W.falsch); return; }
+            var data = { action: 'frei', iso: iso, wer: g.map(function (x) { return x.b; }).join(','),
+                         place: document.getElementById('fr-ort').value };
+            g.forEach(function (x) { data['von_' + x.b] = x.von; data['bis_' + x.b] = x.bis; });
+            fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
+              headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                if (!j.ok) { note.textContent = W.fix_failed; return; }
+                note.textContent = W.frei_done;
+                var label = W.frei_name.replace('#', j.names) + ' ' + j.von + '-' + j.bis + (j.ort ? ' @ ' + j.ort : '') + ' (' + j.detail + ')';
+                td.dataset.fixed = td.dataset.fixed ? td.dataset.fixed + ' | ' + label : label;
+                td.classList.add('fixed');
+                var span = document.createElement('span');
+                span.className = 'fix'; span.textContent = W.frei_name.replace('#', '').trim() + ' · ' + j.von;
+                td.insertBefore(span, td.querySelector('.time'));
+                zeilen.forEach(function (z) { z.querySelector('input').checked = false; });
+                vorschau();
               }).catch(function () { note.textContent = W.fix_failed; });
           };
         })();

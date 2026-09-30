@@ -32,6 +32,7 @@ import * as Push from './push.mjs';
 import { partBook } from './book.mjs';
 import * as Learn from './learn.mjs';
 import { language, isLanguage } from './texts.mjs';
+import { freeNames } from './dates.mjs';
 
 /* ---------- time ---------- */
 
@@ -64,7 +65,12 @@ export function rehearsalsOf(project, person) {
     if (!x.bestaetigt || !x.iso || !validTime(x.von)) continue;
     const group = x.gruppe || (project.plan?.proben || []).find(p => p.id === x.probe_id)?.gruppe || [];
     if (!person.regie && !group.includes(person.b)) continue;
-    out.push({ id: x.probe_id, iso: x.iso, von: x.von, bis: validTime(x.bis) ? x.bis : '', ort: x.ort || '', gruppe: group });
+    // at a free rehearsal each person has their own time
+    const own = x.frei ? x.zeiten?.[person.b] : null;
+    const von = own && validTime(own.von) ? own.von : x.von;
+    const bis = own && validTime(own.bis) ? own.bis : (validTime(x.bis) ? x.bis : '');
+    out.push({ id: x.probe_id, iso: x.iso, von, bis, ort: x.ort || '', gruppe: group,
+               ...(x.frei ? { label: freeNames(project, x) } : {}) });
   }
   return out.sort((a, b) => (a.iso + a.von).localeCompare(b.iso + b.von));
 }
@@ -127,7 +133,7 @@ export function messageFor(project, person, today) {
   const tomorrow = addDaysIso(today, 1);
   const next = rehearsalsOf(project, person).find(r => r.iso >= today);
   if (next && next.iso <= tomorrow)
-    body += ' ' + t('push.next_rehearsal', { id: next.id, when: t(next.iso === today ? 'push.today' : 'push.tomorrow'), von: next.von });
+    body += ' ' + t('push.next_rehearsal', { id: next.label || next.id, when: t(next.iso === today ? 'push.today' : 'push.tomorrow'), von: next.von });
   return { title: t('push.title', { title: project.titel }), body, url: '/theater/ich/' + (person.token || '') + '/heft' };
 }
 const addDaysIso = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -138,7 +144,7 @@ export function messageForRehearsal(project, person, r) {
   const t = language(isLanguage(code) ? code : 'de').t;
   const others = (r.gruppe || []).filter(b => b !== person.b);
   return {
-    title: t('push.rehearsal_title', { title: project.titel, id: r.id }),
+    title: t('push.rehearsal_title', { title: project.titel, id: r.label || r.id }),
     body: t('push.rehearsal_body', { von: r.von, bis: r.bis ? '\u2013' + r.bis : '', ort: r.ort ? ' \u00b7 ' + r.ort : '',
                                      with: others.length ? ' \u00b7 ' + t('push.with', { who: others.join(', ') }) : '' }),
     url: '/theater/ich/' + (person.token || '') + '/termine',

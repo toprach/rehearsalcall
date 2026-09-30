@@ -18,7 +18,7 @@ import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
-import { proposeDates, calendarDays, dayStates, directorsOf, archivePast } from './dates.mjs';
+import { proposeDates, calendarDays, dayStates, directorsOf, archivePast, freeEntry, freeNames, freeDetail } from './dates.mjs';
 import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -278,7 +278,8 @@ function dateAction(A, project, pr, fields, opt) {
   const id = String(fields.rehearsal || '');
   const action = String(fields.action || '');
   const current = (project.termine || []).find(t => t.probe_id === id);
-  const message = (entry) => ({ text: A.rehearsalMessage(project, entry, rehearsalLink(project, id, opt.base)) });
+  const message = (entry) => ({ text: A.rehearsalMessage(project, entry,
+    entry.frei ? opt.base + '/theater/mit/termine' : rehearsalLink(project, id, opt.base)) });
   const placeOf = () => String(fields.place || '').trim().slice(0, 120);
   const bad = (key) => ({ m: { kind: 'error', key }, share: null });
   const good = (key) => ({ kind: 'good', key, values: { p1: h(id) } });
@@ -296,6 +297,18 @@ function dateAction(A, project, pr, fields, opt) {
     v.erfasst = new Date().toISOString();
     if (opt.by) v.erfasst_von = opt.by;
     return { m: good('r.rated'), share: null };
+  }
+  /* A free rehearsal (frei: true) has no plan behind it: the director
+     cancels it or sends the message again; its people and times are set
+     anew from the day panel. */
+  if (current?.frei) {
+    if (!opt.mayDirect) return bad('r.not_yours');
+    if (action === 'loesen') {
+      project.termine = project.termine.filter(t => t !== current);
+      return { m: { kind: 'good', key: 'r.released2', values: { p1: h(freeNames(project, current)) } }, share: null };
+    }
+    if (action === 'nachricht') return { m: null, share: message(current) };
+    return bad('r.date_invalid');
   }
   if (!pr) return bad('msg.rehearsal_gone');
 
@@ -1143,8 +1156,35 @@ export async function handle(request, response, path) {
       const rehearsal = String(fields.rehearsal || '');
       const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
       const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+
+      /* A free rehearsal from the day panel: who comes, each from when
+         to when. Asked for by script, answered in JSON. */
+      if (fields.action === 'frei') {
+        const answer = (status, obj) => {
+          response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+          response.end(JSON.stringify(obj));
+        };
+        if (!mayDirect) return answer(403, { ok: false, reason: 'not_yours' });
+        const times = {};
+        for (const b of String(fields.wer || '').split(',').filter(Boolean))
+          times[b] = { von: time(fields['von_' + b]), bis: time(fields['bis_' + b]) };
+        let id;
+        do id = 'F-' + crypto.randomBytes(3).toString('hex');
+        while ((project.termine || []).some(t => t.probe_id === id) || (project.verlauf || []).some(v => v.probe_id === id));
+        const entry = freeEntry(project, String(fields.iso || ''), times,
+          String(fields.place || '').trim().slice(0, 120) || project.einstellungen?.ort || '', id);
+        if (!entry) return answer(400, { ok: false, reason: 'invalid' });
+        entry.gehalten = new Date().toISOString(); entry.von_wem = person.b;
+        project.termine = (project.termine || []).concat(entry);
+        await S.write(project);
+        Reminders.refresh(project);
+        return answer(200, { ok: true, id, names: freeNames(project, entry), detail: freeDetail(project, entry),
+                             von: entry.von, bis: entry.bis, ort: entry.ort });
+      }
       const historyAction = ['sitzt', 'verlauf-loeschen'].includes(String(fields.action || ''));
-      const allowed = (mine && (mine.gruppe.includes(person.b) || mayDirect)) || (historyAction && mayDirect);
+      const freeOne = (project.termine || []).find(t => t.probe_id === rehearsal && t.frei);
+      const allowed = (mine && (mine.gruppe.includes(person.b) || mayDirect)) || (historyAction && mayDirect) ||
+                      (freeOne && mayDirect);
       if (!allowed)
         return html(response, A.myDatesPage(project, person, proposeDates(project), {
           kind: 'error', key: 'r.not_yours' }, { ...view, mayDirect }));
@@ -1156,7 +1196,7 @@ export async function handle(request, response, path) {
         if (!old) m = { kind: 'error', key: 'r.no_date' };
         else {
           old.ort = String(fields.place || '').trim().slice(0, 120);
-          m = placeNotice(rehearsal, old.ort);
+          m = placeNotice(old.frei ? freeNames(project, old) : rehearsal, old.ort);
         }
         await S.write(project);
         return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, mayDirect }));
@@ -1750,8 +1790,9 @@ export async function handle(request, response, path) {
 
     /* --- reset: every rehearsal goes, and with them the fixed dates --- */
     if (action === 'zuruecksetzen') {
-      const n = project.plan?.proben?.length || 0, d = (project.termine || []).length;
-      project.plan = null; project.termine = [];
+      // free rehearsals were never the plan's and stay
+      const n = project.plan?.proben?.length || 0, d = (project.termine || []).filter(t => !t.frei).length;
+      project.plan = null; project.termine = (project.termine || []).filter(t => t.frei);
       await S.write(project);
       Reminders.refresh(project);
       return show({ kind: 'good', key: 'r.plan_reset', values: { p1: n, p2: d } });
@@ -1821,7 +1862,7 @@ export async function handle(request, response, path) {
     project.plan = plan;
     // Dates of rehearsals that are gone go with them; fixed ones stayed.
     const keptIds = new Set(plan.proben.map(pr => pr.id));
-    project.termine = (project.termine || []).filter(t => keptIds.has(t.probe_id));
+    project.termine = (project.termine || []).filter(t => t.frei || keptIds.has(t.probe_id));
     await S.write(project);
     const actNames = (allActs ? acts : acts.filter(a => chosenActs.includes(a.nr))).map(a => h(a.name)).join(', ');
     return show({ kind: 'good',
@@ -1954,7 +1995,7 @@ export async function handle(request, response, path) {
       if (!before) m = { kind: 'error', key: 'r.no_date2' };
       else {
         before.ort = String(fields.place || '').trim().slice(0, 120);
-        m = placeNotice(rehearsal, before.ort);
+        m = placeNotice(before.frei ? freeNames(project, before) : rehearsal, before.ort);
       }
       await S.write(project);
       return html(response, A.datesPage(project, proposeDates(project), m));

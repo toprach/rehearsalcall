@@ -206,12 +206,61 @@ export function archivePast(project, today = isoDate(new Date())) {
   for (const t of past) {
     if (project.verlauf.some(v => v.probe_id === t.probe_id && v.iso === t.iso)) continue;
     project.verlauf.push({ probe_id: t.probe_id, iso: t.iso, von: t.von || '', bis: t.bis || '',
-      ort: t.ort || '', gruppe: t.gruppe || [], sitzt: null, notiz: '' });
+      ort: t.ort || '', gruppe: t.gruppe || [], sitzt: null, notiz: '',
+      ...(t.frei ? { frei: true, zeiten: t.zeiten || {} } : {}) });
   }
   project.termine = project.termine.filter(t => !past.includes(t));
   return true;
 }
 const sameGroup = (a, b) => !a || !a.length || [...a].sort().join('+') === [...(b || [])].sort().join('+');
+/* A rehearsal set by hand for one day, apart from the plan's scenes:
+   the director says who comes and from when to when, each person on
+   their own. The date runs from the earliest arrival to the latest
+   leaving; the list of who-when goes along as its description. Stored
+   in project.termine like any fixed date, with frei: true and
+   zeiten: { <person>: { von, bis } }. */
+export const isFree = x => !!(x && x.frei);
+const firstName = x => String(x?.name || x?.b || '').trim().split(/\s+/)[0] || String(x?.b || '');
+function freeOrder(project, entry) {
+  const people = project.personen || [];
+  const z = entry.zeiten || {};
+  const list = (entry.gruppe || []).map(b => ({ b, x: people.find(p => p.b === b), z: z[b] || {} }));
+  list.sort((a, c) => String(a.z.von || '').localeCompare(String(c.z.von || '')) ||
+                      String(a.z.bis || '').localeCompare(String(c.z.bis || '')));
+  // a first name two people share says nobody; those two keep the whole name
+  const count = {};
+  for (const e of list) { const f = firstName(e.x || { b: e.b }); count[f] = (count[f] || 0) + 1; }
+  return list.map(e => {
+    const f = firstName(e.x || { b: e.b });
+    return { ...e, label: count[f] > 1 ? (e.x?.name || e.b) : f };
+  });
+}
+// "Anna+Ben+Carla"
+export const freeNames = (project, entry) => freeOrder(project, entry).map(e => e.label).join('+');
+// "14" for a full hour, "14:30" otherwise
+const short = hm => { const m = /^(\d{2}):(\d{2})$/.exec(hm || ''); return !m ? '' : String(Number(m[1])) + (m[2] === '00' ? '' : ':' + m[2]); };
+// "Anna 14\u201317 \u00b7 Ben 15\u201316"
+export const freeDetail = (project, entry, sep = ' \u00b7 ') => freeOrder(project, entry)
+  .map(e => e.label + ' ' + short(e.z.von) + '\u2013' + short(e.z.bis)).join(sep);
+/* The entry from what the day panel sends: times[b] = { von, bis }.
+   Null when nobody or a time is off. */
+export function freeEntry(project, iso, times, place, id) {
+  const known = new Set((project.personen || []).map(x => x.b));
+  const zeiten = {};
+  for (const [b, z] of Object.entries(times || {})) {
+    if (!known.has(b)) return null;
+    const a = asMinutes(z?.von), c = asMinutes(z?.bis);
+    if (a == null || c == null || c <= a || c > 24 * 60) return null;
+    zeiten[b] = { von: z.von, bis: z.bis };
+  }
+  const gruppe = Object.keys(zeiten);
+  if (!gruppe.length || !asDate(iso)) return null;
+  const all = Object.values(zeiten);
+  return { probe_id: id, frei: true, iso, gruppe, zeiten,
+           von: all.map(z => z.von).sort()[0], bis: all.map(z => z.bis).sort().pop(),
+           bestaetigt: true, ort: place || '' };
+}
+
 export const historyOf = (project, rehearsal) => (project.verlauf || [])
   .filter(v => v.probe_id === rehearsal.id && sameGroup(v.gruppe, rehearsal.gruppe || rehearsal.group))
   .sort((a, b) => a.iso.localeCompare(b.iso));
@@ -315,6 +364,12 @@ export function proposeDates(project) {
   for (const t of project.termine || []) {
     if (!t.bestaetigt || !t.iso || t.iso < today) continue;   // the past is history
     fixed.set(t.probe_id, t);
+    // a free rehearsal books each person for their own time only
+    if (t.frei) {
+      for (const [b, z] of Object.entries(t.zeiten || {}))
+        if (asMinutes(z.von) != null && asMinutes(z.bis) != null) book(t.iso, needing([b]), asMinutes(z.von), asMinutes(z.bis));
+      continue;
+    }
     const pr = rehearsals.find(x => x.id === t.probe_id);
     const group = pr ? pr.needed : needing(t.gruppe || []);
     const from = asMinutes(t.von) ?? 19 * 60;
@@ -468,7 +523,8 @@ export function dayStates(project, person, days) {
           (isDirector || (x.gruppe || []).includes(person.b) ||
            mine.some(pr => pr.id === x.probe_id)))
         .map(x => ({ rehearsal: x.probe_id, from: x.von, to: x.bis,
-                     place: x.ort || '' })),
+                     place: x.ort || '',
+                     ...(x.frei ? { free: true, names: freeNames(project, x), detail: freeDetail(project, x) } : {}) })),
     };
   }
   return states;

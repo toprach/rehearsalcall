@@ -13,7 +13,7 @@
    and does the two things that matter: escaping and line folding.
    --------------------------------------------------------------------- */
 
-import { proposeDates } from './dates.mjs';
+import { proposeDates, freeNames, freeDetail } from './dates.mjs';
 import { language, isLanguage } from './texts.mjs';
 
 const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -67,6 +67,19 @@ export function feedFor(project, person, base) {
     if (!x.bestaetigt || !x.iso || !x.von) continue;
     const group = x.gruppe || (project.plan?.proben || []).find(p => p.id === x.probe_id)?.gruppe || [];
     fixed.add(x.probe_id);
+    if (x.frei) {
+      lines.push(...event({
+        UID: project.id + '-' + x.probe_id + '@rehearsalcall',
+        DTSTAMP: now,
+        DTSTART: stamp(x.iso, x.von),
+        DTEND: x.bis ? stamp(x.iso, x.bis) : null,
+        SUMMARY: esc(t('free.title', { who: freeNames(project, x) })),
+        DESCRIPTION: esc([freeDetail(project, x, '\n'), x.ort ? t('ics.place', { place: x.ort }) : ''].filter(Boolean).join('\n')),
+        LOCATION: x.ort ? esc(x.ort) : null,
+        STATUS: 'CONFIRMED',
+      }));
+      continue;
+    }
     lines.push(...event({
       UID: project.id + '-' + x.probe_id + '@rehearsalcall',
       DTSTAMP: now,

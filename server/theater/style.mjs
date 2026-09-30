@@ -273,6 +273,16 @@ export const STYLE = `
   .balken .wann { flex:0 0 5.6rem; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:.8em }
   .balken .achse .spur { background:transparent; height:1rem; overflow:visible }
   .balken .achse i { position:absolute; top:0; transform:translateX(-50%); font-style:normal; font-size:.7em; color:var(--muted) }
+  /* the day panel's free rehearsal: one line per person who has time */
+  .frei { margin-top:.8rem; border-top:1px solid var(--rule); padding-top:.5rem }
+  .frei summary { cursor:pointer }
+  .frei-zeile { display:flex; align-items:center; gap:.4rem; margin:.25rem 0; flex-wrap:wrap }
+  .frei-zeile label { flex:1 1 9rem; margin:0; font-weight:400; display:flex; align-items:center; gap:.4rem; min-width:0 }
+  .frei-zeile label input { margin:0; width:auto }
+  .frei-zeile select { width:auto; margin:0; padding:.3rem .4rem; font-variant-numeric:tabular-nums }
+  .frei-zeit { display:flex; align-items:center; gap:.4rem; white-space:nowrap; margin-left:auto }
+  .frei-zeile:not(.an) select { opacity:.45 }
+  .frei-vorschau { margin:.6rem 0; padding:.5rem .7rem; background:var(--rule); border-radius:3px }
   .balken .gemeinsam { margin-top:.3rem; font-weight:600 }
   /* a button at work: spinner in front of its label, no second press */
   .spin { display:inline-block; width:.9em; height:.9em; border:2px solid currentColor; border-right-color:transparent;

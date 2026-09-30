@@ -746,6 +746,56 @@ for (const b of cast) {
   } else check('a date to fix as the director', false);
   d = await post('/theater/termine', { action: 'halten', rehearsal: 'P99', iso: '2030-01-01', from: '19:00', to: '21:00' });
   check('fixing an unknown rehearsal is refused', errorNotice(d), say(d));
+
+  /* A free rehearsal from the day panel: no scenes, each person with a
+     time of their own inside what they gave for the day. */
+  {
+    const h = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    cookies = member;
+    const refused = await post('/theater/mit/termine', { action: 'frei', iso: '2030-01-01', wer: cast[0], von_x: '19:00' });
+    check('a plain member cannot set a free rehearsal', refused.status === 403, 'status ' + refused.status);
+    cookies = director;
+    const comp = await call('GET', '/theater/leute');
+    const ich = (/\/theater\/ich\/([a-z0-9]{10,})/.exec(comp.text) || [])[0];
+    cookies = '';
+    await call('GET', ich || '/theater/ich/x');
+    const cal = await call('GET', '/theater/mit/zeiten');
+    const hm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    let day = null, win = null;
+    for (const x of cal.text.matchAll(/data-iso="([^"]+)"[^>]*?data-fenster="([^"]*)"/g)) {
+      const w = JSON.parse(x[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+      if (Object.keys(w).length) { day = x[1]; win = w; break; }
+    }
+    check('the day panel knows who has time when', !!day, 'no day with anybody');
+    check('and offers a rehearsal without scenes', /free.panel_title|frei_title/.test(cal.text) && /tafel-frei/.test(cal.text));
+    if (day) {
+      const who = Object.keys(win).slice(0, 2);
+      const form = { action: 'frei', iso: day, wer: who.join(','), place: 'Barn <east>' };
+      // the first person for the first hour of their window, the second for all of it
+      form['von_' + who[0]] = hm(Math.ceil(win[who[0]][0] / 15) * 15); form['bis_' + who[0]] = hm(Math.ceil(win[who[0]][0] / 15) * 15 + 60);
+      if (who[1]) { form['von_' + who[1]] = hm(Math.ceil(win[who[1]][0] / 15) * 15); form['bis_' + who[1]] = hm(Math.min(Math.floor(win[who[1]][1] / 15) * 15, 23 * 60 + 45)); }
+      const bad = await post('/theater/mit/termine', { ...form, ['bis_' + who[0]]: form['von_' + who[0]] });
+      check('a free rehearsal ending before it starts is refused', bad.status === 400, 'status ' + bad.status);
+      const ok = await post('/theater/mit/termine', form);
+      let j = {}; try { j = JSON.parse(ok.text); } catch {}
+      check('the director sets a free rehearsal', ok.status === 200 && j.ok && j.names && (who.length < 2 || /\+/.test(j.names)) && j.von && j.bis > j.von, ok.text.slice(0, 200));
+      const all = await call('GET', '/theater/mit/termine?alle=1');
+      clean('my dates page with a free rehearsal', all);
+      check('it is in the week calendar, with a dialog', all.text.includes(h(j.names || '-')) && new RegExp('id="chg-' + j.id + '"').test(all.text));
+      const tv = await call('GET', '/theater/mit/zeiten');
+      check('and on its day in the availability calendar', new RegExp('class="[^"]*\\bfixed\\b[^"]*" data-iso="' + day + '"').test(tv.text));
+      const msg = await post('/theater/mit/termine', { action: 'nachricht', rehearsal: j.id });
+      const share = (/<pre class="sharetext" id="sharetext">([\s\S]*?)<\/pre>/.exec(msg.text) || [])[1] || '';
+      check('its message lists who comes when', share.includes(h(j.names)) && /Barn &lt;east&gt;/.test(share) && /\d\u2013\d/.test(share), share.slice(0, 200));
+      cookies = director;
+      const dp = await call('GET', '/theater/termine');
+      clean('dates page with a free rehearsal', dp);
+      check('the director\u2019s dates page lists it', new RegExp('name="rehearsal" value="' + j.id + '"').test(dp.text));
+      const gone = await post('/theater/termine', { action: 'loesen', rehearsal: j.id });
+      check('and cancels it', good(gone) && !new RegExp('value="' + j.id + '"').test(gone.text), say(gone));
+    }
+    cookies = director;
+  }
 }
 
 /* ---- 11. languages and the About page ---- */
