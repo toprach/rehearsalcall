@@ -261,6 +261,29 @@ export function freeEntry(project, iso, times, place, id) {
            bestaetigt: true, ort: place || '' };
 }
 
+/* Who can be at a free rehearsal, for changing it afterwards: everybody
+   (the directors aside) who gave time for its day, from the first to
+   the last quarter hour of that time - and the people already in it, at
+   least across their present time, even if their entry changed since. */
+export function freeChoices(project, entry) {
+  const d = asDate(entry.iso);
+  const out = [];
+  for (const x of project.personen || []) {
+    if (x.regie) continue;
+    const w = d ? windowOn(project.verfuegbar?.[x.id], d) : null;
+    const z = entry.zeiten?.[x.b];
+    let lo = w ? Math.ceil(w.from / 15) * 15 : null, hi = w ? Math.floor(Math.min(w.to, 23 * 60 + 45) / 15) * 15 : null;
+    if (z) {
+      const a = asMinutes(z.von), c = asMinutes(z.bis);
+      lo = lo == null ? a : Math.min(lo, a); hi = hi == null ? c : Math.max(hi, c);
+    }
+    if (lo == null || hi - lo < 15) continue;
+    out.push({ b: x.b, name: x.name || x.b, lo, hi, in: !!z,
+               von: z ? z.von : clock(lo), bis: z ? z.bis : clock(hi) });
+  }
+  return out.sort((a, c) => a.lo - c.lo || a.name.localeCompare(c.name));
+}
+
 export const historyOf = (project, rehearsal) => (project.verlauf || [])
   .filter(v => v.probe_id === rehearsal.id && sameGroup(v.gruppe, rehearsal.gruppe || rehearsal.group))
   .sort((a, b) => a.iso.localeCompare(b.iso));

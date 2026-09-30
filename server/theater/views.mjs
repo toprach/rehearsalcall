@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
-import { substitutesOf, historyOf, isoDate, freeNames, freeDetail } from './dates.mjs';
+import { substitutesOf, historyOf, isoDate, freeNames, freeDetail, freeChoices } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -329,14 +329,36 @@ function dateDialog(target, pr, e, project) {
 }
 
 /* The same for a free rehearsal (frei: true): no plan behind it, so no
-   cast or scene tools - its people and times are what the director set
-   in the day panel. Place, message, cancel. */
+   cast or scene tools - instead who comes when, the same rows the day
+   panel offered (only the time a person gave for that day, the present
+   participants always), then place, message, cancel. */
 function freeDialog(target, e, project) {
   const id = 'chg-' + String(e.probe_id).replace(/[^A-Za-z0-9_-]/g, '');
   const title = t('free.title', { who: freeNames(project, e) });
+  const clock = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const opts = (from, to, sel) => {
+    let o = '';
+    for (let m = from; m <= to; m += 15) o += `<option${clock(m) === sel ? ' selected' : ''}>${clock(m)}</option>`;
+    // a present time off the quarter-hour grid stays choosable as it is
+    if (sel && !o.includes('>' + sel + '<')) o = `<option selected>${h(sel)}</option>` + o;
+    return o;
+  };
+  const rows = freeChoices(project, e).map(c => `<div class="frei-zeile${c.in ? ' an' : ''}">
+      <label><input type="checkbox" name="mit_${h(c.b)}" value="1"${c.in ? ' checked' : ''}> ${h(c.name)}</label>
+      <span class="frei-zeit"><select name="von_${h(c.b)}" aria-label="${h(t('my.from'))}">${opts(c.lo, c.hi - 15, c.von)}</select>
+        <span>–</span>
+        <select name="bis_${h(c.b)}" aria-label="${h(t('my.to'))}">${opts(c.lo + 15, c.hi, c.bis)}</select></span></div>`).join('');
   return `<dialog id="${id}" class="fixbox">
       <p class="eyebrow">${h(title)}</p>
       <p class="small">${t('date.clock', { from: h(e.von), to: h(e.bis) })}<br>${h(freeDetail(project, e))}</p>
+      <form method="post" action="${h(target)}" class="frei-form">
+        <input type="hidden" name="action" value="frei-aendern">
+        <input type="hidden" name="rehearsal" value="${h(e.probe_id)}">
+        <label>${t('free.people_title')}</label>
+        ${rows}
+        <p class="small muted" style="margin:.3rem 0">${t('free.change_hint')}</p>
+        <button type="submit" class="mini">${h(t('free.save'))}</button>
+      </form>
       <label>${t('fix.place')}</label>
       ${placeField(target, e.probe_id, e.ort)}
       <div class="datetools" style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin:.8rem 0">
@@ -346,7 +368,6 @@ function freeDialog(target, e, project) {
           `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
         <button type="button" class="quiet mini" data-close="${id}">${h(t('fix.cancel'))}</button>
       </div>
-      <p class="small muted">${t('free.change_hint')}</p>
     </dialog>`;
 }
 const upcomingFree = (project) => (project.termine || [])
@@ -635,6 +656,13 @@ const datesScript = () => `<script>
       var f = d.querySelector('input[name=place]'); if (f) { f.focus(); f.select(); } return; }
     var c = e.target.closest('[data-close]');
     if (c) { var x = document.getElementById(c.dataset.close); if (x) { if (x.close) x.close(); else x.removeAttribute('open'); } }
+  });
+  // a free rehearsal's rows: touching a time means that person is meant
+  document.addEventListener('change', function (e) {
+    var z = e.target.closest('.frei-form .frei-zeile'); if (!z) return;
+    var box = z.querySelector('input[type=checkbox]');
+    if (e.target.tagName === 'SELECT') box.checked = true;
+    z.classList.toggle('an', box.checked);
   });
   var pre = document.getElementById('sharetext'); if (!pre) return;
   var text = pre.textContent, sb = document.getElementById('sharebtn'), cp = document.getElementById('sharecopy'), note = document.getElementById('sharenote');
@@ -2164,10 +2192,12 @@ function datesPage(p, result, m, share = null) {
         <span class="small muted"><br>${t('date.clock', { from: h(x.von), to: h(x.bis) })} · ${t('date.fixed')}</span>
         ${placeField('/theater/termine', x.probe_id, x.ort)}</td>
       <td><div class="datetools">
+        <button type="button" class="quiet mini" data-dialog="chg-${h(x.probe_id)}">${h(t('date.change'))}</button>
         ${actionForm('/theater/termine', 'nachricht', { rehearsal: x.probe_id },
           `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
         ${actionForm('/theater/termine', 'loesen', { rehearsal: x.probe_id },
           `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
+        ${freeDialog('/theater/termine', x, p)}
       </div></td>
     </tr>`;
   }).join('');

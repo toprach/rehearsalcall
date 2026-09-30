@@ -299,8 +299,7 @@ function dateAction(A, project, pr, fields, opt) {
     return { m: good('r.rated'), share: null };
   }
   /* A free rehearsal (frei: true) has no plan behind it: the director
-     cancels it or sends the message again; its people and times are set
-     anew from the day panel. */
+     changes who comes when, cancels it, or sends the message again. */
   if (current?.frei) {
     if (!opt.mayDirect) return bad('r.not_yours');
     if (action === 'loesen') {
@@ -308,6 +307,17 @@ function dateAction(A, project, pr, fields, opt) {
       return { m: { kind: 'good', key: 'r.released2', values: { p1: h(freeNames(project, current)) } }, share: null };
     }
     if (action === 'nachricht') return { m: null, share: message(current) };
+    if (action === 'frei-aendern') {
+      const times = {};
+      for (const x of project.personen || [])
+        if (fields['mit_' + x.b] === '1') times[x.b] = { von: time(fields['von_' + x.b]), bis: time(fields['bis_' + x.b]) };
+      if (!Object.keys(times).length) return bad('free.pick');
+      const fresh = freeEntry(project, current.iso, times, current.ort, current.probe_id);
+      if (!fresh) return bad('r.date_invalid');
+      Object.assign(current, { gruppe: fresh.gruppe, zeiten: fresh.zeiten, von: fresh.von, bis: fresh.bis,
+                               geaendert: new Date().toISOString() });
+      return { m: { kind: 'good', key: 'r.date_changed', values: { p1: h(freeNames(project, current)) } }, share: message(current) };
+    }
     return bad('r.date_invalid');
   }
   if (!pr) return bad('msg.rehearsal_gone');

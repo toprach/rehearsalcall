@@ -791,6 +791,19 @@ for (const b of cast) {
       const dp = await call('GET', '/theater/termine');
       clean('dates page with a free rehearsal', dp);
       check('the director\u2019s dates page lists it', new RegExp('name="rehearsal" value="' + j.id + '"').test(dp.text));
+      check('with a dialog to change who comes when', new RegExp('value="frei-aendern">\\s*<input type="hidden" name="rehearsal" value="' + j.id + '"').test(dp.text) &&
+            new RegExp('name="mit_' + who[0] + '" value="1" checked').test(dp.text));
+      // afterwards: the first person a quarter of an hour later, the second no longer in it
+      const later = hm(Math.ceil(win[who[0]][0] / 15) * 15 + 15);
+      const changed = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id,
+        ['mit_' + who[0]]: '1', ['von_' + who[0]]: later, ['bis_' + who[0]]: form['bis_' + who[0]] });
+      check('the director changes who comes when', good(changed) && /:15\u2013/.test(changed.text) && /id="sharebox"/.test(changed.text), say(changed));
+      if (who[1]) check('and who is no longer in it drops out', !new RegExp('name="mit_' + who[1] + '" value="1" checked').test(changed.text));
+      const none = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id });
+      check('a free rehearsal without anybody is refused', !good(none), say(none));
+      const wrong = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id,
+        ['mit_' + who[0]]: '1', ['von_' + who[0]]: later, ['bis_' + who[0]]: later });
+      check('and one ending before it starts', !good(wrong), say(wrong));
       const gone = await post('/theater/termine', { action: 'loesen', rehearsal: j.id });
       check('and cancels it', good(gone) && !new RegExp('value="' + j.id + '"').test(gone.text), say(gone));
     }
