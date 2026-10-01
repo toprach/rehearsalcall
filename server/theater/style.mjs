@@ -535,8 +535,13 @@ export const STYLE = `
   }
   /* --- the dark look: only when chosen in the head ---
      Most people read on a light page; the dark one is a choice that
-     the browser keeps as a cookie, not a guess from the system. */
+     the browser keeps as a cookie, not a guess from the system.
+     color-scheme (here and in the meta tag) says the page brings its own
+     colours; without it Samsung Internet's dark mode repaints the light
+     look dark, and the switch seems to do nothing. */
+  :root { color-scheme:only light }
   html[data-theme="dark"] {
+    color-scheme:dark;
     --ground:#15151a; --card:#1e1e25; --ink:#eceae5; --muted:#aaa49a;
     --rule:#33333d; --accent:#ef6b70; --good:#5ec27f;
     --field:#23232c; --field-ink:#f2f0eb; --field-edge:#4e4e5a;

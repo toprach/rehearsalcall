@@ -87,6 +87,7 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
   return `<!doctype html><html lang="${L.code}"${ctx.theme === 'dunkel' ? ' data-theme="dark"' : ''}${
     ctx.font && ctx.font !== 'normal' ? ` data-font="${h(ctx.font)}"` : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="${ctx.theme === 'dunkel' ? 'dark' : 'only light'}">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/manifest.webmanifest` : '/theater/manifest.webmanifest'}">
 <meta name="theme-color" content="#b3272d">

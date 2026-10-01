@@ -460,9 +460,12 @@ for (const b of cast) {
     pj = await call('GET', '/theater/mit');
     check('language, look and type size apply', /<html lang="en"/.test(pj.text) && /<html [^>]*data-theme="dark"/.test(pj.text) &&
           /<html [^>]*data-font="gross"/.test(pj.text), 'status ' + pj.status);
+    // Without it a browser's own dark mode (Samsung Internet) repaints the light look.
+    check('the page declares the look it brings', /<meta name="color-scheme" content="dark">/.test(pj.text));
     pj = await post('/theater/einstellungen', { language: '', thema: 'hell', schrift: 'normal', back: '/theater/mit' });
     pj = await call('GET', '/theater/mit');
-    check('and can be put back', !/<html [^>]*data-theme="dark"/.test(pj.text) && !/<html [^>]*data-font=/.test(pj.text), 'status ' + pj.status);
+    check('and can be put back', !/<html [^>]*data-theme="dark"/.test(pj.text) && !/<html [^>]*data-font=/.test(pj.text) &&
+          /<meta name="color-scheme" content="only light">/.test(pj.text), 'status ' + pj.status);
     cookies = '';
     await call('GET', ich || '/theater/ich/x');
     const me2 = await call('GET', '/theater/mit');
