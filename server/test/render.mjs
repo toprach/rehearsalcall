@@ -71,6 +71,10 @@ const datesResult = {
       alternatives: [] },
     { id: 'P02', group: ['OBERON', 'PUCK', 'TITANIA'], minutes: 30, needs: 105, scenes: [2, 3],
       possible: [], withoutEntry: ['TITANIA'], tooShort: 0, longestWindow: 0, oftenUnavailable: [] },
+    { id: 'P03', group: ['OBERON', 'PUCK'], minutes: 6, needs: 45, scenes: [4],
+      possible: [], withoutEntry: [], longestWindow: 30, oftenUnavailable: [], tooShort: 12,
+      shortDays: Array.from({ length: 12 }, (_, i) => ({ iso: `2026-10-${String(i + 1).padStart(2, '0')}`,
+        date: new Date(2026, 9, i + 1), weekday: new Date(2026, 9, i + 1).getDay(), span: i ? 0 : 30 })) },
   ],
 };
 const days = [];
@@ -121,7 +125,7 @@ const seams = (html) => {
 
 let failures = 0;
 for (const { code } of LANGUAGES) {
-  const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', demo: code === 'en' ? { until: new Date() } : null,
+  const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', member: code === 'de', demo: code === 'en' ? { until: new Date() } : null,
                                         share: code === 'de' ? 'https://x.example/theater/ich/abc/heft' : '',
                                         app: code === 'de' ? { token: 'abc', title: 'A <Dream>', short: 'A <Dream>' } : null });
   const pages = {
@@ -162,6 +166,8 @@ for (const { code } of LANGUAGES) {
     pickNameTo: () => A.pickNamePage(project, 'tok', null, 'plan/P01'),
     datesEmpty: () => A.datesPage(project, { rehearsals: [], hint: { key: 'msg.no_plan' } }, null),
     myTimesPage: () => A.myTimesPage(project, person, { kind: 'good', key: 'r.times_saved', values: { n: 3 } }, days, states, 'https://x.example/theater/ich/abc/kalender.ics'),
+    myTimesFocus: () => A.myTimesPage(project, person, null, days, states, '',
+      { iso: days[3].iso, rehearsal: project.plan.proben[0] }),
     myTimesDirector: () => A.myTimesPage(project, project.personen[2], null, days, states),
     printPage: () => A.printPage(project, null),
     docsPage: () => A.docsPage(project, 'https://x/theater/druck/abc'),
@@ -223,6 +229,18 @@ for (const { code } of LANGUAGES) {
     console.log((ok ? '  ok    ' : '  FAIL  ') + code + ' ' + name + (problem || s.length ? '  - ' + (problem || s.join(' ')) : ''));
     if (!ok) failures++;
   }
+  // too short together: the days are listed, and open the calendar for a member
+  const expect = (label, ok) => { console.log((ok ? '  ok    ' : '  FAIL  ') + code + ' ' + label); if (!ok) failures++; };
+  const dates = pages.myDatesAll(), direct = pages.datesPage();
+  const linked = /href="\/theater\/mit\/zeiten\?tag=2026-10-01&amp;probe=P03"/;
+  expect('short days listed, ten and the rest counted', (dates.match(/class="chip(?: muted)?"[^>]*>[^<]*·/g) || []).length === 10 &&
+    dates.includes(code === 'de' ? 'und 2 weitere' : 'and 2 more'));
+  expect(code === 'de' ? 'a member gets the days as links' : 'without member access no links',
+    code === 'de' ? linked.test(dates) && linked.test(direct) : !/\/theater\/mit\/zeiten\?tag=/.test(dates + direct));
+  const focus = pages.myTimesFocus();
+  expect('the calendar opens the linked day for that rehearsal',
+    new RegExp(`data-iso="${days[3].iso}" data-fokus="1"[^>]*data-rehearsal="${project.plan.proben[0].id}"`).test(focus.replace(/\s+/g, ' ')) &&
+    (focus.match(/data-fokus/g) || []).length === 2);
 }
 console.log('  version ' + (ABOUT.version || '(none)'));
 console.log(failures ? `\n${failures} FAILED` : '\nall views render clean');

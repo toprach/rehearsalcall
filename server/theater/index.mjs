@@ -1132,7 +1132,14 @@ export async function handle(request, response, path) {
       const days = calendarDays(project);
       const states = () => dayStates(project, person, days);
       const ics = person.token ? baseOf(request) + '/theater/ich/' + person.token + '/kalender.ics' : '';
-      if (!post) return html(response, A.myTimesPage(project, person, null, days, states(), ics));
+      if (!post) {
+        // ?tag=&probe= opens that day's panel for that rehearsal (from Termine)
+        const query = new URLSearchParams((request.url || '').split('?')[1] || '');
+        const day = days.find(x => x.iso === query.get('tag'));
+        const rehearsal = (project.plan?.proben || []).find(pr => pr.id === query.get('probe'));
+        const focus = day ? { iso: day.iso, rehearsal: rehearsal || null } : null;
+        return html(response, A.myTimesPage(project, person, null, days, states(), ics, focus));
+      }
       const { fields } = await readForm(request, 4_000_000);
       const entered = {};
       for (const t of days) {

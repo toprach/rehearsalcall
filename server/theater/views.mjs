@@ -681,13 +681,31 @@ function whyNot(pr) {
     return t('why.waiting', { folks: pr.withoutEntry.map(h).join(', ') });
   if (!pr.possible?.length && pr.tooShort)
     return t('why.too_long', { needs: durationText(pr.needs),
-                                window: durationText(pr.longestWindow) });
+                                window: durationText(pr.longestWindow) }) + shortDayList(pr);
   if (!pr.possible?.length && pr.oftenUnavailable?.length)
     return t('why.no_evening',
              { folks: pr.oftenUnavailable.map(([b]) => h(b)).join(', ') });
   if (pr.possible?.length)
     return t('why.taken', { n: pr.possible.length });
   return t('why.nothing');
+}
+
+/* The days on which everyone could, only not long enough at once - each
+   one opens that day in the availability calendar, which is a member's
+   page: from the director's area only when they are signed in as one. */
+const SHORT_DAYS_SHOWN = 10;
+function shortDayList(pr) {
+  const days = pr.shortDays || [];
+  if (!days.length) return '';
+  const chip = (x) => {
+    const text = `${h(L.weekday(x.weekday, 'short'))} ${h(L.date(x.date, { day: '2-digit', month: '2-digit' }))} · ${durationText(x.span)}`;
+    return ctx.member
+      ? `<a class="chip" href="/theater/mit/zeiten?tag=${x.iso}&amp;probe=${encodeURIComponent(pr.id)}">${text}</a>`
+      : `<span class="chip muted">${text}</span>`;
+  };
+  const more = days.length - SHORT_DAYS_SHOWN;
+  return `<div class="shortdays">${ctx.member ? t('why.short_days_open') : t('why.short_days')}<div>${
+    days.slice(0, SHORT_DAYS_SHOWN).map(chip).join('')}${more > 0 ? ` <span class="small">${t('why.more_days', { n: more })}</span>` : ''}</div></div>`;
 }
 
 /* A link to look at and to copy. Without clipboard permission in the
@@ -2224,7 +2242,7 @@ function datesPage(p, result, m, share = null) {
 
 /* ---------- Ensemble-Mitglied ---------- */
 
-function myTimesPage(project, person, m, days, states, ics = '') {
+function myTimesPage(project, person, m, days, states, ics = '', focus = null) {
   const v = project.verfuegbar?.[person.id] || {};
   const entered = v.tage || {};
   const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
@@ -2257,9 +2275,19 @@ function myTimesPage(project, person, m, days, states, ics = '') {
 
   // Director and assistant director strike days for everyone.
   const director = ctx.regieProject === project.id || ctx.directorProject === project.id;
+  const regieShorts = new Set((project.personen || []).filter(x => x.regie).map(x => x.b));
   const cell = (tg) => {
     const e = entered[tg.iso];
-    const l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
+    let l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
+    /* Opened from Termine for one rehearsal: the panel speaks of that
+       one, not of whichever rehearsal suits the day best. */
+    const focused = focus?.iso === tg.iso;
+    if (focused && focus.rehearsal) {
+      const group = focus.rehearsal.gruppe.filter(b => b !== person.b && !regieShorts.has(b));
+      const missing = group.filter(b => !l.windows?.[b]);
+      l = { ...l, best: { rehearsal: focus.rehearsal.id, group, missing,
+                          here: group.length - missing.length, total: group.length } };
+    }
     const classes = ['day', 'level' + l.level];
     if (e?.von) classes.push('me');
     if (e?.nein) classes.push('nein');
@@ -2269,7 +2297,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       ? t('my.best', { rehearsal: l.best.rehearsal, here: l.best.here, total: l.best.total })
       : (l.canCome.length ? t('my.can_n', { n: l.canCome.length })
                           : t('my.nobody'));
-    return `<td class="${classes.join(' ')}" data-iso="${tg.iso}"
+    return `<td class="${classes.join(' ')}" data-iso="${tg.iso}"${focused ? ' data-fokus="1"' : ''}
         data-koennen="${h((l.canCome || []).join(','))}"
         data-fenster="${h(JSON.stringify(l.windows || {}))}"
         data-gruppe="${h((l.best?.group || []).join(','))}"
@@ -2760,6 +2788,8 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         td.addEventListener('click', function () { oeffne(td); });
       });
       zaehle();
+      var fokus = document.querySelector('.month td.day[data-fokus]');
+      if (fokus) { zeigeMonat(Number(fokus.closest('.month').dataset.nr)); oeffne(fokus); }
     })();
     <\/script>` });
 }

@@ -333,7 +333,9 @@ export function proposeDates(project) {
     const rated = history.filter(v => v.sitzt != null);
     const possible = [];
     const missingCount = new Map();
-    let longest = 0, tooShort = 0;
+    let longest = 0;
+    // everyone can that day, only not long enough at the same time
+    const shortDays = [];
     for (const d of days) {
       const r = windowFor(needed, d, project.verfuegbar || {}, personByShort);
       if (!r.ok) {
@@ -342,7 +344,10 @@ export function proposeDates(project) {
       }
       const span = r.to - r.from;
       if (span > longest) longest = span;
-      if (span < needs) { tooShort++; continue; }
+      if (span < needs) {
+        shortDays.push({ iso: isoDate(d), date: d, weekday: d.getDay(), span: Math.max(0, span) });
+        continue;
+      }
       /* The time goes where the most people overlap: the window of the
          needed ones, narrowed to those of the optional people who can
          as long as the rehearsal still fits. */
@@ -364,7 +369,7 @@ export function proposeDates(project) {
       withoutEntry,
       possible,
       scarcity: possible.length,
-      tooShort, longestWindow: longest,
+      tooShort: shortDays.length, shortDays, longestWindow: longest,
       oftenUnavailable: [...missingCount.entries()]
         .sort((a, b) => b[1] - a[1]).slice(0, 3),
     };

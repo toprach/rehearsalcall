@@ -77,6 +77,9 @@ export const de = {
   'why.no_evening':'kein gemeinsamer Abend; meist verhindert: {folks}',
   'why.taken':    '{n} Abende wären möglich, aber dort proben diese Leute schon',
   'why.nothing':'kein gemeinsamer Abend',
+  'why.short_days':      'Da könnten alle, nur nicht lange genug zur selben Zeit:',
+  'why.short_days_open': 'Da könnten alle, nur nicht lange genug zur selben Zeit – ein Tag öffnet ihn im Kalender:',
+  'why.more_days':       'und {n} weitere',
 
   /* ---------- member area ---------- */
   'mem.hello':        'Hallo {name}',

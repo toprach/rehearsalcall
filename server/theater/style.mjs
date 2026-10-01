@@ -125,6 +125,9 @@ export const STYLE = `
   table.plan .overlay .box select, table.plan .overlay .box input[type=text] { padding:.25rem .4rem; font-size:.88rem }
   /* --- the dates: alternatives as chips --- */
   .alts { margin-top:.3rem; line-height:1.9 }
+  .shortdays { margin-top:.35rem }
+  .shortdays .chip { white-space:nowrap; margin:.3rem .3rem 0 0 }
+  .shortdays a.chip { color:var(--accent) }
   /* --- the company: name, role and the link in one cell --- */
   form.person { flex-wrap:wrap; gap:.3rem .6rem }
   form.person .role { display:inline-flex; gap:.6rem; white-space:nowrap }

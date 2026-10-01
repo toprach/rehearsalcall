@@ -79,6 +79,9 @@ export const en = {
   'why.taken':    '{n} evenings would work, but those people are already ' +
                      'rehearsing then',
   'why.nothing':'no evening in common',
+  'why.short_days':      'Everyone could on these days, just not long enough at the same time:',
+  'why.short_days_open': 'Everyone could on these days, just not long enough at the same time – a day opens it in the calendar:',
+  'why.more_days':       'and {n} more',
 
   /* ---------- member area ---------- */
   'mem.hello':        'Hello {name}',
