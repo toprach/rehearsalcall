@@ -1229,6 +1229,8 @@ export const de = {
   'kd.adhoc_speeches':  '{n} Repliken',
   'kd.adhoc_none':      'Niemand gewählt',
   'kd.jump_who':        'Weiter und Zurück: {who}',
+  'kd.first_mine': 'Weiter oben kommt keine Zeile von {who} mehr.',
+  'kd.last_mine': 'Weiter unten kommt keine Zeile von {who} mehr.',
   'cmt.title':       'Kommentare',
   'cmt.what':        'Was das Ensemble ins Skript, in die Rollenhefte und in den Probenplan '
                    + 'geschrieben hat. Fragen an die Regie stehen zuerst; eine Antwort geht an die '

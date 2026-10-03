@@ -2883,6 +2883,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       adhoc_what: t('kd.adhoc_what'), adhoc_start: t('kd.adhoc_start'), adhoc_change: t('kd.adhoc_change'),
       adhoc_end: t('kd.adhoc_end'), adhoc_chosen: t('kd.adhoc_chosen'), adhoc_speeches: t('kd.adhoc_speeches'),
       adhoc_none: t('kd.adhoc_none'), jump_who: t('kd.jump_who'),
+      first_mine: t('kd.first_mine'), last_mine: t('kd.last_mine'),
     },
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -2933,6 +2934,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-row button { flex:0 0 auto; min-height:2.7rem; font-weight:600 }
   .kmt-row button.wide { flex:1 1 auto; min-width:0 }
   .kmt-row button.accent { border-color:#b3272d; color:#b3272d }
+  .kmt-row button.kmt-end { opacity:.4 }
+  .kmt-toast { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:50; max-width:90vw;
+    background:#1c1a18; color:#fff; border-radius:.4rem; padding:.5rem .9rem; text-align:center;
+    font:14px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; box-shadow:0 4px 16px rgba(0,0,0,.25) }
+  .kmt-toast[hidden] { display:none }
   .kmt-strip { display:flex; align-items:center; gap:.5rem; min-height:1.4rem; color:#6b655c }
   .kmt-strip .names { font-weight:700; color:#b3272d }
   .kmt-strip .grow { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -3016,7 +3022,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     main.plan .szkopf .lin { width:34vw } main.plan .szkopf .lin.kurz { width:16vw }
     .kmt-box { font-size:16px }
   }
-  @media print { .kmt-badge, .kmt-hint, .kmt-veil, .kmt-bar { display:none !important }
+  @media print { .kmt-badge, .kmt-hint, .kmt-toast, .kmt-veil, .kmt-bar { display:none !important }
     body.kmt-has-bar { padding:0 } }
   </style>
   <script id="kmt-data" type="application/json">${json}</script>
@@ -3299,18 +3305,22 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
        (or the previous) element of the kind, framed and centred. The
        reference is always the view, never the last target - after
        scrolling by hand the step goes on from there. ---- */
-    var step = function (dir, selector) {
-      selector = selector || '.kmt-badge';
+    var findStep = function (dir, selector) {
       var list = [].slice.call(document.querySelectorAll(selector)).map(function (el) { return el.closest('p') || el; });
       list = list.filter(function (el, i) { return list.indexOf(el) === i; });
-      if (!list.length) return;
-      var mid = window.innerHeight / 2, target = null, i;
-      if (dir > 0) { for (i = 0; i < list.length; i++) if (list[i].getBoundingClientRect().top > mid) { target = list[i]; break; } }
-      else { for (i = list.length - 1; i >= 0; i--) if (list[i].getBoundingClientRect().bottom < mid) { target = list[i]; break; } }
-      if (!target) return;
+      var mid = window.innerHeight / 2, i;
+      if (dir > 0) { for (i = 0; i < list.length; i++) if (list[i].getBoundingClientRect().top > mid) return list[i]; }
+      else { for (i = list.length - 1; i >= 0; i--) if (list[i].getBoundingClientRect().bottom < mid) return list[i]; }
+      return null;
+    };
+    // whether it went anywhere
+    var step = function (dir, selector) {
+      var target = findStep(dir, selector || '.kmt-badge');
+      if (!target) return false;
       [].forEach.call(document.querySelectorAll('.kmt-cur'), function (x) { x.classList.remove('kmt-cur'); });
       target.classList.add('kmt-cur');
       target.scrollIntoView({ block: 'center' });
+      return true;
     };
     bar.querySelector('#kmt-prev').onclick = function () { step(-1); };
     bar.querySelector('#kmt-next').onclick = function () { step(1); };
@@ -3414,6 +3424,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       showStrip();
       if (was) veilMine();
       padBar();
+      if (ends) ends();
     };
 
     markPeople(activeNames());
@@ -3592,8 +3603,38 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       head.dataset.kmtState = String(next);
       paint(head, next);
     });
-    bar.querySelector('#kmt-me-prev').onclick = function () { step(-1, 'p.speech.kmt-mine'); };
-    bar.querySelector('#kmt-me-next').onclick = function () { step(1, 'p.speech.kmt-mine'); };
+    /* At the first (or the last) line of whoever is followed there is
+       nowhere to go: the arrow dims, and a tap says so instead of
+       silently doing nothing. */
+    var MINE = 'p.speech.kmt-mine';
+    var mePrev = bar.querySelector('#kmt-me-prev'), meNext = bar.querySelector('#kmt-me-next');
+    var ends = function () {
+      var any = !!document.querySelector(MINE);
+      mePrev.classList.toggle('kmt-end', any && !findStep(-1, MINE));
+      meNext.classList.toggle('kmt-end', any && !findStep(1, MINE));
+    };
+    var queued = false;
+    window.addEventListener('scroll', function () {
+      if (queued) return; queued = true;
+      requestAnimationFrame(function () { queued = false; ends(); });
+    }, { passive: true });
+    var toast = null, toastTimer = null;
+    var say = function (text) {
+      if (!toast) { toast = document.createElement('div'); toast.className = 'kmt-toast'; toast.setAttribute('role', 'status'); document.body.appendChild(toast); }
+      toast.textContent = text;
+      toast.style.bottom = (window.innerWidth <= 700 ? bar.offsetHeight + 8 : 12) + 'px';
+      toast.hidden = false;
+      clearTimeout(toastTimer); toastTimer = setTimeout(function () { toast.hidden = true; }, 2500);
+    };
+    var arrow = function (dir, text) {
+      return function () {
+        if (!step(dir, MINE) && document.querySelector(MINE)) say(text.replace('{who}', activeNames().join(', ')));
+        ends();
+      };
+    };
+    mePrev.onclick = arrow(-1, T.first_mine);
+    meNext.onclick = arrow(1, T.last_mine);
+    ends();
     var oldBadge = badge;
     badge = function (nr) { oldBadge(nr); count(); };
   });

@@ -1226,6 +1226,8 @@ export const en = {
   'kd.adhoc_speeches':  '{n} speeches',
   'kd.adhoc_none':      'Nobody chosen',
   'kd.jump_who':        'Forward and back: {who}',
+  'kd.first_mine': 'No line of {who} further up.',
+  'kd.last_mine': 'No line of {who} further down.',
   'cmt.title':       'Comments',
   'cmt.what':        'What the company wrote into the script, the part books and the rehearsal '
                    + 'plan. Questions to the director come first; an answer goes back to the person '
