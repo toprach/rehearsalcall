@@ -304,6 +304,9 @@ export const STYLE = `
   .balken .spur b { position:absolute; top:0; bottom:0; background:#c9b26a; border-radius:.4rem }
   .balken .spur b.noetig { background:#2f8a4f }
   .balken .spur b.selbst { background:var(--accent) }
+  .balken .spur b.selbst.vorschau { background:transparent; border:2px dashed var(--accent); box-sizing:border-box }
+  .balken .wer.selbst.vorschau { opacity:.75 }
+  .balken .vorschau-hinweis { font-size:.85em; font-style:italic; color:var(--accent); margin:.1rem 0 .3rem }
   .balken .spur em.ich { position:absolute; top:0; bottom:0; background:rgba(179,39,45,.16) }
   .balken .wann { flex:0 0 5.6rem; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:.8em }
   .balken .achse .spur { background:transparent; height:1rem; overflow:visible }

@@ -2449,7 +2449,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 message: ${js('date.message')}, cancel: ${js('date.cancel')},
                 cancel_confirm: ${js('date.cancel_confirm', { id: '#' })}, failed: ${js('my.fix_failed')},
                 sits: ${js('hist.sits')}, note: ${js('hist.note')}, keep: ${js('common.save')},
-                nobody: ${js('my.nobody')} };
+                nobody: ${js('my.nobody')},
+                unsaved_new: ${js('my.bars_unsaved_new')}, unsaved_changed: ${js('my.bars_unsaved_changed')} };
       var current = ${startMonth};
 
       var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -2591,6 +2592,12 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
           var draw = function () {
             var a = mins(document.getElementById('tv').value), b = mins(document.getElementById('tb').value);
             var own = a != null && b != null && b > a ? [a, b] : null;
+            /* Solid only for what is saved: the fields start with the
+               preferred window, and a bar for that would read as an
+               entry that is not there. */
+            var saved = tI ? (tI.value === '1' ? [vI.value, bI.value] : null) : (mine[0] ? mine : null);
+            var state = !own ? '' : !saved ? 'neu'
+              : (saved[0] === document.getElementById('tv').value && saved[1] === document.getElementById('tb').value ? '' : 'anders');
             var lo = 24 * 60, hi = 0;
             others.forEach(function (p) { lo = Math.min(lo, f[p][0]); hi = Math.max(hi, f[p][1]); });
             if (own) { lo = Math.min(lo, own[0]); hi = Math.max(hi, own[1]); }
@@ -2608,7 +2615,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             };
             box.innerHTML = '<div class="zeile achse"><span class="wer"></span><span class="spur">' + ticks + '</span><span class="wann"></span></div>' +
               others.map(function (p) { return row(esc(names[p] || p), f[p], 'noetig'); }).join('') +
-              (own ? row(esc(MYNAME), own, 'selbst') : '') +
+              (own ? row(esc(MYNAME), own, 'selbst' + (state ? ' vorschau' : '')) : '') +
+              (own && state ? '<div class="vorschau-hinweis">' + esc((state === 'neu' ? W.unsaved_new : W.unsaved_changed).replace('{name}', MYNAME)) + '</div>' : '') +
               '<div class="gemeinsam">' + (cTo - cFrom >= 30
                 ? esc(W.bars_common.replace('{von}', hm(cFrom)).replace('{bis}', cTo >= 1440 ? '24:00' : hm(cTo)))
                 : esc(W.bars_none)) + '</div>';

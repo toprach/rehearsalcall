@@ -669,6 +669,8 @@ export const de = {
   'my.bars_me':     'ich',
   'my.bars_common': 'gemeinsam m\u00f6glich: {von}\u2013{bis}',
   'my.bars_none':   'mit diesen Zeiten kein gemeinsames Fenster',
+  'my.bars_unsaved_new': '{name}: noch nicht eingetragen \u2013 erst mit \u201eich kann\u201c gespeichert',
+  'my.bars_unsaved_changed': '{name}: ge\u00e4ndert, noch nicht gespeichert',
   'my.from':           'ab',
   'my.to':          'bis',
   'my.can':         'ich kann',

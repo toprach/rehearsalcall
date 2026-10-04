@@ -670,6 +670,8 @@ export const en = {
   'my.bars_me':     'me',
   'my.bars_common': 'possible together: {von}–{bis}',
   'my.bars_none':   'no common window with these times',
+  'my.bars_unsaved_new': '{name}: not entered yet \u2013 saved only with \u201cI can make it\u201d',
+  'my.bars_unsaved_changed': '{name}: changed, not saved yet',
   'my.from':           'from',
   'my.to':          'until',
   'my.can':         'I can make it',
