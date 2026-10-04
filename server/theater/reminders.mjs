@@ -11,10 +11,12 @@
        termine_gesendet: ['P04@2026-09-20']     // rehearsals already announced
      }
 
-   The same subscriptions carry a second kind of message: an hour before
-   a fixed rehearsal the person is in (the director is in all of them),
-   once per rehearsal and day. The daily message names the next
-   rehearsal too when it is today or tomorrow.
+   The same subscriptions carry the fixed dates, to everybody in the
+   company, whether in it or not: on the evening before, at the person's
+   own daily time, and two hours before on the day - before their own
+   start when they are in it, before the date's start otherwise. Each
+   says who is set when. Once per date and kind (termine_gesendet holds
+   'P04@2026-09-20' for the day itself, 'v:P04@2026-09-20' for the eve).
 
    Every quarter of an hour the clock looks at every entry: when the
    wall clock in the person's time zone has passed the chosen time - by
@@ -32,7 +34,7 @@ import * as Push from './push.mjs';
 import { partBook } from './book.mjs';
 import * as Learn from './learn.mjs';
 import { language, isLanguage } from './texts.mjs';
-import { freeNames } from './dates.mjs';
+import { freeNames, freeDetail } from './dates.mjs';
 
 /* ---------- time ---------- */
 
@@ -54,36 +56,49 @@ export const validTime = t => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t || ''));
 /* The local date if the entry is due now, else null: the chosen time
    has passed today by less than the window, and nothing went out. */
 export const WINDOW_MIN = 120;
-export const LEAD_MIN = 60;                 // the rehearsal reminder: an hour before
+export const LEAD_MIN = 120;                // on the day: two hours before
 const minutesOf = hm => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
 
-/* The fixed rehearsals this person goes to, soonest first. The director
-   is at every one. */
+/* Every fixed date, soonest first, as this person sees it: whether
+   they are in it (the director is in every one), their own time if so,
+   and who is set when. */
 export function rehearsalsOf(project, person) {
   const out = [];
   for (const x of project.termine || []) {
     if (!x.bestaetigt || !x.iso || !validTime(x.von)) continue;
     const group = x.gruppe || (project.plan?.proben || []).find(p => p.id === x.probe_id)?.gruppe || [];
-    if (!person.regie && !group.includes(person.b)) continue;
-    // at a free rehearsal each person has their own time
-    const own = x.frei ? x.zeiten?.[person.b] : null;
+    const mine = !!person.regie || group.includes(person.b);
+    // at a free date each person has their own time
+    const own = x.frei && mine ? x.zeiten?.[person.b] : null;
     const von = own && validTime(own.von) ? own.von : x.von;
     const bis = own && validTime(own.bis) ? own.bis : (validTime(x.bis) ? x.bis : '');
-    out.push({ id: x.probe_id, iso: x.iso, von, bis, ort: x.ort || '', gruppe: group,
+    out.push({ id: x.probe_id, iso: x.iso, von, bis, start: x.von, ende: validTime(x.bis) ? x.bis : '',
+               ort: x.ort || '', gruppe: group, mine, inhalt: x.inhalt || '',
+               who: x.frei ? freeDetail(project, x) : group.join(', '),
                ...(x.frei ? { label: freeNames(project, x) } : {}) });
   }
   return out.sort((a, b) => (a.iso + a.von).localeCompare(b.iso + b.von));
 }
 export const rehearsalKey = r => r.id + '@' + r.iso;
 
-/* The rehearsals of an entry that want their message now: today in the
-   person's zone, within the hour before the start, not yet announced. */
+/* The dates of an entry that want their message now: today in the
+   person's zone, within the two hours before the start, not yet sent. */
 export function rehearsalsDue(entry, nowMs = Date.now()) {
   if (!entry || !(entry.termine || []).length) return [];
   const { date, hm } = localParts(entry.zone, nowMs);
   const now = minutesOf(hm), sent = new Set(entry.gesendet || []);
   return entry.termine.filter(r => r.iso === date && !sent.has(rehearsalKey(r)) &&
     now >= minutesOf(r.von) - LEAD_MIN && now < minutesOf(r.von));
+}
+/* The dates of tomorrow, at the person's daily time (within the same
+   window as the daily message), each once. */
+export function eveDue(entry, nowMs = Date.now()) {
+  if (!entry || !validTime(entry.zeit) || !(entry.termine || []).length) return [];
+  const { date, hm } = localParts(entry.zone, nowMs);
+  const late = minutesOf(hm) - minutesOf(entry.zeit);
+  if (late < 0 || late >= WINDOW_MIN) return [];
+  const tomorrow = addDaysIso(date, 1), sent = new Set(entry.gesendet || []);
+  return entry.termine.filter(r => r.iso === tomorrow && !sent.has('v:' + rehearsalKey(r)));
 }
 export function dueNow(entry, nowMs = Date.now()) {
   if (!entry || !validTime(entry.zeit)) return null;
@@ -128,26 +143,24 @@ export function messageFor(project, person, today) {
     const f = Learn.summary(project.lernen?.[person.id] || {}, chunks, today);
     due = f.due; fresh = f.fresh; total = f.total;
   } catch { /* no script yet: still a nudge */ }
-  let body = !total ? t('push.body_none') : !due && !fresh ? t('push.body_done') : t('push.body', { due, fresh });
-  // the next rehearsal, when it is today or tomorrow
-  const tomorrow = addDaysIso(today, 1);
-  const next = rehearsalsOf(project, person).find(r => r.iso >= today);
-  if (next && next.iso <= tomorrow)
-    body += ' ' + t('push.next_rehearsal', { id: next.label || next.id, when: t(next.iso === today ? 'push.today' : 'push.tomorrow'), von: next.von });
+  // the dates of today and tomorrow have messages of their own
+  const body = !total ? t('push.body_none') : !due && !fresh ? t('push.body_done') : t('push.body', { due, fresh });
   return { title: t('push.title', { title: project.titel }), body, url: '/theater/ich/' + (person.token || '') + '/heft' };
 }
 const addDaysIso = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-/* An hour before a rehearsal: when, where, with whom. */
-export function messageForRehearsal(project, person, r) {
+/* A fixed date, on the eve or on the day: when, where, whether one is
+   in it and from when, and who is set when. */
+export function messageForRehearsal(project, person, r, eve = false) {
   const code = project.einstellungen?.sprache;
   const t = language(isLanguage(code) ? code : 'de').t;
-  const others = (r.gruppe || []).filter(b => b !== person.b);
   return {
-    title: t('push.rehearsal_title', { title: project.titel, id: r.label || r.id }),
-    body: t('push.rehearsal_body', { von: r.von, bis: r.bis ? '\u2013' + r.bis : '', ort: r.ort ? ' \u00b7 ' + r.ort : '',
-                                     with: others.length ? ' \u00b7 ' + t('push.with', { who: others.join(', ') }) : '' }),
-    url: '/theater/ich/' + (person.token || '') + '/termine',
+    title: t(eve ? 'push.tomorrow_title' : 'push.today_title', { title: project.titel }),
+    body: t('push.date_body', { von: r.start || r.von, bis: (r.ende || r.bis) ? '\u2013' + (r.ende || r.bis) : '',
+      ort: r.ort ? ' \u00b7 ' + r.ort : '',
+      me: r.mine ? t('push.me_in', { von: r.von, bis: r.bis ? '\u2013' + r.bis : '' }) : t('push.me_out'),
+      who: r.who || '\u2014' }) + (r.inhalt ? ' ' + t('free.what_line', { text: r.inhalt }) + '.' : ''),
+    url: '/theater/ich/' + (person.token || '') + '/zeiten',
   };
 }
 export function testMessage(project, person, entry) {
@@ -183,7 +196,7 @@ export async function tick(nowMs = Date.now()) {
   let sent = 0;
   try {
     for (const [projectId, people] of [...index.entries()]) {
-      const duePeople = Object.entries(people).filter(([, e]) => dueNow(e, nowMs) || rehearsalsDue(e, nowMs).length);
+      const duePeople = Object.entries(people).filter(([, e]) => dueNow(e, nowMs) || rehearsalsDue(e, nowMs).length || eveDue(e, nowMs).length);
       if (!duePeople.length) continue;
       const project = await S.read(projectId);
       if (!project) { index.delete(projectId); continue; }
@@ -198,7 +211,12 @@ export async function tick(nowMs = Date.now()) {
           entry.zuletzt = date; changed = true;
           if (person) sent += await deliver(entry, messageFor(project, person, date));
         }
-        // the hour before a rehearsal, once each
+        // the eve of a date, at the daily time, once each
+        for (const r of eveDue({ ...indexed, zeit: entry.zeit, gesendet: entry.termine_gesendet || [] }, nowMs)) {
+          entry.termine_gesendet = (entry.termine_gesendet || []).concat('v:' + rehearsalKey(r)).slice(-100); changed = true;
+          if (person) sent += await deliver(entry, messageForRehearsal(project, person, r, true));
+        }
+        // two hours before on the day, once each
         for (const r of rehearsalsDue({ ...indexed, gesendet: entry.termine_gesendet || [] }, nowMs)) {
           entry.termine_gesendet = (entry.termine_gesendet || []).concat(rehearsalKey(r)).slice(-100); changed = true;
           if (person) sent += await deliver(entry, messageForRehearsal(project, person, r));

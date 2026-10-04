@@ -122,7 +122,7 @@ ${ctx.share ? `<script>
   });
 })();
 <\/script>` : ''}
-<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${tabbar ? installBanner() : ''}${ctx.demo
+<div class="frame${narrow ? ' narrow' : ''}${tabbar ? ' hastabs' : ''}">${tabbar ? installBanner() + remindCard() : ''}${ctx.demo
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
       { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${directing ? nav : ''}${body}</div>
 ${tabbar}
@@ -1662,7 +1662,8 @@ const installBanner = () => `<div class="pwasheet" id="pwabanner" hidden><div cl
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; });
     box.hidden = false;
     document.getElementById('pwa-install').addEventListener('click', function () {
-      if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { box.hidden = true; deferred = null; }); return; }
+      if (deferred) { deferred.prompt(); deferred.userChoice.then(function (c) { box.hidden = true; deferred = null;
+        if (c && c.outcome === 'accepted') document.dispatchEvent(new CustomEvent('app-installiert')); }); return; }
       var how = box.querySelector('.how');
       how.textContent = ios ? ${JSON.stringify(t('pwa.ios'))} : ${JSON.stringify(t('pwa.android'))};
       how.hidden = false;
@@ -1671,6 +1672,69 @@ const installBanner = () => `<div class="pwasheet" id="pwabanner" hidden><div cl
       try { localStorage.setItem('pwa-later', String(Date.now())); } catch (e) {}
       box.hidden = true;
     });
+  })();
+  </script>`;
+
+/* Reminders on by default. A browser asks for notifications only after
+   a tap, so: once allowed, the reminder (daily at 19:00 unless chosen
+   otherwise) is switched on by itself; right after installing, and on
+   the first start of the installed app, one card asks for that tap.
+   Not while working as somebody else (the phone would take their
+   reminders), and never again once switched off on this phone - the
+   part book's switch notes that (erinnerung-aus:<person>). */
+const remindCard = () => !ctx.push || ctx.who?.real ? '' : `<div class="pwasheet" id="remindcard" hidden><div class="inner">
+    <b>${t('push.auto_title')}</b>
+    <p class="small muted">${t('push.auto_what', { zeit: h(ctx.push.zeit) })}</p>
+    <button type="button" class="big" id="remind-yes">${h(t('push.auto_on'))}</button>
+    <button type="button" class="quiet mini" id="remind-no">${h(t('push.auto_no'))}</button>
+  </div></div>
+  <script>
+  (function () {
+    var P = ${JSON.stringify(ctx.push).replace(/</g, '\\u003c')};
+    var card = document.getElementById('remindcard');
+    if (!card || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    var OFF = 'erinnerung-aus:' + P.b;
+    try { if (localStorage.getItem(OFF)) return; } catch (e) {}
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    var ASKED = 'erinnerung-gefragt:' + P.b, asked = false;
+    try { asked = !!localStorage.getItem(ASKED); } catch (e) {}
+    var zone = ''; try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    var keyBytes = function (s) {
+      var pad = '='.repeat((4 - s.length % 4) % 4), raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+      var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+    };
+    var on = function () {
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription().then(function (s) {
+          return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(P.key) });
+        });
+      }).then(function (sub) {
+        var j = sub.toJSON();
+        return fetch('/theater/mit/erinnerung', { method: 'POST', credentials: 'same-origin',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ action: 'an', endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth,
+                                      zeit: P.zeit, zone: zone }).toString() });
+      }).catch(function () {});
+    };
+    var ask = function () {
+      if (asked) return;
+      asked = true; try { localStorage.setItem(ASKED, '1'); } catch (e) {}
+      card.hidden = false;
+    };
+    document.getElementById('remind-yes').onclick = function () {
+      card.hidden = true;
+      Notification.requestPermission().then(function (perm) { if (perm === 'granted') on(); });
+    };
+    document.getElementById('remind-no').onclick = function () {
+      try { localStorage.setItem(OFF, '1'); } catch (e) {}
+      card.hidden = true;
+    };
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (sub && P.endpoints.indexOf(sub.endpoint) >= 0) return;
+      if (Notification.permission === 'granted') return on();
+      if (Notification.permission === 'default' && standalone) ask();
+    }).catch(function () {});
+    document.addEventListener('app-installiert', function () { if (Notification.permission === 'default') ask(); });
   })();
   </script>`;
 
@@ -2880,7 +2944,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
-    people, keys: learn.keys || {}, steps: learn.steps || {},
+    people, keys: learn.keys || {}, steps: learn.steps || {}, known: learn.known || {},
     comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
       name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
       erledigt: !!c.erledigt })),
@@ -3018,6 +3082,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-check-ui .ok { background:#166b34; border-color:#166b34 }
   .kmt-check-ui .no { background:#b3272d; border-color:#b3272d }
   p.speech.kmt-ok { border-left-color:#166b34; background:rgba(22,107,52,.08) }
+  /* the director's view: a green bar beside what was last answered "I know it" */
+  p.speech.kmt-kann { box-shadow:-7px 0 0 0 #2f9e5a }
+  @media print { p.speech.kmt-kann { box-shadow:none } }
   p.speech.kmt-no { background:rgba(179,39,45,.12) }
   .kmt-step { font-size:.75em; color:#6b655c; margin-left:.3em; white-space:nowrap }
   @media print { .kmt-text { color:inherit !important; background:none !important; display:inline !important }
@@ -3564,6 +3631,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         .then(function (r) {
           if (!r.ok) { alert(T.failed); return; }
           (D.steps[name] = D.steps[name] || {})[key] = r.rec.s;
+          if (D.all) {
+            var known = (D.known[name] = (D.known[name] || []).filter(function (k) { return k !== key; }));
+            if (rating === 'kann') known.push(key);
+            kann();
+          }
           var unit = unitOf(head);
           unit.forEach(function (p) { p.classList.remove('kmt-ok', 'kmt-no'); p.classList.add(rating === 'kann' ? 'kmt-ok' : 'kmt-no'); });
           var ui = unit[unit.length - 1].querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
@@ -3571,6 +3643,19 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         })
         .catch(function () { alert(T.failed); });
     };
+    /* For the director: the lines whose last answer was "I know it" -
+       in checking here or in the speaker's own part book - get a green
+       bar, continuation paragraphs along with their speech. */
+    var kann = function () {
+      if (!D.all) return;
+      [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
+        var head = p;
+        while (head && !head.dataset.nr && head.classList.contains('cont')) head = head.previousElementSibling;
+        var b = p.dataset.ensemble, key = head && head.dataset.nr ? (D.keys[b] || {})[head.dataset.nr] : null;
+        p.classList.toggle('kmt-kann', key != null && (D.known[b] || []).indexOf(key) >= 0);
+      });
+    };
+    kann();
     /* Not "veil": that is the comment dialog's backdrop element, a few
        hundred lines up and in this same scope. Naming a function the
        same overwrote it, so close() - which every open() calls first -

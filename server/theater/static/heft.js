@@ -576,6 +576,8 @@
           toggle.disabled = false;
           if (!res || !res.ok) return say(T.remind_failed);
           endpoints = res.endpoints; mine.unsubscribe().catch(function () {}); mine = null; paint();
+          // switched off on purpose: the pages do not switch it on again by themselves
+          try { localStorage.setItem('erinnerung-aus:' + D.me, '1'); } catch (e) {}
         });
         return;
       }
@@ -591,6 +593,7 @@
             toggle.disabled = false;
             if (!res || !res.ok) return say(T.remind_failed);
             mine = sub; endpoints = res.endpoints; zeit = res.zeit; paint();
+            try { localStorage.removeItem('erinnerung-aus:' + D.me); } catch (e) {}
           });
         });
       }).catch(function () { toggle.disabled = false; say(T.remind_failed); });

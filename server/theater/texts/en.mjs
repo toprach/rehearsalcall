@@ -1160,7 +1160,7 @@ export const en = {
   'book.share':      'share \u2026',
   /* the daily reminder */
   'book.remind':     'Reminder',
-  'book.remind_what': 'The phone speaks up daily at the chosen time with the state of the day \u2013 and an hour before every fixed rehearsal you are in.',
+  'book.remind_what': 'The phone speaks up daily at the chosen time with the state of the day \u2013 and for every fixed rehearsal on the eve at the same time and two hours before it starts, with everybody called.',
   'book.remind_time': 'Time',
   'book.remind_on':  'Turn on',
   'book.remind_off': 'Turn off',
@@ -1185,6 +1185,16 @@ export const en = {
   'push.with':       'with {who}',
   'push.test_title': 'Test notification',
   'push.test_body':  'This is what the reminder looks like. It comes daily at {zeit}.',
+  'push.today_title': '{title}: rehearsal today',
+  'push.tomorrow_title': '{title}: rehearsal tomorrow',
+  'push.date_body': '{von}{bis}{ort}. {me} Called: {who}.',
+  'push.me_in': 'You: {von}{bis}.',
+  'push.me_out': 'You are not called.',
+  'push.auto_title': 'Turn reminders on?',
+  'push.auto_what': 'A reminder for your lines every day at {zeit}, and a message on the eve of and two hours before every fixed rehearsal. You can change it any time under your part.',
+  'push.auto_on': 'Turn on',
+  'push.auto_no': 'No, thanks',
+  'push.auto_done': 'Reminders are on \u2013 every day at {zeit}.',
 
   /* ---------- the app on the phone ---------- */
   'pwa.short':         'Rehearsals',

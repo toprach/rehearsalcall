@@ -1163,7 +1163,7 @@ export const de = {
   'book.share':      'teilen \u2026',
   /* die t\u00e4gliche Erinnerung */
   'book.remind':     'Erinnerung',
-  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Zeit mit dem Stand des Tages \u2013 und eine Stunde vor jeder fixierten Probe, bei der du dabei bist.',
+  'book.remind_what': 'Das Handy meldet sich t\u00e4glich zur gew\u00e4hlten Zeit mit dem Stand des Tages \u2013 und zu jeder fixen Probe am Vorabend zur selben Zeit und zwei Stunden vor Beginn, mit allen Eingeteilten.',
   'book.remind_time': 'Uhrzeit',
   'book.remind_on':  'Einschalten',
   'book.remind_off': 'Ausschalten',
@@ -1188,6 +1188,16 @@ export const de = {
   'push.with':       'mit {who}',
   'push.test_title': 'Probe-Mitteilung',
   'push.test_body':  'So sieht die Erinnerung aus. Sie kommt t\u00e4glich um {zeit}.',
+  'push.today_title': '{title}: heute Probe',
+  'push.tomorrow_title': '{title}: morgen Probe',
+  'push.date_body': '{von}{bis}{ort}. {me} Eingeteilt: {who}.',
+  'push.me_in': 'Du: {von}{bis}.',
+  'push.me_out': 'Du bist nicht eingeteilt.',
+  'push.auto_title': 'Erinnerungen einschalten?',
+  'push.auto_what': 'Jeden Tag um {zeit} eine Erinnerung zum Text, am Vorabend und zwei Stunden vor jeder fixen Probe eine Nachricht. In der Rolle jederzeit \u00e4nderbar.',
+  'push.auto_on': 'Einschalten',
+  'push.auto_no': 'Nein, danke',
+  'push.auto_done': 'Erinnerungen sind an \u2013 t\u00e4glich um {zeit}.',
 
   /* ---------- die App am Handy ---------- */
   'pwa.short':         'Proben',

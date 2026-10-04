@@ -528,7 +528,7 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
   /* Checking lines in the document: speech number -> learning key, and
      the step reached, for everybody the viewer may record for - the
      director for the whole company, a member for themselves. */
-  const learn = { keys: {}, steps: {} };
+  const learn = { keys: {}, steps: {}, known: {} };
   if (project.skript) {
     const targets = mayAll ? (project.personen || []) : (me ? [me] : []);
     for (const x of targets) {
@@ -537,6 +537,9 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
         for (const c of p.chunks) for (const l of c.lines) if (l.nr != null) keys[l.nr] = c.key;
       learn.keys[x.b] = keys;
       learn.steps[x.b] = Object.fromEntries(Object.entries(project.lernen?.[x.id] || {}).map(([k, r]) => [k, r.s]));
+      // for the director: what was last answered "I know it" (checking or the part book)
+      if (mayAll) learn.known[x.b] = Object.entries(project.lernen?.[x.id] || {})
+        .filter(([, r]) => (r.l || []).slice(-1)[0] === 2).map(([k]) => k);
     }
   }
   return A.docExtras(token || '', doc, me, visible, mayAll, people, learn);
@@ -1020,6 +1023,12 @@ export async function handle(request, response, path) {
     projectLanguage(project);
     demoBanner(project);
     ctx.who = whoOf(request, project, person);
+    {
+      // for switching the reminders on by themselves (views.mjs remindCard)
+      const keys = Push.keysFromEnv(), e = project.erinnerung?.[person.id] || {};
+      ctx.push = keys ? { key: keys.publicKey, b: person.b, zeit: e.zeit || '19:00',
+                          endpoints: (e.abos || []).map(a => a.endpoint) } : null;
+    }
 
     /* Who is being worked for, and who is one really? */
     const realSelfValue = sealedCookie(request, REALSELF);
@@ -1147,7 +1156,7 @@ export async function handle(request, response, path) {
     if (second === 'zeiten') {
       // what is over goes to the history, and a day holds one date
       const moved = archivePast(project), merged = oneDatePerDay(project);
-      if (moved || merged) await S.write(project);
+      if (moved || merged) { await S.write(project); Reminders.refresh(project); }
       const days = calendarDays(project);
       const shown = () => displayDays(project);
       const views = (list) => dayView(project, person, list);

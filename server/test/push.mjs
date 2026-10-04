@@ -5,7 +5,7 @@
 */
 import crypto from 'node:crypto';
 import * as P from '../theater/push.mjs';
-import { dueNow, rehearsalsDue, rehearsalsOf, messageForRehearsal } from '../theater/reminders.mjs';
+import { dueNow, rehearsalsDue, eveDue, rehearsalsOf, messageForRehearsal } from '../theater/reminders.mjs';
 
 let failed = 0;
 const check = (name, ok, detail = '') => {
@@ -78,17 +78,25 @@ const project = {
             { probe_id: 'P02', iso: '2026-09-21', von: '18:00', bestaetigt: false, gruppe: ['ANNA'] }],
 };
 const anna = rehearsalsOf(project, project.personen[0]);
-check('a member sees her fixed rehearsals only', anna.length === 1 && anna[0].id === 'P01', JSON.stringify(anna));
-check('the director sees every fixed rehearsal', rehearsalsOf(project, project.personen[1]).length === 1);
-check('somebody not in the cast sees none', rehearsalsOf(project, project.personen[2]).length === 0);
-const re = { zone: 'Europe/Vienna', termine: anna, gesendet: [] };
-check('due 60 minutes before the start', rehearsalsDue(re, at('2026-09-20T16:00:30Z')).length === 1);
-check('not due 61 minutes before', rehearsalsDue(re, at('2026-09-20T15:59:00Z')).length === 0);
+check('a member gets the fixed dates, hers marked', anna.length === 1 && anna[0].id === 'P01' && anna[0].mine, JSON.stringify(anna));
+check('the director is in every fixed date', rehearsalsOf(project, project.personen[1]).every(r => r.mine));
+const xaver = rehearsalsOf(project, project.personen[2]);
+check('somebody not in the cast hears of it too, as not called', xaver.length === 1 && !xaver[0].mine, JSON.stringify(xaver));
+const re = { zone: 'Europe/Vienna', zeit: '19:00', termine: anna, gesendet: [] };
+check('due two hours before the start', rehearsalsDue(re, at('2026-09-20T15:00:30Z')).length === 1);
+check('not before that', rehearsalsDue(re, at('2026-09-20T14:59:00Z')).length === 0);
 check('still due 20 minutes before', rehearsalsDue(re, at('2026-09-20T16:40:00Z')).length === 1);
 check('not once it has started', rehearsalsDue(re, at('2026-09-20T17:00:30Z')).length === 0);
-check('not twice', rehearsalsDue({ ...re, gesendet: ['P01@2026-09-20'] }, at('2026-09-20T16:00:30Z')).length === 0);
+check('not twice', rehearsalsDue({ ...re, gesendet: ['P01@2026-09-20'] }, at('2026-09-20T15:00:30Z')).length === 0);
+check('on the eve at the daily time', eveDue(re, at('2026-09-19T17:00:30Z')).length === 1);
+check('not on the eve before the daily time', eveDue(re, at('2026-09-19T16:59:00Z')).length === 0);
+check('the eve once', eveDue({ ...re, gesendet: ['v:P01@2026-09-20'] }, at('2026-09-19T17:00:30Z')).length === 0);
+check('not two days before', eveDue(re, at('2026-09-18T17:00:30Z')).length === 0);
 const rm = messageForRehearsal(project, project.personen[0], anna[0]);
-check('the message says when, where and with whom', /in an hour/.test(rm.title) && /19:00/.test(rm.body) && /Hall/.test(rm.body) && /BOB/.test(rm.body), rm.body);
+check('the message says when, where, her own time and who is called',
+      /today/.test(rm.title) && /19:00/.test(rm.body) && /Hall/.test(rm.body) && /You: 19:00/.test(rm.body) && /Called: ANNA, BOB/.test(rm.body), rm.body);
+const xm = messageForRehearsal(project, project.personen[2], xaver[0], true);
+check('on the eve, to somebody not called', /tomorrow/.test(xm.title) && /not called/.test(xm.body) && /ANNA, BOB/.test(xm.body), xm.title + ' | ' + xm.body);
 
 console.log('');
 console.log(failed ? failed + ' check(s) failed' : 'push: all checks passed');
