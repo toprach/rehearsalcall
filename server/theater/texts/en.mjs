@@ -25,6 +25,7 @@ export const en = {
   'nav.casting':   'Casting',
   'nav.rehearsals':        'Rehearsals',
   'nav.dates':     'Dates',
+  'nav.who_as':  'Viewing: {name} \u00b7 signed in: {real}',
   'nav.print':     'Print',
   'nav.audiobook':    'Audiobook',
   'nav.signout':    'Sign out',

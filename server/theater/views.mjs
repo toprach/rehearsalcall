@@ -1618,7 +1618,10 @@ const DIRECTING = ['/theater/projekt', '/theater/leute', '/theater/skript', '/th
 const barOf = (items) => `<nav class="tabbar">${items.map(([href, label, ico, aria, on]) =>
   `<a href="${href}"${on ?? (pfad === href || pfad.startsWith(href.split('?')[0])) ? ' class="on"' : ''}${
     aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
-    ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
+    ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}${
+  // whose view this is - screenshots and borrowed phones say it at once
+  ctx.who ? `<div class="tabwho${ctx.who.real ? ' as' : ''}">${ctx.who.real
+    ? t('nav.who_as', { name: h(ctx.who.name), real: h(ctx.who.real) }) : h(ctx.who.name)}</div>` : ''}</nav>`;
 // the old dates page (/theater/mit/termine) stays reachable, not listed
 const memberItems = () => [
   ['/theater/mit/zeiten', t('navm.tab_avail'), 'calendar'],

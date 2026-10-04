@@ -151,6 +151,15 @@ async function memberFrom(request) {
   return person ? { project, person } : null;
 }
 
+/* Whose pages these are, for the line under the bar: the person signed
+   in (or switched to), and who really is when that is somebody else. */
+function whoOf(request, project, person) {
+  const raw = sealedCookie(request, REALSELF);
+  const real = raw && raw.split(':')[0] === project.id
+    ? (project.personen || []).find(x => x.id === raw.split(':')[1]) : null;
+  return { name: person.name || person.b, real: real && real.id !== person.id ? (real.name || real.b) : '' };
+}
+
 function projectIdFromCookie(request) {
   const raw = request.headers.cookie || '';
   for (const teil of raw.split(';')) {
@@ -1010,6 +1019,7 @@ export async function handle(request, response, path) {
     if (archivePast(project)) await S.write(project);
     projectLanguage(project);
     demoBanner(project);
+    ctx.who = whoOf(request, project, person);
 
     /* Who is being worked for, and who is one really? */
     const realSelfValue = sealedCookie(request, REALSELF);
@@ -1490,6 +1500,11 @@ export async function handle(request, response, path) {
   }
   projectLanguage(project);
   demoBanner(project);
+  {
+    const ref = String(sealedCookie(request, MEMBER) || '').split(':');
+    const me = ref[0] === project.id ? (project.personen || []).find(x => x.id === ref[1]) : null;
+    if (me) ctx.who = whoOf(request, project, me);
+  }
 
   /* In a demo the script stays as it is and no audiobook is made: the
      one would have the server hand out anybody's files for a day, the

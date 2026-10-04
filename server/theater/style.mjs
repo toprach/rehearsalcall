@@ -370,12 +370,17 @@ export const STYLE = `
               color:var(--muted); text-decoration:none; padding:3px 0 }
   .tabbar a svg { width:22px; height:22px; flex:0 0 auto }
   .tabbar a.on { color:var(--accent); font-weight:700 }
+  /* the name goes on a line of its own: the links keep a basis, so it cannot squeeze in beside them */
+  .tabbar { flex-wrap:wrap } .tabbar a { flex:1 1 3rem }
+  .tabbar .tabwho { flex:0 0 100%; text-align:center; font-size:11px; line-height:1.3; color:var(--muted);
+                    padding:1px .6rem 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .tabbar .tabwho.as { color:var(--accent); font-weight:700 }
   .tabbar a:hover { color:var(--ink) }
-  .frame.hastabs, .hasbar .frame { padding-bottom:6rem }
-  .hasbar .foot .inner { padding-bottom:5.5rem }
+  .frame.hastabs, .hasbar .frame { padding-bottom:7rem }
+  .hasbar .foot .inner { padding-bottom:6.5rem }
   .head.member button.share { margin-left:auto }
-  body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem }
-  body .bookstep { bottom:3.9rem }
+  body .learnbar { bottom:4.8rem } body.learning .frame.hastabs { padding-bottom:13rem }
+  body .bookstep { bottom:4.8rem }
   .morelinks { display:flex; flex-wrap:wrap; gap:.4rem }
   @media (min-width:701px) { .tabbar a { font-size:12px } .tabbar a svg { width:24px; height:24px } }
   @media print { .tabbar, .subnav { display:none } }
@@ -387,7 +392,7 @@ export const STYLE = `
   @media (max-width:700px) {
     .head.member button.share svg { width:22px; height:22px }
     .overlay { align-items:flex-start; padding-top:1rem }
-    body .bookstep { bottom:3.9rem }
+    body .bookstep { bottom:4.8rem }
   }
   /* --- the part book on the screen --- */
   .bookbar { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; margin:.6rem 0 1rem }
@@ -458,7 +463,7 @@ export const STYLE = `
   .playbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.6rem; align-items:center;
              justify-content:center; padding:.4rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
   .playbar button { margin:0 }
-  @media (max-width:700px) { body .playbar { bottom:3.9rem } }
+  @media (max-width:700px) { body .playbar { bottom:4.8rem } }
   /* --- the fixed bar with the learning buttons: always in the same place --- */
   .learnbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.5rem; align-items:center;
               justify-content:center; padding:.5rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
@@ -471,7 +476,7 @@ export const STYLE = `
   .applause .clap { font-size:3rem; line-height:1.2; margin:0 0 .3rem }
   .applause button { margin:.6rem .3rem 0 }
   body.learning .frame { padding-bottom:9rem }
-  @media (max-width:700px) { body .learnbar { bottom:3.9rem } body.learning .frame.hastabs { padding-bottom:12rem } }
+  @media (max-width:700px) { body .learnbar { bottom:4.8rem } body.learning .frame.hastabs { padding-bottom:13rem } }
   /* --- other calendars in the availability page --- */
   table.cal td.day { position:relative }
   table.cal td.day .ics-dot { position:absolute; right:.2rem; top:.2rem; font-size:.62rem; line-height:1.4;

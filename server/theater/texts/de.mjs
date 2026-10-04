@@ -22,6 +22,7 @@ export const de = {
   'nav.casting':   'Besetzung',
   'nav.rehearsals':        'Probenplan',
   'nav.dates':     'Termine',
+  'nav.who_as':  'Ansicht: {name} \u00b7 angemeldet: {real}',
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',
   'nav.signout':    'Abmelden',
