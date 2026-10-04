@@ -18,7 +18,8 @@ import crypto from 'node:crypto';
 import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
-import { proposeDates, calendarDays, dayStates, directorsOf, archivePast, freeEntry, freeNames, freeDetail } from './dates.mjs';
+import { proposeDates, calendarDays, directorsOf, archivePast, freeEntry, freeNames, freeDetail,
+  oneDatePerDay, displayDays, dayView } from './dates.mjs';
 import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -279,7 +280,7 @@ function dateAction(A, project, pr, fields, opt) {
   const action = String(fields.action || '');
   const current = (project.termine || []).find(t => t.probe_id === id);
   const message = (entry) => ({ text: A.rehearsalMessage(project, entry,
-    entry.frei ? opt.base + '/theater/mit/termine' : rehearsalLink(project, id, opt.base)) });
+    entry.frei ? opt.base + '/theater/mit/zeiten' : rehearsalLink(project, id, opt.base)) });
   const placeOf = () => String(fields.place || '').trim().slice(0, 120);
   const bad = (key) => ({ m: { kind: 'error', key }, share: null });
   const good = (key) => ({ kind: 'good', key, values: { p1: h(id) } });
@@ -316,6 +317,10 @@ function dateAction(A, project, pr, fields, opt) {
       if (!fresh) return bad('r.date_invalid');
       Object.assign(current, { gruppe: fresh.gruppe, zeiten: fresh.zeiten, von: fresh.von, bis: fresh.bis,
                                geaendert: new Date().toISOString() });
+      if ('inhalt' in fields) {
+        const inhalt = String(fields.inhalt || '').trim().slice(0, 300);
+        if (inhalt) current.inhalt = inhalt; else delete current.inhalt;
+      }
       return { m: { kind: 'good', key: 'r.date_changed', values: { p1: h(freeNames(project, current)) } }, share: message(current) };
     }
     return bad('r.date_invalid');
@@ -789,7 +794,8 @@ export async function handle(request, response, path) {
        on a phone - and then that is where the link leads. */
     if (parts[2] === 'plan' && parts[3]) return redirect(response, '/theater/mit/plan/' + encodeURIComponent(parts[3]));
     const target = ['heft', 'zeiten', 'termine', 'kommentare', 'mit'].includes(parts[2]) ? parts[2] : '';
-    if (target) return redirect(response, target === 'mit' ? '/theater/mit' : '/theater/mit/' + target);
+    // the old dates page is the calendar now
+    if (target) return redirect(response, target === 'mit' ? '/theater/mit' : '/theater/mit/' + (target === 'termine' ? 'zeiten' : target));
     return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');
   }
 
@@ -837,7 +843,7 @@ export async function handle(request, response, path) {
         goto = ownPathsOnly(String(fields.goto || ''));
       } else {
         const query = new URLSearchParams((request.url || '').split('?')[1] || '');
-        goto = query.get('goto') === 'termine' ? '/theater/mit/termine'
+        goto = query.get('goto') === 'termine' ? '/theater/mit/zeiten'
               : query.get('goto') === 'zeiten'  ? '/theater/mit/zeiten'
               : '/theater/mit';
       }
@@ -1129,13 +1135,29 @@ export async function handle(request, response, path) {
     }
 
     if (second === 'zeiten') {
+      // what is over goes to the history, and a day holds one date
+      const moved = archivePast(project), merged = oneDatePerDay(project);
+      if (moved || merged) await S.write(project);
       const days = calendarDays(project);
-      const states = () => dayStates(project, person, days);
+      const shown = () => displayDays(project);
+      const views = (list) => dayView(project, person, list);
       const ics = person.token ? baseOf(request) + '/theater/ich/' + person.token + '/kalender.ics' : '';
-      if (!post) return html(response, A.myTimesPage(project, person, null, days, states(), ics));
+      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      const render = (m) => { const list = shown(); return A.myTimesPage(project, person, m, list, views(list), ics,
+        { mayDirect, messages: Object.fromEntries((project.termine || []).filter(t => t.bestaetigt && t.frei)
+            .map(t => [t.iso, A.rehearsalMessage(project, t, baseOf(request) + '/theater/mit/zeiten')])) }); };
+      if (!post) return html(response, render(null));
       const { fields } = await readForm(request, 4_000_000);
+      /* A day with a date is settled: what was entered for it stays as it
+         was (the page says to go to the director instead). So does what
+         lies outside the period - the days that are over above all. */
+      const locked = new Set((project.termine || []).filter(t => t.bestaetigt).map(t => t.iso));
+      const editable = new Set(days.map(t => t.iso));
       const entered = {};
+      for (const [iso, e] of Object.entries(project.verfuegbar?.[person.id]?.tage || {}))
+        if (!editable.has(iso) || locked.has(iso)) entered[iso] = e;
       for (const t of days) {
+        if (locked.has(t.iso)) continue;
         // a day struck for oneself is a decided no, kept as such
         if (fields['n_' + t.iso] === '1') { entered[t.iso] = { nein: true }; continue; }
         if (fields['t_' + t.iso] !== '1') continue;
@@ -1150,11 +1172,13 @@ export async function handle(request, response, path) {
       // same form as the times.
       if (ctx.regieProject === project.id || ctx.directorProject === project.id) {
         project.einstellungen = project.einstellungen || {};
-        project.einstellungen.gesperrt = days.filter(t => fields['g_' + t.iso] === '1').map(t => t.iso);
+        project.einstellungen.gesperrt = [...new Set([
+          ...(project.einstellungen.gesperrt || []).filter(iso => !editable.has(iso)),
+          ...days.filter(t => fields['g_' + t.iso] === '1').map(t => t.iso)])].sort();
       }
       await S.write(project);
-      const n = Object.keys(entered).length;
-      return html(response, A.myTimesPage(project, person, timesSaved(n), days, states(), ics));
+      const n = Object.values(entered).filter(e => e && e.von).length;
+      return html(response, render(timesSaved(n)));
     }
 
     if (second === 'termine') {
@@ -1178,14 +1202,22 @@ export async function handle(request, response, path) {
         const times = {};
         for (const b of String(fields.wer || '').split(',').filter(Boolean))
           times[b] = { von: time(fields['von_' + b]), bis: time(fields['bis_' + b]) };
-        let id;
-        do id = 'F-' + crypto.randomBytes(3).toString('hex');
-        while ((project.termine || []).some(t => t.probe_id === id) || (project.verlauf || []).some(v => v.probe_id === id));
-        const entry = freeEntry(project, String(fields.iso || ''), times,
-          String(fields.place || '').trim().slice(0, 120) || project.einstellungen?.ort || '', id);
+        const iso = String(fields.iso || '');
+        // a day holds one date: one already there is changed, not doubled
+        const there = (project.termine || []).find(t => t.bestaetigt && t.iso === iso);
+        let id = there?.probe_id;
+        while (!id || (!there && ((project.termine || []).some(t => t.probe_id === id) ||
+                                  (project.verlauf || []).some(v => v.probe_id === id))))
+          id = 'F-' + crypto.randomBytes(3).toString('hex');
+        const place = 'place' in fields ? String(fields.place || '').trim().slice(0, 120)
+                                        : (there?.ort ?? project.einstellungen?.ort ?? '');
+        const entry = freeEntry(project, iso, times, place, id);
         if (!entry) return answer(400, { ok: false, reason: 'invalid' });
-        entry.gehalten = new Date().toISOString(); entry.von_wem = person.b;
-        project.termine = (project.termine || []).concat(entry);
+        const inhalt = 'inhalt' in fields ? String(fields.inhalt || '').trim().slice(0, 300) : (there?.inhalt || '');
+        if (inhalt) entry.inhalt = inhalt;
+        entry.gehalten = there?.gehalten || new Date().toISOString(); entry.von_wem = there?.von_wem || person.b;
+        if (there) entry.geaendert = new Date().toISOString();
+        project.termine = (project.termine || []).filter(t => !(t.bestaetigt && t.iso === iso)).concat(entry);
         await S.write(project);
         Reminders.refresh(project);
         return answer(200, { ok: true, id, names: freeNames(project, entry), detail: freeDetail(project, entry),

@@ -619,6 +619,7 @@ function rehearsalMessage(project, entry, link) {
                     from: entry.von, to: entry.bis }),
     entry.ort ? t('share.line_place', { place: entry.ort }) : t('share.line_place_open'),
     freeDetail(project, entry, '\n'),
+    ...(entry.inhalt ? [t('free.what_line', { text: entry.inhalt })] : []),
     ...(directors.length ? [t('date.director') + ': ' + directors.map(nameOf).join(', ')] : []),
     t('share.line_link', { link }),
   ].join('\n');
@@ -774,7 +775,7 @@ const navDirector = (p) => {
   return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
   ${grp(a('/theater/skript', 'nav.script'), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
-  ${grp(a('/theater/termine', 'nav.dates'), a('/theater/kommentare', 'nav.comments'))}
+  ${grp(...(ctx.member ? [a('/theater/mit/zeiten', 'nav.dates')] : []), a('/theater/kommentare', 'nav.comments'))}
   ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
     <select name="person" onchange="this.form.submit()" autocomplete="off" aria-label="${h(t('nav.calendar_for'))}">
@@ -877,8 +878,8 @@ function projectPage(p, m) {
 
   const unresolved = (text, target, goto) =>
     `<span class="open">${text}</span> \u2013 <a href="${goto}">${target}</a>`;
-  const ids = new Set((p.plan?.proben || []).map(x => x.id));
-  const fixedCount = (p.termine || []).filter(x => ids.has(x.probe_id)).length;
+  const coming = (p.termine || []).filter(x => x.bestaetigt && x.iso && x.iso >= isoDate(new Date())).length;
+  const datesHref = ctx.member ? '/theater/mit/zeiten' : '/theater/termine';
 
   /* The road as a strip: one card per step, ticked when done. The
      detail below each says where it stands and, when open, what to do. */
@@ -899,8 +900,8 @@ function projectPage(p, m) {
       : (takenOver ? t('proj.plan_no') : t('proj.plan_waits'))),
     step(4, folks && withEntry === folks ? 'done' : (folks ? 'open' : 'waits'), '/theater/leute', t('proj.availability'),
       folks ? t('proj.avail_n', { m: withEntry, n: folks }) : t('proj.people_no')),
-    step(5, rehearsalCount && fixedCount === rehearsalCount ? 'done' : (rehearsalCount ? 'open' : 'waits'), '/theater/termine', t('proj.dates'),
-      rehearsalCount ? t('proj.dates_n', { n: fixedCount, m: rehearsalCount }) : t('proj.dates_waits')),
+    step(5, coming ? 'done' : 'open', datesHref, t('proj.dates'),
+      coming ? t('proj.dates_set', { n: coming }) : t('proj.dates_none')),
   ];
 
   return page({ title: p.titel, nav: navDirector(p), body: `
@@ -1314,7 +1315,7 @@ function passagesPage(p, d, m, opt = {}) {
   const pr = d.rehearsal;
   const nav = opt.member ? navMember(p, opt.member) : navDirector(p);
   const tabbar = opt.member ? memberTabbar(p, opt.member) : '';
-  const back = opt.member ? '/theater/mit/termine' : '/theater/plan';
+  const back = opt.member ? '/theater/mit/zeiten' : '/theater/plan';
 
   const speech = (b) => {
     const classes = ['line'];
@@ -1618,9 +1619,9 @@ const barOf = (items) => `<nav class="tabbar">${items.map(([href, label, ico, ar
   `<a href="${href}"${on ?? (pfad === href || pfad.startsWith(href.split('?')[0])) ? ' class="on"' : ''}${
     aria ? ` aria-label="${h(aria)}" title="${h(aria)}"` : ''}>
     ${icon(ico)}${label ? `<span>${h(label)}</span>` : ''}</a>`).join('')}</nav>`;
+// the old dates page (/theater/mit/termine) stays reachable, not listed
 const memberItems = () => [
-  ['/theater/mit/zeiten', t('navm.tab_avail'), 'person'],
-  ['/theater/mit/termine', t('navm.tab_dates'), 'calendar'],
+  ['/theater/mit/zeiten', t('navm.tab_avail'), 'calendar'],
   ['/theater/mit/heft', t('navm.tab_book'), 'book'],
   ['/theater/mit/kommentare', t('navm.tab_notes'), 'note'],
 ];
@@ -2027,8 +2028,7 @@ function backBar(printToken, personShort, hasPlan) {
   @media print { .backbar { display:none !important } }
   </style>
   <div class="backbar">
-    <a href="${zu}?goto=zeiten">${h(t('bar.times'))}</a>
-    ${hasPlan ? `<a href="${zu}?goto=termine">${h(t('bar.dates'))}</a>` : ''}
+    <a href="${zu}?goto=zeiten">${h(t('bar.dates'))}</a>
     <a href="/theater/druck/${encodeURIComponent(printToken)}/gesamt?ich=${
       encodeURIComponent(personShort)}">${h(t('bar.full'))}</a>
     <span class="hint">${h(t('bar.hint'))}</span>
@@ -2091,8 +2091,9 @@ function myDatesPage(project, person, result, m, opt = {}) {
     const inIt = isDirector || group.includes(person.b);
     const others = group.filter(b => b !== person.b);
     return inIt
-      ? (others.length ? t('ics.with_me', { id, others: others.join(' + ') }) : t('ics.with_me_alone', { id }))
-      : t('ics.without_me', { id, who: group.join(', ') });
+      ? (others.length ? t('ics.with_me', { id, me: person.name || person.b, others: others.join(' + ') })
+                       : t('ics.with_me_alone', { id, me: person.name || person.b }))
+      : t('ics.without_me', { id, me: person.name || person.b, who: group.join(', ') });
   };
   const events = fixed.filter(pr => pr.proposal).map(pr => {
     const e = (project.termine || []).find(x => x.probe_id === pr.id) || {};
@@ -2105,7 +2106,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
     const own = !isDirector && x.zeiten?.[person.b];
     events.push({ id: x.probe_id, iso: x.iso, from: x.von, to: x.bis, place: x.ort || '',
                   title: t('free.title', { who: freeNames(project, x) }) +
-                         (own ? ' (' + t('free.you', { von: own.von, bis: own.bis }) + ')' : '') });
+                         (own ? ' (' + t('free.you', { me: person.name || person.b, von: own.von, bis: own.bis }) + ')' : '') });
   }
   const fixedCount = fixed.length + freeOnes.length;
 
@@ -2223,13 +2224,23 @@ function datesPage(p, result, m, share = null) {
 
 /* ---------- Ensemble-Mitglied ---------- */
 
-function myTimesPage(project, person, m, days, states, ics = '') {
+/* The member's page "Termine": one calendar for everything a day is.
+   A day with a date (one per day, see dates.mjs oneDatePerDay) is dark
+   green, framed red when I am in it; a day I gave time for is framed
+   red; a day somebody else has time is orange, with their names; a day
+   I struck is grey, one the director struck hatched. Picking people
+   above frames blue the days on which they all have an hour in common.
+   A tap on a day opens two tabs: the date ("Probe" - the director and
+   the assistant set it there, everybody else reads it) and the
+   availability. A day with a date is settled - availability for it is
+   no longer changed here. */
+function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
   const v = project.verfuegbar?.[person.id] || {};
   const entered = v.tage || {};
-  const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
+  const me = person.name || person.b;
+  const director = !!opt.mayDirect;
+  const regieB = new Set((project.personen || []).filter(x => x.regie).map(x => x.b));
 
-  /* Month and weekday names come from Intl. There used to be a German
-     list here; it would have been missing in every further language. */
   const monatsName = new Intl.DateTimeFormat(L.locale, { month: 'long' });
   const wochenName = new Intl.DateTimeFormat(L.locale, { weekday: 'short' });
   // 1 January 2024 was a Monday - a dependable starting point.
@@ -2237,58 +2248,60 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     (_, k) => wochenName.format(new Date(Date.UTC(2024, 0, 1 + k))));
 
   const names = new Map((project.personen || []).map(x => [x.b, x.name || x.b]));
+  // first names; the whole name where two people share the first one
+  const firstOf = (n) => String(n).trim().split(/\s+/)[0] || String(n);
+  const shared = {};
+  for (const n of names.values()) shared[firstOf(n)] = (shared[firstOf(n)] || 0) + 1;
+  const label = (b) => { const n = names.get(b) || b; return shared[firstOf(n)] > 1 ? n : firstOf(n); };
 
-  /* Build the months and pad each with empty cells to whole weeks, so
-     that the columns Monday to Sunday line up. */
   const months = [];
   for (const tg of days) {
     const schl = tg.year + '-' + tg.month;
     let mm = months.find(x => x.schl === schl);
     if (!mm) {
-      mm = { schl, days: [],
-             title: monatsName.format(new Date(Date.UTC(tg.year, tg.month, 1)))
-                    + ' ' + tg.year };
+      mm = { schl, days: [], title: monatsName.format(new Date(Date.UTC(tg.year, tg.month, 1))) + ' ' + tg.year };
       months.push(mm);
     }
     mm.days.push(tg);
   }
+  const todayIso = isoDate(new Date());
+  let startMonth = months.findIndex(mm => mm.days.some(d => d.iso >= todayIso));
+  if (startMonth < 0) startMonth = Math.max(0, months.length - 1);
   const mondayIndex = wtag => (wtag + 6) % 7;      // So=0 -> 6
 
-  // Director and assistant director strike days for everyone.
-  const director = ctx.regieProject === project.id || ctx.directorProject === project.id;
   const cell = (tg) => {
     const e = entered[tg.iso];
-    const l = states?.[tg.iso] || { level: 0, canCome: [], fixed: [] };
-    const classes = ['day', 'level' + l.level];
-    if (e?.von) classes.push('me');
-    if (e?.nein) classes.push('nein');
-    if (l.fixed?.length) classes.push('fixed');
-    if (l.blocked) classes.push('blocked');
-    const hinweis = l.best
-      ? t('my.best', { rehearsal: l.best.rehearsal, here: l.best.here, total: l.best.total })
-      : (l.canCome.length ? t('my.can_n', { n: l.canCome.length })
-                          : t('my.nobody'));
-    return `<td class="${classes.join(' ')}" data-iso="${tg.iso}"
-        data-koennen="${h((l.canCome || []).join(','))}"
-        data-fenster="${h(JSON.stringify(l.windows || {}))}"
-        data-gruppe="${h((l.best?.group || []).join(','))}"
-        data-passt="${h(JSON.stringify(l.suits || []))}"
-        data-missing="${h((l.best?.missing || []).join(','))}"
-        data-rehearsal="${h(l.best?.rehearsal || '')}"
-        data-da="${l.best?.here ?? 0}" data-gesamt="${l.best?.total ?? 0}"
-        data-fixed="${h((l.fixed || []).map(f => (f.free ? t('free.title', { who: f.names }) : f.rehearsal) +
-                       ' ' + f.from + '-' + f.to + (f.place ? ' @ ' + f.place : '') +
-                       (f.free ? ' (' + f.detail + ')' : '')).join(' | '))}"
-        title="${h(hinweis)}">
+    const vw = views[tg.iso] || { windows: {} };
+    const date = vw.date;
+    const editable = !tg.outside && !date;
+    const others = Object.keys(vw.windows || {}).filter(b => b !== person.b)
+      .sort((a, c) => vw.windows[a][0] - vw.windows[c][0] || label(a).localeCompare(label(c)));
+    const cls = ['day'];
+    if (vw.past) cls.push('past');
+    if (tg.iso === todayIso) cls.push('today');
+    // a date set on a struck day is still a date
+    if (date) cls.push('fixed', ...(date.withMe ? ['withme'] : []));
+    else if (vw.blocked) cls.push('blocked');
+    else if (e?.nein) cls.push('nein');
+    else if (others.length) cls.push('others');
+    if (!date && e?.von) cls.push('me');
+    const who = !date && others.length ? `<span class="who">${others.map((b, i) =>
+      `<i${i >= 2 ? ' class="x"' : ''}>${h(label(b))}</i>`).join('')}${
+      others.length > 2 ? `<i class="more">+${others.length - 2}</i>` : ''}</span>` : '';
+    const tip = date ? t('free.title', { who: date.names }) + ' ' + date.von + '–' + date.bis
+      : others.map(b => names.get(b) || b).join(', ');
+    return `<td class="${cls.join(' ')}" data-iso="${tg.iso}" data-edit="${editable ? 1 : 0}"
+        data-past="${vw.past ? 1 : 0}" data-outside="${tg.outside ? 1 : 0}"
+        data-mine="${e?.von ? h(e.von + '-' + e.bis) : ''}"
+        data-fenster="${h(JSON.stringify(vw.windows || {}))}" title="${h(tip)}">
       <span class="num">${tg.day}</span>
-      ${(l.fixed || []).map(f => `<span class="fix">${t('kd.rehearsal')}${f.free ? '' : ' ' + h(String(f.rehearsal).replace(/^P0?/, ''))}${
-          f.from ? ' \u00b7 ' + h(f.from) : ''}</span>`).join('')}
-      <span class="time">${e?.von ? h(e.von + '\u2013' + e.bis) : ''}</span>
-      <input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
+      ${date ? `<span class="fix"><span class="fl">${t('kd.rehearsal')} </span>${h(date.von)}</span>` : who}
+      <span class="time">${!date && e?.von ? h(e.von + '–' + e.bis) : ''}</span>
+      ${editable ? `<input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
       <input type="hidden" name="n_${tg.iso}" value="${e?.nein ? '1' : ''}">
       <input type="hidden" name="v_${tg.iso}" value="${h(e?.von || '')}">
       <input type="hidden" name="b_${tg.iso}" value="${h(e?.bis || '')}">
-      ${director ? `<input type="hidden" name="g_${tg.iso}" value="${l.blocked ? '1' : ''}">` : ''}
+      ${director ? `<input type="hidden" name="g_${tg.iso}" value="${vw.blocked ? '1' : ''}">` : ''}` : ''}
     </td>`;
   };
 
@@ -2301,7 +2314,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     const rows = [];
     for (let k = 0; k < cells.length; k += 7)
       rows.push('<tr>' + cells.slice(k, k + 7).join('') + '</tr>');
-    return `<div class="month" data-nr="${i}"${i ? ' hidden' : ''}>
+    return `<div class="month" data-nr="${i}"${i === startMonth ? '' : ' hidden'}>
       <table class="cal">
         <tr>${WOCHE.map(w => `<th>${h(w)}</th>`).join('')}</tr>
         ${rows.join('')}
@@ -2310,14 +2323,18 @@ function myTimesPage(project, person, m, days, states, ics = '') {
 
   const count = Object.values(entered).filter(x => x && x.von).length;
   const shortDate = new Intl.DateTimeFormat(L.locale, { day: '2-digit', month: '2-digit' });
-  const myDays = Object.entries(entered).filter(([, z]) => z?.von).sort()
+  const myDays = Object.entries(entered).filter(([iso, z]) => z?.von && iso >= todayIso).sort()
     .map(([iso, z]) => {
       const d = new Date(iso + 'T00:00:00');
-      return { iso, text: WOCHE[mondayIndex(d.getDay())] + ' ' + shortDate.format(d) +
-             ' ' + z.von + '\u2013' + z.bis };
+      return { iso, text: WOCHE[mondayIndex(d.getDay())] + ' ' + shortDate.format(d) + ' ' + z.von + '–' + z.bis };
     });
   const preset = Object.values(entered).find(z => z?.von) || { von: '19:00', bis: '22:00' };
   const js = (schluessel, werte) => JSON.stringify(t(schluessel, werte));
+  const ensemble = (project.personen || []).filter(x => !regieB.has(x.b)).map(x => x.b);
+  const dates = {};
+  for (const [iso, x] of Object.entries(views)) if (x.date) dates[iso] = { ...x.date, message: opt.messages?.[iso] || '' };
+  const legend = [['fixed withme', 'my.lg_fixed_me'], ['fixed', 'my.lg_fixed'], ['me', 'my.lg_mine'],
+    ['others', 'my.lg_others'], ['nein', 'my.lg_nein'], ['blocked', 'my.legend_blocked'], ['allfree', 'my.lg_allfree']];
 
   return page({ title: t('my.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p>
@@ -2332,43 +2349,37 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         <label class="inline">${t('my.from')} <input type="time" id="pref-von" step="900" value="${h(preset.von)}"></label>
         <label class="inline">${t('my.to')} <input type="time" id="pref-bis" step="900" value="${h(preset.bis)}"></label>
       </div>
+      ${ensemble.length ? `<div class="zeigen small" id="zeigen">
+        <b>${t('my.show_from')}</b>
+        <span class="zeigen-chips">${ensemble.map(b => `<button type="button" class="chipbtn" data-b="${h(b)}"
+          aria-pressed="false" title="${h(names.get(b) || b)}">${h(b === person.b ? me : label(b))}</button>`).join('')}</span>
+        <span class="muted" id="zeigen-hint" hidden>${t('my.show_hint')}</span>
+      </div>` : ''}
       <div class="calhead">
         <button type="button" id="zurueck" class="quiet mini">&lsaquo;</button>
-        <b id="monatsname">${h(months[0]?.title || '')}</b>
+        <b id="monatsname">${h(months[startMonth]?.title || '')}</b>
         <button type="button" id="vor" class="quiet mini">&rsaquo;</button>
-        <span class="small muted" id="zaehler">${
-          h(t('my.evenings_n', { n: count }))}</span>
+        <span class="small muted" id="zaehler">${h(t('my.evenings_n', { n: count }))}</span>
       </div>
 
-      <details class="legendwrap small">
-        <summary>${t('my.legend')}</summary>
-        <div class="legend">
-          ${[['fixed', 'my.fixed_with_me'], ['level3 me', 'my.all_with_me'], ['level3', 'my.all_others'],
-             ['level2', 'my.half'], ['level1', 'my.one'], ['me', 'my.me'],
-             ['blocked', 'my.legend_blocked'], ['nein', 'my.legend_nein']].map(([cls, key]) =>
-            `<div><span class="dot ${cls}"></span> <span>${t(key)}</span></div>`).join('')}
-        </div>
-      </details>
-
       ${months.map(monthTable).join('')}
+      <div class="legend calegend small">
+        ${legend.map(([cls, key]) => `<div><span class="dot ${cls}"></span> <span>${t(key, { name: h(me) })}</span></div>`).join('')}
+      </div>
       <div id="schleier" class="overlay" hidden><div id="tafel" class="box"></div></div>
 
       <button type="submit" id="speichern">${t('my.save')}</button>
       <span class="small muted" id="autosave">${t('my.only_after')}</span>
     </form>
 
-    ${count ? `<details class="box small" style="margin-top:1.2rem">
-      <summary><b>${count === 1 ? t('my.holds_1') : t('my.holds', { n: count })}</b></summary>
+    ${myDays.length ? `<details class="box small" style="margin-top:1.2rem">
+      <summary><b>${myDays.length === 1 ? t('my.holds_1') : t('my.holds', { n: myDays.length })}</b></summary>
       <div class="muted" style="margin-top:.4rem; line-height:1.9">
         ${myDays.map(x => `<span class="chip" data-iso="${x.iso}">${h(x.text)}</span>`).join('')}
       </div>
       ${v.stand ? `<p class="muted" style="margin:.6rem 0 0">${
         t('my.last_saved', { when: h(L.date(v.stand)) })}</p>` : ''}
     </details>` : ''}
-    ${rehearsals.length ? `<p class="small muted">${t('my.needed_for',
-      { n: rehearsals.length })}${rehearsals.map(pr => `<a class="chip" href="/theater/mit/plan/${encodeURIComponent(pr.id)}"
-      title="${h(t('my.with', { who: pr.gruppe.filter(b => b !== person.b).join(', ') }))}"
-      >${h(pr.id)}</a>`).join('')}</p>` : ''}
 
     <details class="box small" id="kalender-quellen" data-worte="${h(JSON.stringify({
       remove: t('my.source_remove'), none: t('my.source_none'), unreachable: t('my.source_unreachable'),
@@ -2387,7 +2398,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       <div class="hinzu">
         <div class="row">
           <div><label for="quelle-name">${t('my.source_name')}</label><input type="text" id="quelle-name" maxlength="40"></div>
-          <div style="flex:2"><label for="quelle-url">${t('my.source_url')}</label><input type="url" id="quelle-url" placeholder="https://\u2026/basic.ics"></div>
+          <div style="flex:2"><label for="quelle-url">${t('my.source_url')}</label><input type="url" id="quelle-url" placeholder="https://…/basic.ics"></div>
           <div><button type="button" class="quiet" id="quelle-add" style="margin-top:0">${h(t('my.source_add'))}</button></div>
         </div>
         <p style="margin:.6rem 0 0"><label class="btn quiet mini" style="cursor:pointer">${h(t('my.source_file'))}
@@ -2404,9 +2415,11 @@ function myTimesPage(project, person, m, days, states, ics = '') {
     <script>
     (function () {
       var months = [].slice.call(document.querySelectorAll('.month'));
-      var names = ${JSON.stringify(Object.fromEntries(names))};
+      var names = ${JSON.stringify(Object.fromEntries(names)).replace(/</g, '\\u003c')};
+      var DATES = ${JSON.stringify(dates).replace(/</g, '\\u003c')};
+      var ME = ${JSON.stringify(person.b)}, MYNAME = ${JSON.stringify(me).replace(/</g, '\\u003c')};
       var preset = ${JSON.stringify(preset)};
-      var personId = ${JSON.stringify(person.id)};
+      var personId = ${JSON.stringify(person.id)}, projectId = ${JSON.stringify(project.id)};
       try { var zf = JSON.parse(localStorage.getItem('zeitfenster:' + personId) || 'null'); if (zf && zf.von && zf.bis) { preset = zf;
         document.getElementById('pref-von').value = zf.von; document.getElementById('pref-bis').value = zf.bis; } } catch (e) {}
       [].forEach.call(document.querySelectorAll('#zeitfenster input'), function (inp) {
@@ -2418,30 +2431,31 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       });
       var place = ${JSON.stringify(L.locale)};
       var regie = ${director ? 'true' : 'false'};
+      var ortStandard = ${JSON.stringify(project.einstellungen?.ort || '').replace(/</g, '\\u003c')};
       var W = { evenings: ${js('my.evenings_n', { n: '#' })},
                 blocked: ${js('my.blocked')}, block: ${js('my.block')}, unblock: ${js('my.unblock')},
-                fixed: ${js('my.fixed_on')},
-                absent: ${js('my.still_missing')},
-                nurSie: ${js('my.only_you')},
-                keine: ${js('my.no_rehearsal')},
-                zeit: ${js('my.free_then')}, also: ${js('my.also_suits')},
-                bars_me: ${js('my.bars_me')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
+                zeit: ${js('my.free_then')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
                 ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
-                falsch: ${js('my.time_wrong')}, streich_fest: ${js('my.strike_fixed_confirm')},
+                falsch: ${js('my.time_wrong')},
                 autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
                 saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
-                von_n: ${JSON.stringify(t('my.best', { rehearsal: '', here: '#DA#',
-                  total: '#GESAMT#' }).replace(/^:\s*/, ''))},
-                fix_title: ${js('my.fix_title')}, fix_which: ${js('my.fix_which')}, fix_go: ${js('my.fix_go')},
-                fix_confirm: ${JSON.stringify(t('my.fix_confirm', { id: '#ID#', tag: '#TAG#', von: '#VON#', bis: '#BIS#' }))},
-                fix_done: ${js('my.fix_done')}, fix_failed: ${js('my.fix_failed')},
-                frei_title: ${js('free.panel_title')}, frei_what: ${js('free.panel_what')},
-                frei_nobody: ${js('free.nobody')}, frei_go: ${js('free.go')}, frei_pick: ${js('free.pick')},
-                frei_done: ${js('free.done')}, frei_name: ${js('free.title', { who: '#' })},
-                frei_span: ${js('free.span', { von: '#VON#', bis: '#BIS#' })} };
-      var ortStandard = ${JSON.stringify(project.einstellungen?.ort || '')};
-      var current = 0;
+                tab_probe: ${js('my.tab_probe')}, tab_avail: ${js('my.tab_avail')},
+                locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
+                frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
+                frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
+                frei_what_line: ${js('free.what_line', { text: '#' })}, frei_blocked: ${js('free.blocked_confirm')},
+                ort: ${js('fix.place')}, save: ${js('free.save')}, go: ${js('free.go')},
+                message: ${js('date.message')}, cancel: ${js('date.cancel')},
+                cancel_confirm: ${js('date.cancel_confirm', { id: '#' })}, failed: ${js('my.fix_failed')},
+                sits: ${js('hist.sits')}, note: ${js('hist.note')}, keep: ${js('common.save')},
+                nobody: ${js('my.nobody')} };
+      var current = ${startMonth};
+
+      var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+      var mins = function (hm) { return hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null; };
+      var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+      var fenster = function (td) { try { return JSON.parse(td.dataset.fenster || '{}'); } catch (x) { return {}; } };
 
       function zeigeMonat(i) {
         current = Math.max(0, Math.min(months.length - 1, i));
@@ -2453,7 +2467,7 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       }
       document.getElementById('zurueck').onclick = function () { zeigeMonat(current - 1); };
       document.getElementById('vor').onclick = function () { zeigeMonat(current + 1); };
-      zeigeMonat(0);
+      zeigeMonat(current);
 
       function zaehle() {
         var n = document.querySelectorAll('.month td.me').length;
@@ -2464,272 +2478,262 @@ function myTimesPage(project, person, m, days, states, ics = '') {
       var formular = document.getElementById('formular'), stand = document.getElementById('autosave');
       document.getElementById('speichern').hidden = true;
       stand.textContent = W.autosave;
-      var pending = null;
       function speichere() {
         stand.textContent = W.saving;
         var body = new URLSearchParams(new FormData(formular)).toString();
-        pending = fetch(formular.action, { method: 'POST', credentials: 'same-origin',
+        fetch(formular.action, { method: 'POST', credentials: 'same-origin',
           headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
           .then(function (r) {
             stand.textContent = r.ok ? W.saved.replace('#', new Date().toLocaleTimeString(place, { hour: '2-digit', minute: '2-digit' })) : W.save_failed;
           }).catch(function () { stand.textContent = W.save_failed; });
       }
-      function liste(s) {
-        if (!s) return '\u2014';
-        return s.split(',').filter(Boolean)
-          .map(function (b) { return names[b] || b; }).join(', ');
+
+      /* "Show availability of": the days on which all the chosen people
+         have at least an hour in common are framed blue. Remembered on
+         the device. */
+      var STORE = 'zeigen:' + projectId;
+      var chosen = []; try { chosen = JSON.parse(localStorage.getItem(STORE) || '[]') || []; } catch (e) { chosen = []; }
+      var chips = [].slice.call(document.querySelectorAll('#zeigen .chipbtn'));
+      chosen = chosen.filter(function (b) { return chips.some(function (c) { return c.dataset.b === b; }); });
+      function ring() {
+        chips.forEach(function (c) { var on = chosen.indexOf(c.dataset.b) >= 0; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+        var hint = document.getElementById('zeigen-hint'); if (hint) hint.hidden = !chosen.length;
+        [].forEach.call(document.querySelectorAll('.month td.day'), function (td) {
+          var ok = false;
+          if (chosen.length) {
+            var f = fenster(td), lo = 0, hi = 24 * 60;
+            ok = chosen.every(function (b) { if (!f[b]) return false; lo = Math.max(lo, f[b][0]); hi = Math.min(hi, f[b][1]); return true; }) && hi - lo >= 60;
+          }
+          td.classList.toggle('allfree', ok);
+        });
+      }
+      chips.forEach(function (c) {
+        c.addEventListener('click', function () {
+          var i = chosen.indexOf(c.dataset.b);
+          if (i >= 0) chosen.splice(i, 1); else chosen.push(c.dataset.b);
+          try { localStorage.setItem(STORE, JSON.stringify(chosen)); } catch (e) {}
+          ring();
+        });
+      });
+      ring();
+
+      function liste(list) {
+        return list.length ? list.map(function (b) { return esc(names[b] || b); }).join(', ') : '—';
       }
       var tafel = document.getElementById('tafel');
       var schleier = document.getElementById('schleier');
       schleier.addEventListener('click', function (e) { if (e.target === schleier) schleier.hidden = true; });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape') schleier.hidden = true; });
+      var post = function (data) {
+        return fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
+      };
+      var back = function (iso) { location.href = '/theater/mit/zeiten?tag=' + encodeURIComponent(iso); };
 
-      function oeffne(td) {
+      function oeffne(td, tab) {
         var iso = td.dataset.iso;
         var d = new Date(iso + 'T00:00:00');
-        var vI = td.querySelector('input[name^="v_"]');
-        var bI = td.querySelector('input[name^="b_"]');
-        var tI = td.querySelector('input[name^="t_"]');
-        var nI = td.querySelector('input[name^="n_"]');
-        var struck = !!(nI && nI.value === '1');
-        // "yes" opens with the preferred window
+        var D = DATES[iso] || null;
+        var past = td.dataset.past === '1', outside = td.dataset.outside === '1', edit = td.dataset.edit === '1';
+        var blocked = td.classList.contains('blocked');
+        var withProbe = !!D || (regie && !outside);
+        var f = fenster(td);
+        var others = Object.keys(f).filter(function (b) { return b !== ME; })
+          .sort(function (a, b) { return f[a][0] - f[b][0]; });
+        var vI = td.querySelector('input[name^="v_"]'), bI = td.querySelector('input[name^="b_"]');
+        var tI = td.querySelector('input[name^="t_"]'), nI = td.querySelector('input[name^="n_"]');
+        var gI = td.querySelector('input[name^="g_"]');
         var pv = document.getElementById('pref-von'), pb = document.getElementById('pref-bis');
         if (pv && pb && pv.value && pb.value) preset = { von: pv.value, bis: pb.value };
-        var da = td.dataset.da, gesamt = td.dataset.gesamt;
-        var gI = td.querySelector('input[name^="g_"]');
-        var blocked = td.classList.contains('blocked');
+        var mine = (td.dataset.mine || '').split('-');
+        var struck = !!(nI && nI.value === '1');
+        var von0 = vI ? (vI.value || (struck ? '' : preset.von)) : (mine[0] || '');
+        var bis0 = bI ? (bI.value || (struck ? '' : preset.bis)) : (mine[1] || '');
+        var why = past ? W.past : D ? W.locked : outside ? W.outside : '';
         schleier.hidden = false;
         tafel.innerHTML =
-          '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit',
-              month: '2-digit', year: 'numeric' }) + '</b>' +
-          '<div id="tafel-ics" class="small" style="margin:.4rem 0" hidden></div>' +
-          (blocked ? '<div class="notice error small" style="margin:.5rem 0">' + W.blocked + '</div>' : '') +
-          (td.dataset.fixed ? '<div class="notice good small" style="margin:.5rem 0">' +
-              W.fixed + td.dataset.fixed + '</div>' : '') +
-          '<div class="small muted" style="margin:.5rem 0">' +
-            (td.dataset.rehearsal
-              ? '<b>' + td.dataset.rehearsal + '</b>: ' +
-                W.von_n.replace('#DA#', da).replace('#GESAMT#', gesamt) +
-                (td.dataset.missing ? W.absent + liste(td.dataset.missing) : W.nurSie)
-              : W.keine) +
-            (function () {
-              var passt = []; try { passt = JSON.parse(td.dataset.passt || '[]'); } catch (x) {}
-              passt = passt.filter(function (x) { return x.rehearsal !== td.dataset.rehearsal; });
-              return passt.length ? '<br>' + W.also + passt.map(function (x) {
-                return '<b>' + x.rehearsal + '</b> ' + x.here + '/' + x.total; }).join(' \u00b7 ') : '';
-            })() +
-            '<br>' + W.zeit + liste(td.dataset.koennen) +
-          '</div>' +
-          '<div id="tafel-balken" class="balken small"></div>' +
-          '<div class="row">' +
-            '<div><label for="tv">' + W.von + '</label>' +
-              '<input type="time" id="tv" step="900" value="' +
-              (struck ? '' : vI.value || preset.von) + '"></div>' +
-            '<div><label for="tb">' + W.bis + '</label>' +
-              '<input type="time" id="tb" step="900" value="' +
-              (struck ? '' : bI.value || preset.bis) + '"></div>' +
-          '</div>' +
-          '<button type="button" id="jat">' + W.ja + '</button> ' +
-          '<button type="button" id="neint" class="quiet">' + W.nein + '</button> ' +
-          '<button type="button" id="offen" class="quiet">' + W.offen + '</button>' +
-          (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' +
-             (blocked ? W.unblock : W.block) + '</button>' : '') +
-          '<div id="tafel-fix"></div>' +
-          '<div id="tafel-frei"></div>';
+          '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) + '</b>' +
+          (withProbe ? '<div class="tafeltabs" role="tablist">' +
+            '<button type="button" role="tab" data-tab="probe">' + esc(W.tab_probe) + '</button>' +
+            '<button type="button" role="tab" data-tab="zeit">' + esc(W.tab_avail) + '</button></div>' : '') +
+          '<div id="pane-probe" hidden></div>' +
+          '<div id="pane-zeit">' +
+            '<div id="tafel-ics" class="small" style="margin:.4rem 0" hidden></div>' +
+            (blocked ? '<div class="notice error small" style="margin:.5rem 0">' + esc(W.blocked) + '</div>' : '') +
+            (why ? '<div class="notice small" style="margin:.5rem 0">' + esc(why) + '</div>' : '') +
+            '<div class="small muted" style="margin:.5rem 0">' + esc(W.zeit) + (others.length ? liste(others) : esc(W.nobody)) + '</div>' +
+            '<div id="tafel-balken" class="balken small"></div>' +
+            '<div class="row">' +
+              '<div><label for="tv">' + esc(W.von) + '</label><input type="time" id="tv" step="900" value="' + esc(von0) + '"' + (edit ? '' : ' disabled') + '></div>' +
+              '<div><label for="tb">' + esc(W.bis) + '</label><input type="time" id="tb" step="900" value="' + esc(bis0) + '"' + (edit ? '' : ' disabled') + '></div>' +
+            '</div>' +
+            (edit ? '<button type="button" id="jat">' + esc(W.ja) + '</button> ' +
+              '<button type="button" id="neint" class="quiet">' + esc(W.nein) + '</button> ' +
+              '<button type="button" id="offen" class="quiet">' + esc(W.offen) + '</button>' +
+              (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' + esc(blocked ? W.unblock : W.block) + '</button>' : '') : '') +
+          '</div>';
+
+        var tabs = [].slice.call(tafel.querySelectorAll('.tafeltabs button'));
+        var zeige = function (name) {
+          tabs.forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+          document.getElementById('pane-probe').hidden = name !== 'probe';
+          document.getElementById('pane-zeit').hidden = name !== 'zeit';
+        };
+        tabs.forEach(function (b) { b.onclick = function () { zeige(b.dataset.tab); }; });
 
         document.dispatchEvent(new CustomEvent('tag-geoeffnet', { detail: iso }));
 
-        /* For the director or the assistant: fixing one of the day's
-           rehearsals right here, without a trip to Termine - offered
-           only for a rehearsal whose WHOLE cast (the director along)
-           has a common window that day, and only after they confirm
-           the time, which starts out as that common window. */
-        (function () {
-          if (!regie) return;
-          var passt = []; try { passt = JSON.parse(td.dataset.passt || '[]'); } catch (x) {}
-          var kandidaten = passt.filter(function (x) { return x.from && x.to; });
-          if (!kandidaten.length) return;
-          var box = document.getElementById('tafel-fix');
-          box.innerHTML =
-            '<p class="small" style="margin-top:.8rem"><b>' + W.fix_title + '</b></p>' +
-            '<div class="row">' +
-              '<div><label for="fx-probe">' + W.fix_which + '</label>' +
-                '<select id="fx-probe">' + kandidaten.map(function (x) {
-                  return '<option value="' + x.rehearsal + '" data-von="' + x.from + '" data-bis="' + x.to + '">' +
-                    x.rehearsal + ' (' + x.here + '/' + x.total + ')</option>';
-                }).join('') + '</select></div>' +
-              '<div><label for="fx-von">' + W.von + '</label>' +
-                '<input type="time" id="fx-von" step="300" value="' + kandidaten[0].from + '"></div>' +
-              '<div><label for="fx-bis">' + W.bis + '</label>' +
-                '<input type="time" id="fx-bis" step="300" value="' + kandidaten[0].to + '"></div>' +
-            '</div>' +
-            '<button type="button" id="fx-go" class="quiet mini">' + W.fix_go + '</button> ' +
-            '<span id="fx-note" class="small muted"></span>';
-          var sel = document.getElementById('fx-probe');
-          var fv = document.getElementById('fx-von'), fb = document.getElementById('fx-bis');
-          sel.addEventListener('change', function () {
-            var o = sel.options[sel.selectedIndex];
-            fv.value = o.dataset.von; fb.value = o.dataset.bis;
-          });
-          document.getElementById('fx-go').onclick = function () {
-            var probe = sel.value, von = fv.value, bis = fb.value;
-            if (!von || !bis || bis <= von) { alert(W.falsch); return; }
-            var tag = d.toLocaleDateString(place, { day: '2-digit', month: '2-digit', year: 'numeric' });
-            if (!confirm(W.fix_confirm.replace('#ID#', probe).replace('#TAG#', tag).replace('#VON#', von).replace('#BIS#', bis))) return;
-            var note = document.getElementById('fx-note');
-            var body = new URLSearchParams({ action: 'halten', rehearsal: probe, iso: iso, from: von, to: bis }).toString();
-            fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
-              headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
-              .then(function (r) {
-                note.textContent = r.ok ? W.fix_done : W.fix_failed;
-                if (r.ok) { td.dataset.fixed = probe + ' ' + von + '–' + bis; td.classList.add('fixed'); }
-              }).catch(function () { note.textContent = W.fix_failed; });
-          };
-        })();
-
-        /* For the director or the assistant: a rehearsal of their own
-           making, apart from the scenes. Who comes and from when to when,
-           each person on their own and only within the time they gave
-           for the day; the date runs from the earliest to the latest. */
-        (function () {
-          if (!regie) return;
-          var box = document.getElementById('tafel-frei');
-          var fenster = {}; try { fenster = JSON.parse(td.dataset.fenster || '{}'); } catch (x) {}
-          var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-          var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
-          var kurz = function (v) { var m = /^(\\d\\d):(\\d\\d)$/.exec(v); return m ? String(Number(m[1])) + (m[2] === '00' ? '' : ':' + m[2]) : v; };
-          var first = function (b) { return String(names[b] || b).trim().split(/\\s+/)[0]; };
-          var wer = Object.keys(fenster).map(function (b) {
-            var lo = Math.ceil(fenster[b][0] / 15) * 15, hi = Math.floor(Math.min(fenster[b][1], 23 * 60 + 45) / 15) * 15;
-            return { b: b, lo: lo, hi: hi };
-          }).filter(function (x) { return x.hi - x.lo >= 15; });
-          wer.sort(function (a, b) { return a.lo - b.lo || String(names[a.b] || a.b).localeCompare(String(names[b.b] || b.b)); });
-          var opts = function (from, to, sel) {
-            var o = ''; for (var m = from; m <= to; m += 15) o += '<option' + (m === sel ? ' selected' : '') + '>' + hm(m) + '</option>';
-            return o;
-          };
-          box.innerHTML = '<details class="frei"><summary class="small"><b>' + esc(W.frei_title) + '</b></summary>' +
-            '<p class="small muted" style="margin:.4rem 0">' + esc(W.frei_what) + '</p>' +
-            (wer.length ? wer.map(function (x) {
-              return '<div class="frei-zeile" data-b="' + esc(x.b) + '">' +
-                '<label><input type="checkbox"> ' + esc(names[x.b] || x.b) + '</label>' +
-                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(x.lo, x.hi - 15, x.lo) + '</select>' +
-                '<span>–</span>' +
-                '<select class="fb" aria-label="' + esc(W.bis) + '">' + opts(x.lo + 15, x.hi, x.hi) + '</select></span></div>';
-            }).join('') +
-            '<label for="fr-ort">' + esc(${JSON.stringify(t('fix.place'))}) + '</label>' +
-            '<input type="text" id="fr-ort" maxlength="120" value="' + esc(ortStandard) + '">' +
-            '<div class="frei-vorschau small" id="fr-vorschau" hidden></div>' +
-            '<button type="button" id="fr-go" class="quiet">' + esc(W.frei_go) + '</button> ' +
-            '<span id="fr-note" class="small muted"></span>'
-            : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
-            '</details>';
-          if (!wer.length) return;
-          var zeilen = [].slice.call(box.querySelectorAll('.frei-zeile'));
-          var gewaehlt = function () {
-            return zeilen.filter(function (z) { return z.querySelector('input').checked; }).map(function (z) {
-              return { b: z.dataset.b, von: z.querySelector('.fv').value, bis: z.querySelector('.fb').value };
-            }).sort(function (a, b) { return a.von.localeCompare(b.von) || a.bis.localeCompare(b.bis); });
-          };
-          var vorschau = function () {
-            zeilen.forEach(function (z) { z.classList.toggle('an', z.querySelector('input').checked); });
-            var g = gewaehlt(), v = document.getElementById('fr-vorschau');
-            v.hidden = !g.length;
-            if (!g.length) return;
-            var von = g.map(function (x) { return x.von; }).sort()[0], bis = g.map(function (x) { return x.bis; }).sort().pop();
-            v.innerHTML = '<b>' + esc(W.frei_name.replace('#', g.map(function (x) { return first(x.b); }).join('+'))) + '</b><br>' +
-              esc(W.frei_span.replace('#VON#', von).replace('#BIS#', bis)) + '<br>' +
-              esc(g.map(function (x) { return first(x.b) + ' ' + kurz(x.von) + '–' + kurz(x.bis); }).join(' · '));
-          };
-          zeilen.forEach(function (z) {
-            // touching a time means that person is meant
-            [].forEach.call(z.querySelectorAll('select'), function (sel) {
-              sel.addEventListener('change', function () { z.querySelector('input').checked = true; vorschau(); });
-            });
-            z.querySelector('input').addEventListener('change', vorschau);
-          });
-          document.getElementById('fr-go').onclick = function () {
-            var g = gewaehlt(), note = document.getElementById('fr-note');
-            if (!g.length) { alert(W.frei_pick); return; }
-            if (g.some(function (x) { return x.bis <= x.von; })) { alert(W.falsch); return; }
-            var data = { action: 'frei', iso: iso, wer: g.map(function (x) { return x.b; }).join(','),
-                         place: document.getElementById('fr-ort').value };
-            g.forEach(function (x) { data['von_' + x.b] = x.von; data['bis_' + x.b] = x.bis; });
-            fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
-              headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() })
-              .then(function (r) { return r.json().catch(function () { return {}; }); })
-              .then(function (j) {
-                if (!j.ok) { note.textContent = W.fix_failed; return; }
-                note.textContent = W.frei_done;
-                var label = W.frei_name.replace('#', j.names) + ' ' + j.von + '-' + j.bis + (j.ort ? ' @ ' + j.ort : '') + ' (' + j.detail + ')';
-                td.dataset.fixed = td.dataset.fixed ? td.dataset.fixed + ' | ' + label : label;
-                td.classList.add('fixed');
-                var span = document.createElement('span');
-                span.className = 'fix'; span.textContent = W.frei_name.replace('#', '').trim() + ' · ' + j.von;
-                td.insertBefore(span, td.querySelector('.time'));
-                zeilen.forEach(function (z) { z.querySelector('input').checked = false; });
-                vorschau();
-              }).catch(function () { note.textContent = W.fix_failed; });
-          };
-        })();
-
-        /* When the others can: one bar per person on a common time axis,
-           my own window across all of them, and what is common to the
-           people of the rehearsal and me on top. Redrawn as I change my
-           times. */
+        /* The bars: everybody who has time that day on one axis, my
+           own window across them, what is common to all above. */
         (function () {
           var box = document.getElementById('tafel-balken');
-          var fenster = {}; try { fenster = JSON.parse(td.dataset.fenster || '{}'); } catch (x) {}
-          var gruppe = (td.dataset.gruppe || '').split(',').filter(Boolean);
-          var mins = function (hm) { return hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null; };
-          var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
-          var people = Object.keys(fenster).filter(function (b) { return b !== ${JSON.stringify(person.b)}; });
-          people.sort(function (a, b) { return (gruppe.indexOf(b) >= 0) - (gruppe.indexOf(a) >= 0) || fenster[a][0] - fenster[b][0]; });
-          if (!people.length) { box.hidden = true; return; }
+          if (!others.length) { box.hidden = true; return; }
           var draw = function () {
             var a = mins(document.getElementById('tv').value), b = mins(document.getElementById('tb').value);
-            var mine = a != null && b != null && b > a ? [a, b] : null;
+            var own = a != null && b != null && b > a ? [a, b] : null;
             var lo = 24 * 60, hi = 0;
-            people.forEach(function (p) { lo = Math.min(lo, fenster[p][0]); hi = Math.max(hi, fenster[p][1]); });
-            if (mine) { lo = Math.min(lo, mine[0]); hi = Math.max(hi, mine[1]); }
+            others.forEach(function (p) { lo = Math.min(lo, f[p][0]); hi = Math.max(hi, f[p][1]); });
+            if (own) { lo = Math.min(lo, own[0]); hi = Math.max(hi, own[1]); }
             lo = Math.floor(lo / 60) * 60; hi = Math.ceil(hi / 60) * 60; if (hi - lo < 120) hi = lo + 120;
             var pos = function (m) { return ((m - lo) / (hi - lo) * 100).toFixed(2) + '%'; };
             var wid = function (x, y) { return ((y - x) / (hi - lo) * 100).toFixed(2) + '%'; };
-            // common to the needed people who can, and me
-            var cFrom = mine ? mine[0] : lo, cTo = mine ? mine[1] : hi, needed = people.filter(function (p) { return gruppe.indexOf(p) >= 0; });
-            needed.forEach(function (p) { cFrom = Math.max(cFrom, fenster[p][0]); cTo = Math.min(cTo, fenster[p][1]); });
+            var cFrom = own ? own[0] : 0, cTo = own ? own[1] : 24 * 60;
+            others.forEach(function (p) { cFrom = Math.max(cFrom, f[p][0]); cTo = Math.min(cTo, f[p][1]); });
             var ticks = ''; for (var h = lo; h <= hi; h += 60) ticks += '<i style="left:' + pos(h) + '">' + (h / 60) + '</i>';
-            var row = function (label, w, cls) {
-              return '<div class="zeile"><span class="wer' + (cls ? ' ' + cls : '') + '">' + label + '</span><span class="spur">' +
-                (mine ? '<em class="ich" style="left:' + pos(mine[0]) + ';width:' + wid(mine[0], mine[1]) + '"></em>' : '') +
-                (w ? '<b class="' + (cls || '') + '" style="left:' + pos(w[0]) + ';width:' + wid(w[0], w[1]) + '" title="' + hm(w[0]) + '\u2013' + hm(w[1] === 1440 ? 1439 : w[1]) + '"></b>' : '') +
-                '</span><span class="wann">' + (w ? hm(w[0]) + '\u2013' + (w[1] >= 1440 ? '24:00' : hm(w[1])) : '') + '</span></div>';
+            var row = function (lbl, w, cls) {
+              return '<div class="zeile"><span class="wer' + (cls ? ' ' + cls : '') + '">' + lbl + '</span><span class="spur">' +
+                (own ? '<em class="ich" style="left:' + pos(own[0]) + ';width:' + wid(own[0], own[1]) + '"></em>' : '') +
+                (w ? '<b class="' + (cls || '') + '" style="left:' + pos(w[0]) + ';width:' + wid(w[0], w[1]) + '"></b>' : '') +
+                '</span><span class="wann">' + (w ? hm(w[0]) + '–' + (w[1] >= 1440 ? '24:00' : hm(w[1])) : '') + '</span></div>';
             };
-            var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
             box.innerHTML = '<div class="zeile achse"><span class="wer"></span><span class="spur">' + ticks + '</span><span class="wann"></span></div>' +
-              people.map(function (p) { return row(esc(names[p] || p), fenster[p], gruppe.indexOf(p) >= 0 ? 'noetig' : ''); }).join('') +
-              (mine ? row(esc(W.bars_me), mine, 'selbst') : '') +
-              (needed.length ? '<div class="gemeinsam">' + (cTo - cFrom >= 30
+              others.map(function (p) { return row(esc(names[p] || p), f[p], 'noetig'); }).join('') +
+              (own ? row(esc(MYNAME), own, 'selbst') : '') +
+              '<div class="gemeinsam">' + (cTo - cFrom >= 30
                 ? esc(W.bars_common.replace('{von}', hm(cFrom)).replace('{bis}', cTo >= 1440 ? '24:00' : hm(cTo)))
-                : esc(W.bars_none)) + '</div>' : '');
+                : esc(W.bars_none)) + '</div>';
           };
           draw();
           ['tv', 'tb'].forEach(function (id) { document.getElementById(id).addEventListener('input', draw); });
         })();
 
+        /* The tab "Probe": read for everybody, set and changed by the
+           director and the assistant on a day that is not over. */
+        (function () {
+          var pane = document.getElementById('pane-probe');
+          if (!withProbe) return;
+          var head = D ? '<p style="margin:.6rem 0 .4rem"><b>' + esc(W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
+            esc(D.von + '–' + D.bis) + (D.ort ? ' · ' + esc(D.ort) : '') + '</span></p>' : '';
+          var what = D && D.inhalt ? '<div class="frei-inhalt small">' + esc(W.frei_what_line.replace('#', D.inhalt)) + '</div>' : '';
+          if (!regie || past) {
+            pane.innerHTML = head +
+              '<table class="probe-ro">' + D.rows.map(function (r) {
+                return '<tr' + (r.b === ME ? ' class="me"' : '') + '><td>' + esc(r.name) + '</td><td class="t">' + esc(r.von + '–' + r.bis) + '</td></tr>';
+              }).join('') + '</table>' + what +
+              (regie && past && D.history.length ? D.history.map(function (x) {
+                return '<div class="row rate" data-id="' + esc(x.id) + '" style="margin-top:.6rem">' +
+                  '<label class="inline">' + esc(W.sits) + ' <input type="number" class="r-sitzt" min="0" max="100" step="5" value="' + (x.sitzt == null ? '' : x.sitzt) + '" style="width:4.5rem"> %</label>' +
+                  '<input type="text" class="r-notiz" maxlength="200" placeholder="' + esc(W.note) + '" value="' + esc(x.notiz) + '">' +
+                  '<button type="button" class="quiet mini r-go">' + esc(W.keep) + '</button></div>';
+              }).join('') : '');
+            [].forEach.call(pane.querySelectorAll('.rate'), function (r) {
+              r.querySelector('.r-go').onclick = function () {
+                post({ action: 'sitzt', rehearsal: r.dataset.id, iso: iso, sitzt: r.querySelector('.r-sitzt').value, notiz: r.querySelector('.r-notiz').value })
+                  .then(function (x) { if (x.ok) back(iso); else alert(W.failed); }).catch(function () { alert(W.failed); });
+              };
+            });
+            zeige(tab || 'probe');
+            return;
+          }
+          // who can be in it: whoever gave time that day, and whoever is in it already
+          var cand = {};
+          Object.keys(f).forEach(function (b) {
+            cand[b] = { lo: Math.ceil(f[b][0] / 15) * 15, hi: Math.floor(Math.min(f[b][1], 23 * 60 + 45) / 15) * 15 };
+          });
+          var inIt = {};
+          (D ? D.rows : []).forEach(function (r) {
+            inIt[r.b] = r;
+            var c = cand[r.b] || { lo: mins(r.von), hi: mins(r.bis) };
+            cand[r.b] = { lo: Math.min(c.lo, mins(r.von)), hi: Math.max(c.hi, mins(r.bis)) };
+          });
+          // those in it first, by start; then whoever else has time
+          var list = Object.keys(cand).filter(function (b) { return cand[b].hi - cand[b].lo >= 15; })
+            .sort(function (a, b) {
+              return (inIt[b] ? 1 : 0) - (inIt[a] ? 1 : 0) ||
+                (inIt[a] && inIt[b] ? inIt[a].von.localeCompare(inIt[b].von) : cand[a].lo - cand[b].lo) ||
+                String(names[a] || a).localeCompare(String(names[b] || b));
+            });
+          var opts = function (from, to, sel) {
+            var o = '', seen = false;
+            for (var m = from; m <= to; m += 15) { var x = hm(m); if (x === sel) seen = true; o += '<option' + (x === sel ? ' selected' : '') + '>' + x + '</option>'; }
+            return (sel && !seen ? '<option selected>' + esc(sel) + '</option>' : '') + o;
+          };
+          pane.innerHTML = head +
+            '<p class="small" style="margin:.4rem 0"><b>' + esc(W.frei_title) + '</b></p>' +
+            (list.length ? list.map(function (b) {
+              var c = cand[b], r = inIt[b];
+              return '<div class="frei-zeile' + (r ? ' an' : '') + '" data-b="' + esc(b) + '">' +
+                '<label><input type="checkbox"' + (r ? ' checked' : '') + '> ' + esc(b === ME ? MYNAME : (names[b] || b)) + '</label>' +
+                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(c.lo, c.hi - 15, r ? r.von : hm(c.lo)) + '</select>' +
+                '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : hm(c.hi)) + '</select></span></div>';
+            }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
+            '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
+            '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><input type="text" id="fr-inhalt" maxlength="300" value="' + esc(D ? D.inhalt : '') + '">' +
+            '<p style="margin-top:.8rem">' + (list.length ? '<button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' : '') +
+            (D ? '<button type="button" id="fr-msg" class="quiet">' + esc(W.message) + '</button> ' +
+                 '<button type="button" id="fr-weg" class="quiet">' + esc(W.cancel) + '</button>' : '') + '</p>';
+          var zeilen = [].slice.call(pane.querySelectorAll('.frei-zeile'));
+          zeilen.forEach(function (z) {
+            var box = z.querySelector('input');
+            [].forEach.call(z.querySelectorAll('select'), function (s) {
+              s.addEventListener('change', function () { box.checked = true; z.classList.add('an'); });
+            });
+            box.addEventListener('change', function () { z.classList.toggle('an', box.checked); });
+          });
+          var go = document.getElementById('fr-go');
+          if (go) go.onclick = function () {
+            var g = zeilen.filter(function (z) { return z.querySelector('input').checked; }).map(function (z) {
+              return { b: z.dataset.b, von: z.querySelector('.fv').value, bis: z.querySelector('.fb').value };
+            });
+            if (!g.length) { alert(W.frei_pick); return; }
+            if (g.some(function (x) { return x.bis <= x.von; })) { alert(W.falsch); return; }
+            if (blocked && !D && !confirm(W.frei_blocked)) return;
+            var data = { action: 'frei', iso: iso, wer: g.map(function (x) { return x.b; }).join(','),
+                         place: document.getElementById('fr-ort').value, inhalt: document.getElementById('fr-inhalt').value };
+            g.forEach(function (x) { data['von_' + x.b] = x.von; data['bis_' + x.b] = x.bis; });
+            go.disabled = true;
+            post(data).then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) { if (j.ok) back(iso); else { go.disabled = false; alert(W.failed); } })
+              .catch(function () { go.disabled = false; alert(W.failed); });
+          };
+          var msg = document.getElementById('fr-msg');
+          if (msg) msg.onclick = function () {
+            if (navigator.share) navigator.share({ text: D.message }).catch(function () {});
+            else window.open('https://wa.me/?text=' + encodeURIComponent(D.message), '_blank', 'noopener');
+          };
+          var weg = document.getElementById('fr-weg');
+          if (weg) weg.onclick = function () {
+            if (!confirm(W.cancel_confirm.replace('#', W.frei_name.replace('#', D.names)))) return;
+            post({ action: 'loesen', rehearsal: D.id }).then(function (r) { if (r.ok) back(iso); else alert(W.failed); })
+              .catch(function () { alert(W.failed); });
+          };
+          zeige(tab || (D ? 'probe' : 'zeit'));
+        })();
+        if (!withProbe) zeige('zeit');
+
+        if (!edit) return;
         if (regie && gI) document.getElementById('sperrt').onclick = function () {
           gI.value = blocked ? '' : '1';
           td.classList.toggle('blocked', !blocked);
           schleier.hidden = true; speichere();
         };
-
         document.getElementById('jat').onclick = function () {
           var a = document.getElementById('tv').value, b = document.getElementById('tb').value;
           if (!a && !b) { a = preset.von; b = preset.bis; }
           if (!a || !b || b <= a) { alert(W.falsch); return; }
           tI.value = '1'; vI.value = a; bI.value = b; if (nI) nI.value = '';
           td.classList.add('me'); td.classList.remove('nein');
-          td.querySelector('.time').textContent = a + '\u2013' + b;
+          td.querySelector('.time').textContent = a + '–' + b;
           preset = { von: a, bis: b };
           schleier.hidden = true; zaehle(); speichere();
         };
@@ -2739,17 +2743,17 @@ function myTimesPage(project, person, m, days, states, ics = '') {
           if (chip) chip.remove();
         };
         document.getElementById('neint').onclick = function () {
-          if (td.dataset.fixed && !confirm(W.streich_fest)) return;
           tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '1';
           vergiss();
-          td.classList.remove('me'); td.classList.add('nein');
+          td.classList.remove('me', 'others'); td.classList.add('nein');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
         };
         document.getElementById('offen').onclick = function () {
           tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '';
           vergiss();
-          td.classList.remove('me'); td.classList.remove('nein');
+          td.classList.remove('me', 'nein');
+          if (others.length) td.classList.add('others');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
         };
@@ -2759,6 +2763,10 @@ function myTimesPage(project, person, m, days, states, ics = '') {
         td.addEventListener('click', function () { oeffne(td); });
       });
       zaehle();
+      // back from saving a date: the same day open again, on its date
+      var wanted = new URLSearchParams(location.search).get('tag');
+      var td0 = wanted && document.querySelector('.month td.day[data-iso="' + wanted + '"]');
+      if (td0) { zeigeMonat(months.indexOf(td0.closest('.month'))); oeffne(td0); }
     })();
     <\/script>` });
 }

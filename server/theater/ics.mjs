@@ -13,7 +13,7 @@
    and does the two things that matter: escaping and line folding.
    --------------------------------------------------------------------- */
 
-import { proposeDates, freeNames, freeDetail } from './dates.mjs';
+import { freeNames, freeDetail } from './dates.mjs';
 import { language, isLanguage } from './texts.mjs';
 
 const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -44,6 +44,8 @@ export function feedFor(project, person, base) {
   const code = project.einstellungen?.sprache;
   const t = language(isLanguage(code) ? code : 'de').t;
   const me = person.b;
+  // the own name, never "me": a calendar shown around has to say whose it is
+  const myName = person.name || person.b;
   const link = (id) => base + '/theater/ich/' + (person.token || '') + '/plan/' + encodeURIComponent(id);
   const now = utcNow();
   const lines = [
@@ -54,19 +56,17 @@ export function feedFor(project, person, base) {
   const titleFor = (id, group) => {
     const inIt = person.regie || group.includes(me);
     const others = group.filter(b => b !== me);
-    if (inIt) return others.length ? t('ics.with_me', { id, others: others.join(' + ') }) : t('ics.with_me_alone', { id });
-    return t('ics.without_me', { id, who: group.join(', ') });
+    if (inIt) return others.length ? t('ics.with_me', { id, me: myName, others: others.join(' + ') }) : t('ics.with_me_alone', { id, me: myName });
+    return t('ics.without_me', { id, me: myName, who: group.join(', ') });
   };
   const describe = (id, group, place) => [
     t('ics.cast', { who: group.join(', ') }), place ? t('ics.place', { place }) : '', t('ics.passages', { url: link(id) }),
   ].filter(Boolean).join('\n');
 
   // fixed rehearsals
-  const fixed = new Set();
   for (const x of project.termine || []) {
     if (!x.bestaetigt || !x.iso || !x.von) continue;
     const group = x.gruppe || (project.plan?.proben || []).find(p => p.id === x.probe_id)?.gruppe || [];
-    fixed.add(x.probe_id);
     if (x.frei) {
       lines.push(...event({
         UID: project.id + '-' + x.probe_id + '@rehearsalcall',
@@ -74,7 +74,8 @@ export function feedFor(project, person, base) {
         DTSTART: stamp(x.iso, x.von),
         DTEND: x.bis ? stamp(x.iso, x.bis) : null,
         SUMMARY: esc(t('free.title', { who: freeNames(project, x) })),
-        DESCRIPTION: esc([freeDetail(project, x, '\n'), x.ort ? t('ics.place', { place: x.ort }) : ''].filter(Boolean).join('\n')),
+        DESCRIPTION: esc([freeDetail(project, x, '\n'), x.inhalt ? t('free.what_line', { text: x.inhalt }) : '',
+          x.ort ? t('ics.place', { place: x.ort }) : ''].filter(Boolean).join('\n')),
         LOCATION: x.ort ? esc(x.ort) : null,
         STATUS: 'CONFIRMED',
       }));
@@ -93,24 +94,6 @@ export function feedFor(project, person, base) {
     }));
   }
 
-  // proposals: what the program would take, tentative
-  try {
-    for (const pr of proposeDates(project).rehearsals) {
-      if (!pr.proposal || fixed.has(pr.id)) continue;
-      lines.push(...event({
-        UID: project.id + '-' + pr.id + '-vorschlag@rehearsalcall',
-        DTSTAMP: now,
-        DTSTART: stamp(pr.proposal.iso, pr.proposal.from),
-        DTEND: stamp(pr.proposal.iso, pr.proposal.to),
-        SUMMARY: esc(t('ics.proposal') + titleFor(pr.id, pr.group)),
-        DESCRIPTION: esc(t('ics.proposal_what') + '\n' + describe(pr.id, pr.group, '')),
-        URL: link(pr.id),
-        STATUS: 'TENTATIVE',
-        TRANSP: 'TRANSPARENT',
-      }));
-    }
-  } catch { /* no plan: nothing to propose */ }
-
   // the own evenings
   const v = project.verfuegbar?.[person.id] || {};
   for (const [iso, e] of Object.entries(v.tage || {})) {
@@ -120,7 +103,7 @@ export function feedFor(project, person, base) {
       DTSTAMP: now,
       DTSTART: stamp(iso, e.von),
       DTEND: stamp(iso, e.bis),
-      SUMMARY: esc(t('ics.free')),
+      SUMMARY: esc(t('ics.free', { me: myName })),
       DESCRIPTION: esc(t('ics.free_what', { title: project.titel })),
       URL: base + '/theater/ich/' + (person.token || '') + '/zeiten',
       TRANSP: 'TRANSPARENT',

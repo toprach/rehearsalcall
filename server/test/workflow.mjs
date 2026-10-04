@@ -396,7 +396,8 @@ for (const b of cast) {
     // a day struck for oneself is a decided no and stays one
     const nf = {}; days.forEach((d, i) => { nf['t_' + d] = i ? '1' : ''; nf['v_' + d] = '18:00'; nf['b_' + d] = '23:00'; }); nf['n_' + days[0]] = '1';
     const ne = await post('/theater/mit/zeiten', nf);
-    check('a day struck for oneself is kept', good(ne) && new RegExp('class="day [^"]*nein[^"]*" data-iso="' + days[0] + '"').test(ne.text) &&
+    // (that day is also struck by the director, whose hatching wins on the page)
+    check('a day struck for oneself is kept', good(ne) && new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(ne.text) &&
           new RegExp('name="n_' + days[0] + '" value="1"').test(ne.text), say(ne));
     const back = await post('/theater/mit/zeiten', fields);
     check('and can be entered again', good(back) && !new RegExp('nein[^"]*" data-iso="' + days[0] + '"').test(back.text), say(back));
@@ -481,7 +482,7 @@ for (const b of cast) {
     check('an ad-hoc rehearsal narrows the book to the cues of the chosen people', ah.status === 200 &&
           /"mit":\["[A-Z]/.test(ah.text) && /id="adhoc"/.test(ah.text), 'status ' + ah.status);
     check('passages of a rehearsal for a member', pg.status === 200 && /class="line/.test(pg.text)
-          && /\/theater\/mit\/termine/.test(pg.text));
+          && /\/theater\/mit\/zeiten/.test(pg.text));
     clean('member passages page', pg);
     const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
@@ -767,7 +768,7 @@ for (const b of cast) {
       if (Object.keys(w).length) { day = x[1]; win = w; break; }
     }
     check('the day panel knows who has time when', !!day, 'no day with anybody');
-    check('and offers a rehearsal without scenes', /free.panel_title|frei_title/.test(cal.text) && /tafel-frei/.test(cal.text));
+    check('and offers to set a rehearsal there', /frei_title/.test(cal.text) && /tafeltabs/.test(cal.text));
     if (day) {
       const who = Object.keys(win).slice(0, 2);
       const form = { action: 'frei', iso: day, wer: who.join(','), place: 'Barn <east>' };
@@ -784,6 +785,8 @@ for (const b of cast) {
       check('it is in the week calendar, with a dialog', all.text.includes(h(j.names || '-')) && new RegExp('id="chg-' + j.id + '"').test(all.text));
       const tv = await call('GET', '/theater/mit/zeiten');
       check('and on its day in the availability calendar', new RegExp('class="[^"]*\\bfixed\\b[^"]*" data-iso="' + day + '"').test(tv.text));
+      check('a day with a date takes no more availability', new RegExp('data-iso="' + day + '" data-edit="0"').test(tv.text) &&
+            !new RegExp('name="v_' + day + '"').test(tv.text));
       const msg = await post('/theater/mit/termine', { action: 'nachricht', rehearsal: j.id });
       const share = (/<pre class="sharetext" id="sharetext">([\s\S]*?)<\/pre>/.exec(msg.text) || [])[1] || '';
       check('its message lists who comes when', share.includes(h(j.names)) && /Barn &lt;east&gt;/.test(share) && /\d\u2013\d/.test(share), share.slice(0, 200));

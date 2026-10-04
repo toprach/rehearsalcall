@@ -97,6 +97,28 @@ export function calendarDays(project) {
   return out;
 }
 
+/* What the calendar shows: the rehearsal period, and before it every
+   day back to the month of the first date ever fixed (at most a year),
+   so the dates that have been can be looked at again. Only the period
+   itself takes entries. */
+export function displayDays(project) {
+  const future = calendarDays(project);
+  const first = future.length ? asDate(future[0].iso) : new Date();
+  const dates = [...(project.termine || []), ...(project.verlauf || [])]
+    .map(x => x && x.iso).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x || '')).sort();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let start = dates.length ? asDate(dates[0]) : today;
+  if (start > today) start = new Date(today);
+  const limit = new Date(today); limit.setMonth(limit.getMonth() - 12);
+  if (start < limit) start = limit;
+  start = new Date(start.getFullYear(), start.getMonth(), 1);
+  const out = [];
+  for (const d = new Date(start); d < first; d.setDate(d.getDate() + 1))
+    out.push({ iso: isoDate(d), day: d.getDate(), month: d.getMonth(), year: d.getFullYear(),
+               weekday: d.getDay(), outside: true });
+  return out.concat(future);
+}
+
 /* The evenings of the rehearsal period. */
 /* Days the director has struck - a holiday, the hall taken. No
    rehearsal is proposed for them, whoever could. */
@@ -207,7 +229,7 @@ export function archivePast(project, today = isoDate(new Date())) {
     if (project.verlauf.some(v => v.probe_id === t.probe_id && v.iso === t.iso)) continue;
     project.verlauf.push({ probe_id: t.probe_id, iso: t.iso, von: t.von || '', bis: t.bis || '',
       ort: t.ort || '', gruppe: t.gruppe || [], sitzt: null, notiz: '',
-      ...(t.frei ? { frei: true, zeiten: t.zeiten || {} } : {}) });
+      ...(t.frei ? { frei: true, zeiten: t.zeiten || {} } : {}), ...(t.inhalt ? { inhalt: t.inhalt } : {}) });
   }
   project.termine = project.termine.filter(t => !past.includes(t));
   return true;
@@ -282,6 +304,120 @@ export function freeChoices(project, entry) {
                von: z ? z.von : clock(lo), bis: z ? z.bis : clock(hi) });
   }
   return out.sort((a, c) => a.lo - c.lo || a.name.localeCompare(c.name));
+}
+
+/* One date per day. A day used to be able to hold several fixed
+   rehearsals - one per rehearsal of the plan, plus free ones. Now a day
+   holds one date: who comes from when to when. Several dates of a day
+   become one, each person from their earliest start to their latest
+   end, the plan's rehearsal ids kept as what is rehearsed; a lone date
+   of the plan becomes a free one the same way. Returns whether anything
+   changed. */
+export function oneDatePerDay(project) {
+  const plan = project.plan?.proben || [];
+  const byDay = new Map();
+  for (const t of project.termine || []) {
+    if (!t || !t.bestaetigt || !t.iso) continue;
+    if (!byDay.has(t.iso)) byDay.set(t.iso, []);
+    byDay.get(t.iso).push(t);
+  }
+  let changed = false;
+  for (const [iso, list] of byDay) {
+    if (list.length === 1 && list[0].frei) continue;
+    const zeiten = {}, notes = [];
+    const widen = (b, von, bis) => {
+      if (asMinutes(von) == null || asMinutes(bis) == null || bis <= von) return;
+      const z = zeiten[b];
+      zeiten[b] = !z ? { von, bis } : { von: von < z.von ? von : z.von, bis: bis > z.bis ? bis : z.bis };
+    };
+    for (const t of list) {
+      if (t.frei) {
+        for (const [b, z] of Object.entries(t.zeiten || {})) widen(b, z.von, z.bis);
+        if (t.inhalt) notes.push(t.inhalt);
+      } else {
+        for (const b of t.gruppe || plan.find(p => p.id === t.probe_id)?.gruppe || []) widen(b, t.von, t.bis);
+        notes.push(t.probe_id);
+      }
+    }
+    if (!Object.keys(zeiten).length) continue;
+    const keep = list.find(t => t.frei);
+    let id = keep ? keep.probe_id : null;
+    while (!id || (!keep && project.termine.some(x => x.probe_id === id)))
+      id = 'F-' + Math.random().toString(16).slice(2, 8);
+    const all = Object.values(zeiten);
+    const merged = {
+      probe_id: id, frei: true, iso, gruppe: Object.keys(zeiten), zeiten,
+      von: all.map(z => z.von).sort()[0], bis: all.map(z => z.bis).sort().pop(),
+      bestaetigt: true, ort: list.map(t => t.ort).find(Boolean) || '',
+      ...(notes.length ? { inhalt: [...new Set(notes)].join(', ').slice(0, 300) } : {}),
+      gehalten: list.map(t => t.gehalten).filter(Boolean).sort()[0] || new Date().toISOString(),
+      ...(list.map(t => t.von_wem).find(Boolean) ? { von_wem: list.map(t => t.von_wem).find(Boolean) } : {}),
+    };
+    project.termine = project.termine.filter(t => !list.includes(t)).concat(merged);
+    // what was replaced is kept in the record, so the step can be undone
+    project.termine_alt = (project.termine_alt || []).concat(list.map(t => ({ ...t, ersetzt: new Date().toISOString(), durch: id })));
+    changed = true;
+  }
+  return changed;
+}
+
+/* Each shown day for the calendar page: who has time when (minutes,
+   the directors aside - they are there anyway), and the date of the
+   day if there is one, as rows of who comes when. A day that is over
+   takes its date from the history, where it may still be several. */
+export function dayView(project, person, days) {
+  const people = project.personen || [];
+  const directors = directorsOf(project);
+  const isDirector = directors.includes(person.b);
+  const blocked = blockedOf(project);
+  const today = isoDate(new Date());
+  const plan = project.plan?.proben || [];
+  const byDay = new Map();
+  const add = (x, past) => { if (!x || !x.iso) return; if (!byDay.has(x.iso)) byDay.set(x.iso, []); byDay.get(x.iso).push({ x, past }); };
+  for (const t of project.termine || []) if (t.bestaetigt) add(t, false);
+  for (const v of project.verlauf || []) add(v, true);
+  const nameOf = b => people.find(p => p.b === b)?.name || b;
+  const out = {};
+  for (const t of days) {
+    const d = asDate(t.iso);
+    if (!d) continue;
+    const windows = {};
+    for (const x of people) {
+      if (directors.includes(x.b)) continue;
+      const w = windowOn(project.verfuegbar?.[x.id], d);
+      if (w) windows[x.b] = [w.from, w.to];
+    }
+    let date = null;
+    const list = byDay.get(t.iso) || [];
+    if (list.length) {
+      const zeiten = {};
+      for (const { x } of list) {
+        const pairs = x.frei ? Object.entries(x.zeiten || {})
+          : (x.gruppe || plan.find(p => p.id === x.probe_id)?.gruppe || []).map(b => [b, { von: x.von, bis: x.bis }]);
+        for (const [b, z] of pairs) {
+          if (!z || !z.von || !z.bis) continue;
+          const o = zeiten[b];
+          zeiten[b] = !o ? { von: z.von, bis: z.bis } : { von: z.von < o.von ? z.von : o.von, bis: z.bis > o.bis ? z.bis : o.bis };
+        }
+      }
+      const entry = { gruppe: Object.keys(zeiten), zeiten };
+      const current = list.find(e => !e.past)?.x || null;
+      const rows = Object.entries(zeiten).map(([b, z]) => ({ b, name: nameOf(b), von: z.von, bis: z.bis }))
+        .sort((a, c) => a.von.localeCompare(c.von) || a.bis.localeCompare(c.bis) || a.name.localeCompare(c.name));
+      date = {
+        id: current ? current.probe_id : '',
+        past: !current,
+        names: freeNames(project, entry), detail: freeDetail(project, entry),
+        von: rows.map(r => r.von).sort()[0] || list[0].x.von || '', bis: rows.map(r => r.bis).sort().pop() || list[0].x.bis || '',
+        ort: list.map(e => e.x.ort).find(Boolean) || '',
+        inhalt: [...new Set(list.map(e => e.x.inhalt || (e.x.frei ? '' : e.x.probe_id)).filter(Boolean))].join(', '),
+        rows, withMe: isDirector || !!zeiten[person.b],
+        history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
+      };
+    }
+    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, date };
+  }
+  return out;
 }
 
 export const historyOf = (project, rehearsal) => (project.verlauf || [])

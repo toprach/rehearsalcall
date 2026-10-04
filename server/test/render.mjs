@@ -79,11 +79,15 @@ for (let i = 1; i <= 35; i++) {
   days.push({ iso: d.toISOString().slice(0, 10), day: d.getDate(), month: d.getMonth(),
               year: d.getFullYear(), weekday: d.getDay() });
 }
+days.slice(0, 3).forEach(t => { t.outside = true; });
+// the shape of dates.mjs dayView: windows, a date with its rows, the past
+const rowsOf = (von) => [{ b: 'OBERON', name: 'O. Berg', von, bis: '20:00' }, { b: 'PUCK', name: 'PUCK', von: '19:30', bis: '21:00' }];
 const states = Object.fromEntries(days.map((t, i) => [t.iso, {
-  level: i % 4, canCome: i % 2 ? ['PUCK'] : [],
-  best: i % 3 ? { rehearsal: 'P01', here: 1, total: 1, missing: [] } : null,
-  fixed: i === 0 ? [{ rehearsal: 'P01', from: '19:00', to: '20:00', place: 'Stage' }] : [],
-  blocked: i === 5,
+  past: i < 2, outside: i < 3, blocked: i === 5,
+  windows: i % 2 ? { PUCK: [1140, 1320], TITANIA: [1080, 1260], OBERON: [1200, 1380] } : {},
+  date: i === 1 || i === 8 ? { id: i === 8 ? 'F-a1b2c3' : '', past: i === 1, names: 'O.+PUCK', detail: 'O. 19\u201320 \u00b7 PUCK 19:30\u201321',
+    von: '19:00', bis: '21:00', ort: 'Barn <x>', inhalt: 'Act <II>', rows: rowsOf('19:00'), withMe: true,
+    history: i === 1 ? [{ id: 'P01', sitzt: 60, notiz: 'shaky <a>' }] : [] } : null,
 }]));
 const passages = {
   rehearsal: project.plan.proben[0],
@@ -162,7 +166,8 @@ for (const { code } of LANGUAGES) {
     pickNameTo: () => A.pickNamePage(project, 'tok', null, 'plan/P01'),
     datesEmpty: () => A.datesPage(project, { rehearsals: [], hint: { key: 'msg.no_plan' } }, null),
     myTimesPage: () => A.myTimesPage(project, person, { kind: 'good', key: 'r.times_saved', values: { n: 3 } }, days, states, 'https://x.example/theater/ich/abc/kalender.ics'),
-    myTimesDirector: () => A.myTimesPage(project, project.personen[2], null, days, states),
+    myTimesDirector: () => A.myTimesPage(project, project.personen[2], null, days, states, '',
+      { mayDirect: true, messages: { [days[8].iso]: 'Rehearsal <x>' } }),
     printPage: () => A.printPage(project, null),
     docsPage: () => A.docsPage(project, 'https://x/theater/druck/abc'),
     errorPage: () => A.errorPage('f.failed_t', 'f.failed', { reason: 'because' }),

@@ -210,12 +210,47 @@ export const STYLE = `
   table.cal td.day .frei.voll { background:#1d7a3e }
   .dot.me { background:transparent; border:2px solid var(--accent) }
   /* Dark green: a fixed date of one of my rehearsals. */
-  table.cal td.fixed, table.cal td.day.fixed.me, table.cal td.day.level3.fixed.me, .dot.fixed { background:#2f8a4f; border-color:#256d3f; color:#fff }
+  table.cal td.fixed, table.cal td.day.fixed.me, table.cal td.day.level3.fixed.me, .dot.fixed { background:#1f5e36; border-color:#1f5e36; color:#fff }
   table.cal td.fixed .num, table.cal td.fixed .time { color:#fff }
   /* the fixed rehearsal named in the cell, not only by colour */
   table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
+  /* the calendar page "Termine": a date with me framed red, others'
+     time orange with their names, the chosen people's common days
+     ringed blue (inside the red frame when both apply) */
+  table.cal td.fixed.withme, .dot.fixed.withme { outline:3px solid var(--accent); outline-offset:-3px }
+  table.cal td.others, .dot.others { background:#f2a057; border-color:#d9822e }
+  html[data-theme="dark"] table.cal td.others, html[data-theme="dark"] .dot.others { background:#8a4a14; border-color:#b3651f }
+  table.cal td.allfree { box-shadow:inset 0 0 0 3px #2563eb }
+  table.cal td.allfree.me, table.cal td.allfree.withme { box-shadow:inset 0 0 0 6px #2563eb }
+  .dot.allfree { background:transparent; border:2px solid #2563eb }
+  table.cal td.past { opacity:.55 }
+  table.cal td.today .num { background:var(--ink); color:var(--card); border-radius:1rem; padding:0 .3rem }
+  table.cal td .who { display:block; font-size:.62rem; line-height:1.2; margin-top:.1rem; color:#3d2a12 }
+  table.cal td.nein .who, table.cal td.blocked .who { color:var(--muted) }
+  html[data-theme="dark"] table.cal td .who { color:inherit }
+  table.cal td .who i { display:block; font-style:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  table.cal td .who i.more { display:none }
+  /* a phone has room for two names, the start of a date, and no own time (the red frame says it) */
+  @media (max-width:640px) { table.cal td .who i.x { display:none } table.cal td .who i.more { display:block }
+    table.cal td .fix .fl { display:none } table.cal td.day .time { display:none } }
+  .calegend { display:grid; grid-template-columns:repeat(auto-fill, minmax(11rem, 1fr)); gap:.3rem .8rem; margin:.6rem 0 1rem; color:var(--muted) }
+  .calegend > div { display:flex; align-items:center; gap:.5rem }
+  .zeigen { margin:.4rem 0 .6rem }
+  .zeigen .zeigen-chips { display:flex; flex-wrap:wrap; gap:.3rem; margin:.3rem 0 }
+  .zeigen .chipbtn { background:var(--card); color:var(--ink); border:1px solid var(--field-edge); border-radius:1rem;
+    padding:.15rem .65rem; font-size:.82rem; font-weight:400; margin:0 }
+  .zeigen .chipbtn.on { background:#2563eb; border-color:#2563eb; color:#fff }
+  .tafeltabs { display:flex; border-bottom:2px solid var(--rule); margin:.6rem 0 .2rem }
+  .tafeltabs button { background:transparent; color:var(--muted); border:0; border-bottom:3px solid transparent; border-radius:0;
+    margin:0 0 -2px; padding:.4rem .9rem; font-weight:700 }
+  .tafeltabs button.on { color:var(--accent); border-bottom-color:var(--accent) }
+  .probe-ro { width:100%; border-collapse:collapse; margin:.2rem 0 .6rem }
+  .probe-ro td { padding:.35rem .2rem; border-bottom:1px solid var(--rule) }
+  .probe-ro td.t { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums }
+  .probe-ro tr.me td { color:var(--accent); font-weight:700 }
+  .frei-inhalt { background:var(--rule); border-radius:3px; padding:.45rem .6rem; margin:.4rem 0 }
   /* dates: the director's tools on a fixed date, the history */
   .datetools { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; align-items:center }
   .datetools form.inline { margin:0 }
