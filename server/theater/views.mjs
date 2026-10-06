@@ -2360,7 +2360,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
     return `<td class="${cls.join(' ')}" data-iso="${tg.iso}" data-edit="${editable ? 1 : 0}"
         data-past="${vw.past ? 1 : 0}" data-outside="${tg.outside ? 1 : 0}"
         data-mine="${e?.von ? h(e.von + '-' + e.bis) : ''}"
-        data-fenster="${h(JSON.stringify(vw.windows || {}))}" title="${h(tip)}">
+        data-fenster="${h(JSON.stringify(vw.windows || {}))}" data-nein="${h((vw.nein || []).join(','))}" title="${h(tip)}">
       <span class="num">${tg.day}</span>
       ${date ? `<span class="fix"><span class="fl">${t('kd.rehearsal')} </span>${h(date.von)}</span>` : who}
       <span class="time">${!date && e?.von ? h(e.von + '–' + e.bis) : ''}</span>
@@ -2484,6 +2484,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
       var months = [].slice.call(document.querySelectorAll('.month'));
       var names = ${JSON.stringify(Object.fromEntries(names)).replace(/</g, '\\u003c')};
       var DATES = ${JSON.stringify(dates).replace(/</g, '\\u003c')};
+      var ENSEMBLE = ${JSON.stringify(ensemble).replace(/</g, '\\u003c')};
       var ME = ${JSON.stringify(person.b)}, MYNAME = ${JSON.stringify(me).replace(/</g, '\\u003c')};
       var preset = ${JSON.stringify(preset)};
       var personId = ${JSON.stringify(person.id)}, projectId = ${JSON.stringify(project.id)};
@@ -2517,7 +2518,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 cancel_confirm: ${js('date.cancel_confirm', { id: '#' })}, failed: ${js('my.fix_failed')},
                 sits: ${js('hist.sits')}, note: ${js('hist.note')}, keep: ${js('common.save')},
                 nobody: ${js('my.nobody')},
-                unsaved_new: ${js('my.bars_unsaved_new')}, unsaved_changed: ${js('my.bars_unsaved_changed')} };
+                unsaved_new: ${js('my.bars_unsaved_new')}, unsaved_changed: ${js('my.bars_unsaved_changed')},
+                bars_no: ${js('my.bars_no')}, bars_unknown: ${js('my.bars_unknown')}, no_entry: ${js('my.no_entry')} };
       var current = ${startMonth};
 
       var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -2608,6 +2610,9 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         var f = fenster(td);
         var others = Object.keys(f).filter(function (b) { return b !== ME; })
           .sort(function (a, b) { return f[a][0] - f[b][0]; });
+        // everybody else is listed too: who struck the day, and who gave nothing
+        var nein = (td.dataset.nein || '').split(',').filter(function (b) { return b && b !== ME; });
+        var leer = ENSEMBLE.filter(function (b) { return b !== ME && !f[b] && nein.indexOf(b) < 0; });
         var vI = td.querySelector('input[name^="v_"]'), bI = td.querySelector('input[name^="b_"]');
         var tI = td.querySelector('input[name^="t_"]'), nI = td.querySelector('input[name^="n_"]');
         var gI = td.querySelector('input[name^="g_"]');
@@ -2629,7 +2634,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             '<div id="tafel-ics" class="small" style="margin:.4rem 0" hidden></div>' +
             (blocked ? '<div class="notice error small" style="margin:.5rem 0">' + esc(W.blocked) + '</div>' : '') +
             (why ? '<div class="notice small" style="margin:.5rem 0">' + esc(why) + '</div>' : '') +
-            '<div class="small muted" style="margin:.5rem 0">' + esc(W.zeit) + (others.length ? liste(others) : esc(W.nobody)) + '</div>' +
+            '<div class="small muted" style="margin:.5rem 0">' + esc(W.zeit) + (others.length ? liste(others) : esc(W.nobody)) +
+              (leer.length ? '<br>' + esc(W.no_entry) + liste(leer) : '') + '</div>' +
             '<div id="tafel-balken" class="balken small"></div>' +
             '<div class="row">' +
               '<div><label for="tv">' + esc(W.von) + '</label><input type="time" id="tv" step="900" value="' + esc(von0) + '"' + (edit ? '' : ' disabled') + '></div>' +
@@ -2655,7 +2661,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
            own window across them, what is common to all above. */
         (function () {
           var box = document.getElementById('tafel-balken');
-          if (!others.length) { box.hidden = true; return; }
+          if (!others.length && !nein.length && !leer.length) { box.hidden = true; return; }
           var draw = function () {
             var a = mins(document.getElementById('tv').value), b = mins(document.getElementById('tb').value);
             var own = a != null && b != null && b > a ? [a, b] : null;
@@ -2668,25 +2674,28 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             var lo = 24 * 60, hi = 0;
             others.forEach(function (p) { lo = Math.min(lo, f[p][0]); hi = Math.max(hi, f[p][1]); });
             if (own) { lo = Math.min(lo, own[0]); hi = Math.max(hi, own[1]); }
+            if (lo >= hi) { lo = 17 * 60; hi = 23 * 60; }
             lo = Math.floor(lo / 60) * 60; hi = Math.ceil(hi / 60) * 60; if (hi - lo < 120) hi = lo + 120;
             var pos = function (m) { return ((m - lo) / (hi - lo) * 100).toFixed(2) + '%'; };
             var wid = function (x, y) { return ((y - x) / (hi - lo) * 100).toFixed(2) + '%'; };
             var cFrom = own ? own[0] : 0, cTo = own ? own[1] : 24 * 60;
             others.forEach(function (p) { cFrom = Math.max(cFrom, f[p][0]); cTo = Math.min(cTo, f[p][1]); });
             var ticks = ''; for (var h = lo; h <= hi; h += 60) ticks += '<i style="left:' + pos(h) + '">' + (h / 60) + '</i>';
-            var row = function (lbl, w, cls) {
+            var row = function (lbl, w, cls, note) {
               return '<div class="zeile"><span class="wer' + (cls ? ' ' + cls : '') + '">' + lbl + '</span><span class="spur">' +
                 (own ? '<em class="ich" style="left:' + pos(own[0]) + ';width:' + wid(own[0], own[1]) + '"></em>' : '') +
                 (w ? '<b class="' + (cls || '') + '" style="left:' + pos(w[0]) + ';width:' + wid(w[0], w[1]) + '"></b>' : '') +
-                '</span><span class="wann">' + (w ? hm(w[0]) + '–' + (w[1] >= 1440 ? '24:00' : hm(w[1])) : '') + '</span></div>';
+                '</span><span class="wann' + (note ? ' leer' : '') + '">' + (w ? hm(w[0]) + '–' + (w[1] >= 1440 ? '24:00' : hm(w[1])) : esc(note || '')) + '</span></div>';
             };
             box.innerHTML = '<div class="zeile achse"><span class="wer"></span><span class="spur">' + ticks + '</span><span class="wann"></span></div>' +
               others.map(function (p) { return row(esc(names[p] || p), f[p], 'noetig'); }).join('') +
+              nein.map(function (p) { return row(esc(names[p] || p), null, 'nein', W.bars_no); }).join('') +
+              leer.map(function (p) { return row(esc(names[p] || p), null, 'leer', W.bars_unknown); }).join('') +
               (own ? row(esc(MYNAME), own, 'selbst' + (state ? ' vorschau' : '')) : '') +
               (own && state ? '<div class="vorschau-hinweis">' + esc((state === 'neu' ? W.unsaved_new : W.unsaved_changed).replace('{name}', MYNAME)) + '</div>' : '') +
-              '<div class="gemeinsam">' + (cTo - cFrom >= 30
+              (!others.length ? '' : '<div class="gemeinsam">' + (cTo - cFrom >= 30
                 ? esc(W.bars_common.replace('{von}', hm(cFrom)).replace('{bis}', cTo >= 1440 ? '24:00' : hm(cTo)))
-                : esc(W.bars_none)) + '</div>';
+                : esc(W.bars_none)) + '</div>');
           };
           draw();
           ['tv', 'tb'].forEach(function (id) { document.getElementById(id).addEventListener('input', draw); });

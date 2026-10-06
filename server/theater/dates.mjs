@@ -415,7 +415,9 @@ export function dayView(project, person, days) {
         history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
       };
     }
-    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, date };
+    // who struck the day for themselves - the rest without a window gave nothing
+    const nein = people.filter(x => !directors.includes(x.b) && project.verfuegbar?.[x.id]?.tage?.[t.iso]?.nein).map(x => x.b);
+    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, nein, date };
   }
   return out;
 }
