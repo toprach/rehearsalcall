@@ -509,7 +509,7 @@ for (const b of cast) {
     clean('the play page', pl);
     const mf = await call('GET', '/theater/manifest.webmanifest');
     let mj = {}; try { mj = JSON.parse(mf.text); } catch {}
-    check('the app manifest is served', mf.status === 200 && mj.start_url === '/theater/mit' && mj.icons?.length >= 2, 'status ' + mf.status);
+    check('the app manifest is served', mf.status === 200 && mj.start_url === '/theater/mit' && mj.icons?.length >= 2 && mj.orientation === 'portrait', 'status ' + mf.status);
     const sw = await call('GET', '/theater/sw.js');
     check('the service worker is served', sw.status === 200 && /addEventListener\('fetch'/.test(sw.text), 'status ' + sw.status);
     const ic = await fetch(BASE + '/theater/icon-192.png');

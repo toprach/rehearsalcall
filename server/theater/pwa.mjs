@@ -129,6 +129,8 @@ export function manifest(name, shortName, lang, app = null) {
     start_url: app ? '/theater/ich/' + app.token + '/mit' : '/theater/mit',
     scope: '/theater/',
     display: 'standalone',
+    // the app is made for one hand: upright only
+    orientation: 'portrait',
     background_color: '#f6f4f1',
     theme_color: '#b3272d',
     icons: [

@@ -128,6 +128,9 @@ ${ctx.share ? `<script>
 ${tabbar}
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
+// the installed app stays upright (the manifest says so too; a browser tab cannot be held)
+try { if ((window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) && screen.orientation && screen.orientation.lock)
+  screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
 </script>
 <footer class="foot"><div class="inner small muted">
   <a href="/theater/ueber">${h(name)}${ABOUT.version ? ' ' + h(ABOUT.version) : ''}</a>
