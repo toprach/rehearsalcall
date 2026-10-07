@@ -769,12 +769,21 @@ const entryPage = (m, demos = []) => page({
 /* The director's links in four groups: the project, the road from the
    script to the plan, what runs during rehearsals, the output. The
    page being shown is marked. */
+/* A new script in one step: pick the file, and it is uploaded and read
+   at once - the same post as the script page's "upload and read", with
+   the style found out by itself. */
+const scriptUpload = () => `<form method="post" action="/theater/skript" enctype="multipart/form-data" class="navupload">
+    <input type="hidden" name="style" value="auto">
+    <label class="btn quiet mini">${h(t('nav.script_upload'))}<input type="file" name="file"
+      accept=".docx,.md,.markdown,.txt" hidden
+      onchange="if (this.files.length) { this.parentNode.classList.add('busy'); this.parentNode.firstChild.textContent = ${h(JSON.stringify(t('nav.script_uploading')))}; this.form.submit(); }"></label>
+  </form>`;
 const navDirector = (p) => {
   const a = (href, key) => `<a href="${href}"${pfad === href || pfad.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
   const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
   return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
-  ${grp(a('/theater/skript', 'nav.script'), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
+  ${grp(a('/theater/skript', 'nav.script'), p?.demo ? '' : scriptUpload(), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
   ${grp(...(ctx.member ? [a('/theater/mit/zeiten', 'nav.dates')] : []), a('/theater/kommentare', 'nav.comments'))}
   ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">

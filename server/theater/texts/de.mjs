@@ -22,6 +22,8 @@ export const de = {
   'nav.casting':   'Besetzung',
   'nav.rehearsals':        'Probenplan',
   'nav.dates':     'Termine',
+  'nav.script_upload': 'Skript hochladen',
+  'nav.script_uploading': 'wird gelesen \u2026',
   'nav.who_as':  'Ansicht: {name} \u00b7 angemeldet: {real}',
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',

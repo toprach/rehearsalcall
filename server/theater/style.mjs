@@ -103,6 +103,9 @@ export const STYLE = `
   .head nav .grp, .subnav .grp { display:inline-flex; gap:.7rem; padding-left:.9rem; border-left:1px solid var(--rule) }
   .head nav .grp:first-child, .subnav .grp:first-child { padding-left:0; border-left:0 }
   .subnav { margin-left:0 }
+  .subnav .navupload { display:inline-flex; align-items:center; margin:0 }
+  .subnav .navupload label { margin:0; cursor:pointer; font-size:.8rem; font-weight:600 }
+  .subnav .navupload label.busy { opacity:.6; pointer-events:none }
   /* --- the overview: the road as a strip of steps --- */
   .steps { display:grid; grid-template-columns:repeat(5, 1fr); gap:.6rem; margin:1rem 0 .4rem }
   .step { display:flex; flex-direction:column; gap:.2rem; text-decoration:none; color:var(--ink);
