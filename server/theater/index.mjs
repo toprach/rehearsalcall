@@ -201,6 +201,9 @@ const html = (response, text, status = 200) => {
   });
   response.end(text);
 };
+/* "WhatsApp senden": the message, filled in, in WhatsApp - the app on a
+   phone, the desktop app or WhatsApp Web on a computer. */
+const whatsapp = (text) => 'https://wa.me/?text=' + encodeURIComponent(text);
 const redirect = (response, target) => {
   response.writeHead(303, { Location: target, 'Cache-Control': 'no-store' });
   response.end();
@@ -1264,6 +1267,7 @@ export async function handle(request, response, path) {
       }
 
       const done = dateAction(A, project, mine, fields, { by: person.b, mayDirect, base: baseOf(request), director: false });
+      if (fields.action === 'nachricht' && done.share) return redirect(response, whatsapp(done.share.text));
       m = done.m;
       await S.write(project);
       Reminders.refresh(project);
@@ -2071,6 +2075,7 @@ export async function handle(request, response, path) {
        from a form and would otherwise go into the notice as it is. */
     const pr = (project.plan?.proben || []).find(x => x.id === rehearsal) || null;
     const done = dateAction(A, project, pr, fields, { mayDirect: true, base: baseOf(request), director: true });
+    if (fields.action === 'nachricht' && done.share) return redirect(response, whatsapp(done.share.text));
     m = done.m;
     await S.write(project);
     Reminders.refresh(project);

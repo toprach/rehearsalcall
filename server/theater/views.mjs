@@ -190,11 +190,12 @@ const durationText = (min) => {
 
    hidden   { name: value } - only values that are set are sent along
    confirm  a question before submitting; without it, it goes at once */
-function actionForm(target, action, hidden, body, { confirm, cssClass } = {}) {
+function actionForm(target, action, hidden, body, { confirm, cssClass, newWindow } = {}) {
   const fields = Object.entries(hidden || {})
     .filter(([, v]) => v != null && v !== '')
     .map(([k, v]) => `<input type="hidden" name="${h(k)}" value="${h(v)}">`).join('');
   return `<form method="post" action="${h(target)}" class="inline${cssClass ? ' ' + cssClass : ''}"${
+    newWindow ? ' target="_blank"' : ''}${
     confirm ? ` onsubmit="return confirm('${h(confirm).replace(/'/g, '&#39;')}')"` : ''}>
     <input type="hidden" name="action" value="${h(action)}">${fields}${body}</form>`;
 }
@@ -301,7 +302,7 @@ function dateDialog(target, pr, e, project) {
       </form>
       <p class="datetools">
         ${actionForm(target, 'nachricht', { rehearsal: pr.id },
-          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+          `<button class="quiet mini" type="submit">${h(t('date.whatsapp'))}</button>`, { newWindow: true })}
         ${actionForm(target, 'loesen', { rehearsal: pr.id },
           `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
       </p>
@@ -366,7 +367,7 @@ function freeDialog(target, e, project) {
       ${placeField(target, e.probe_id, e.ort)}
       <div class="datetools" style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin:.8rem 0">
         ${actionForm(target, 'nachricht', { rehearsal: e.probe_id },
-          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+          `<button class="quiet mini" type="submit">${h(t('date.whatsapp'))}</button>`, { newWindow: true })}
         ${actionForm(target, 'loesen', { rehearsal: e.probe_id },
           `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
         <button type="button" class="quiet mini" data-close="${id}">${h(t('fix.cancel'))}</button>
@@ -384,7 +385,7 @@ function directorTools(target, pr, e, project) {
   return `<div class="datetools">
     <button type="button" class="quiet mini" data-dialog="${id}">${h(t('date.change'))}</button>
     ${actionForm(target, 'nachricht', { rehearsal: pr.id },
-      `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+      `<button class="quiet mini" type="submit">${h(t('date.whatsapp'))}</button>`, { newWindow: true })}
     ${actionForm(target, 'loesen', { rehearsal: pr.id },
       `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: pr.id }))}">${h(t('date.cancel'))}</button>`)}
     ${dateDialog(target, pr, e, project)}</div>`;
@@ -2274,7 +2275,7 @@ function datesPage(p, result, m, share = null) {
       <td><div class="datetools">
         <button type="button" class="quiet mini" data-dialog="chg-${h(x.probe_id)}">${h(t('date.change'))}</button>
         ${actionForm('/theater/termine', 'nachricht', { rehearsal: x.probe_id },
-          `<button class="quiet mini" type="submit">${h(t('date.message'))}</button>`)}
+          `<button class="quiet mini" type="submit">${h(t('date.whatsapp'))}</button>`, { newWindow: true })}
         ${actionForm('/theater/termine', 'loesen', { rehearsal: x.probe_id },
           `<button class="quiet mini" type="submit" data-confirm="${h(t('date.cancel_confirm', { id: title }))}">${h(t('date.cancel'))}</button>`)}
         ${freeDialog('/theater/termine', x, p)}

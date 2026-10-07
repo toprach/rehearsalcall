@@ -729,7 +729,9 @@ for (const b of cast) {
     d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '18:30', to: '20:00', place: 'Attic' });
     check('the director changes time and place of a fixed date', good(d) && /18:30/.test(d.text) && /id="sharebox"/.test(d.text), say(d));
     d = await post('/theater/termine', { action: 'nachricht', rehearsal: val('rehearsal') });
-    check('and gets the message again later', /id="sharebox"/.test(d.text) && /Attic/.test((/<pre class="sharetext"[^>]*>([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || ''));
+    check('and sends the message again later, straight into WhatsApp', d.status === 303 &&
+          /^https:\/\/wa\.me\/\?text=/.test(d.res.headers.get('location') || '') &&
+          /Attic/.test(decodeURIComponent((d.res.headers.get('location') || '').split('text=')[1] || '')), say(d));
     d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '21:00', to: '20:00', place: 'Attic' });
     check('an end before the start is refused', !good(d), say(d));
     // a date that is over moves into the history, where it is rated
@@ -788,8 +790,8 @@ for (const b of cast) {
       check('a day with a date takes no more availability', new RegExp('data-iso="' + day + '" data-edit="0"').test(tv.text) &&
             !new RegExp('name="v_' + day + '"').test(tv.text));
       const msg = await post('/theater/mit/termine', { action: 'nachricht', rehearsal: j.id });
-      const share = (/<pre class="sharetext" id="sharetext">([\s\S]*?)<\/pre>/.exec(msg.text) || [])[1] || '';
-      check('its message lists who comes when', share.includes(h(j.names)) && /Barn &lt;east&gt;/.test(share) && /\d\u2013\d/.test(share), share.slice(0, 200));
+      const share = decodeURIComponent((msg.res.headers.get('location') || '').split('text=')[1] || '');
+      check('its message lists who comes when', msg.status === 303 && share.includes(j.names) && /Barn <east>/.test(share) && /\d\u2013\d/.test(share), share.slice(0, 200));
       cookies = director;
       const dp = await call('GET', '/theater/termine');
       clean('dates page with a free rehearsal', dp);
