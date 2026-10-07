@@ -513,6 +513,7 @@ export const en = {
   'date.optional_can': 'that evening could come as well: {who}',
   'date.change':       'change',
   'date.message':      'message',
+  'date.whatsapp':     'send via WhatsApp',
   'date.cancel':       'call off',
   'date.cancel_confirm': 'Really call off the date of {id}? Please tell the others too.',
   'date.change_title': 'Change the date of {id}',

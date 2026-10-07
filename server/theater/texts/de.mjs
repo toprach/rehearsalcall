@@ -511,6 +511,7 @@ export const de = {
   'date.optional_can': 'an diesem Abend könnte auch kommen: {who}',
   'date.change':       'ändern',
   'date.message':      'Nachricht',
+  'date.whatsapp':     'WhatsApp senden',
   'date.cancel':       'absagen',
   'date.cancel_confirm': 'Den Termin von {id} wirklich absagen? Sagen Sie es bitte auch den anderen.',
   'date.change_title': 'Termin von {id} ändern',

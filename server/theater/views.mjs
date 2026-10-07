@@ -2526,7 +2526,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 frei_what_line: ${js('free.what_line', { text: '#' })}, frei_blocked: ${js('free.blocked_confirm')},
                 ort: ${js('fix.place')}, save: ${js('free.save')}, go: ${js('free.go')},
-                message: ${js('date.message')}, cancel: ${js('date.cancel')},
+                whatsapp: ${js('date.whatsapp')}, cancel: ${js('date.cancel')},
                 cancel_confirm: ${js('date.cancel_confirm', { id: '#' })}, failed: ${js('my.fix_failed')},
                 sits: ${js('hist.sits')}, note: ${js('hist.note')}, keep: ${js('common.save')},
                 nobody: ${js('my.nobody')},
@@ -2776,7 +2776,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
             '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><input type="text" id="fr-inhalt" maxlength="300" value="' + esc(D ? D.inhalt : '') + '">' +
             '<p style="margin-top:.8rem">' + (list.length ? '<button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' : '') +
-            (D ? '<button type="button" id="fr-msg" class="quiet">' + esc(W.message) + '</button> ' +
+            (D ? '<a class="btn quiet" id="fr-msg" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+                 encodeURIComponent(D.message) + '">' + esc(W.whatsapp) + '</a> ' +
                  '<button type="button" id="fr-weg" class="quiet">' + esc(W.cancel) + '</button>' : '') + '</p>';
           var zeilen = [].slice.call(pane.querySelectorAll('.frei-zeile'));
           zeilen.forEach(function (z) {
@@ -2801,11 +2802,6 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             post(data).then(function (r) { return r.json().catch(function () { return {}; }); })
               .then(function (j) { if (j.ok) back(iso); else { go.disabled = false; alert(W.failed); } })
               .catch(function () { go.disabled = false; alert(W.failed); });
-          };
-          var msg = document.getElementById('fr-msg');
-          if (msg) msg.onclick = function () {
-            if (navigator.share) navigator.share({ text: D.message }).catch(function () {});
-            else window.open('https://wa.me/?text=' + encodeURIComponent(D.message), '_blank', 'noopener');
           };
           var weg = document.getElementById('fr-weg');
           if (weg) weg.onclick = function () {
