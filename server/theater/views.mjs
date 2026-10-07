@@ -3019,7 +3019,6 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-nav a { display:block; padding:.25rem 0; color:#b3272d; text-decoration:none }
   .kmt-nav a.on { font-weight:700 }
   .kmt-nav .grp { margin-top:.8rem; font-weight:600; color:#6b655c; font-size:.85em; text-transform:uppercase; letter-spacing:.05em }
-  main.plan .szkopf, main.plan p.szende { cursor:pointer }
   p.speech.kmt-mine { border-left:3px solid #b3272d; padding-left:.5em; margin-left:-.5em; background:rgba(179,39,45,.05) }
   mark.kmt-me { background:#ffe58a; color:inherit; font-weight:700; padding:0 .1em }
   @media print { p.speech.kmt-mine { background:transparent } }
@@ -3293,7 +3292,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       setTimeout(function () { if (h && h.parentNode && h.textContent === HINT) { h.parentNode.removeChild(h); } }, 5000);
     }
 
-    /* ---- the rehearsal plan: jump between the scenes of a rehearsal ---- */
+    /* ---- the rehearsal plan: its scenes, for the selectors in the sheet ---- */
     var scenes = [];
     if (D.doc === 'probenplan') {
       var heads = [].slice.call(document.querySelectorAll('main .szkopf'));
@@ -3303,27 +3302,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         el.id = 'szk-' + i;
         return { i: i, probe: probe, scene: sz, who: (el.querySelector('.szwer') || {}).textContent || '', where: (el.querySelector('.szwo') || {}).textContent || '' };
       });
-      var nav = function (cur) {
-        var same = scenes.filter(function (s) { return s.probe === cur.probe; });
-        var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
-        var box = open('<h3>' + esc(cur.probe) + ' \u2013 ' + esc(cur.who) + '</h3><div class="kmt-nav">' +
-          '<div class="grp">' + esc(T.scenes) + '</div>' +
-          same.map(function (s) { return '<a href="#szk-' + s.i + '"' + (s.i === cur.i ? ' class="on"' : '') + '>' + esc(s.scene) + ' \u00b7 ' + esc(s.where) + '</a>'; }).join('') +
-          '<div class="grp">' + esc(T.rehearsals) + '</div>' +
-          probes.map(function (pn) { var first = scenes.filter(function (s) { return s.probe === pn; })[0];
-            return '<a href="#szk-' + first.i + '"' + (pn === cur.probe ? ' class="on"' : '') + '>' + esc(pn) + ' \u00b7 ' + esc(first.who) + '</a>'; }).join('') +
-          '</div><button class="q" id="kmt-close">' + esc(T.close) + '</button>');
-        box.querySelector('#kmt-close').onclick = close;
-        [].forEach.call(box.querySelectorAll('a'), function (a) { a.onclick = function () { close(); }; });
-      };
-      heads.forEach(function (el, i) { el.addEventListener('click', function () { nav(scenes[i]); }); });
-      [].forEach.call(document.querySelectorAll('main p.szende'), function (el) {
-        el.addEventListener('click', function () {
-          var m = /Ende (Probe \d+), Szene (\d+)/.exec(el.textContent) || [];
-          var cur = scenes.filter(function (s) { return s.probe === m[1] && s.scene === 'Szene ' + m[2]; })[0] || scenes.filter(function (s) { return s.probe === m[1]; })[0];
-          if (cur) nav(cur);
-        });
-      });
+      // no overlay on tapping a scene head any more: it got in the way of
+      // reading; the sheet behind "more" jumps between rehearsals and scenes
     }
 
     /* ---- the fixed bar: rehearsals and scenes, previous and next comment.
