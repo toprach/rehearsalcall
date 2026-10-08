@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
+import { UPRIGHT_SCRIPT } from './upright.mjs';
 import { substitutesOf, historyOf, isoDate, freeNames, freeDetail, freeChoices } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -93,7 +94,7 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="${h(ctx.app ? ctx.app.short : t('pwa.short'))}">
 <link rel="apple-touch-icon" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/icon-192.png` : '/theater/icon-192.png'}">
-<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style></head><body${tabbar ? ' class="hasbar"' : ''}>
+<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style><script>${UPRIGHT_SCRIPT}</script></head><body${tabbar ? ' class="hasbar"' : ''}>
 <header class="head${tabbar ? ' member' : ''}"><div class="inner">
   <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${tabbar ? '' : `${L.picker(pfad)}
   <form method="post" action="/theater/thema" class="themepick">
@@ -128,7 +129,7 @@ ${ctx.share ? `<script>
 ${tabbar}
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
-// the installed app stays upright (the manifest says so too; a browser tab cannot be held)
+// the installed app stays upright (the manifest says so too); where the lock is refused - Safari, a browser tab - upright.mjs turns the page back
 try { if ((window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) && screen.orientation && screen.orientation.lock)
   screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
 </script>

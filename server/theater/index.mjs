@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
 import * as PWA from './pwa.mjs';
+import { UPRIGHT_STYLE, UPRIGHT_SCRIPT, uprightStyles } from './upright.mjs';
 import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
@@ -517,9 +518,11 @@ async function takeInScript(project, script) {
    see. The director (by code or personal link) sees all, everybody
    else their own. */
 /* The tool sets its documents for A4; a phone needs a viewport to lay
-   them out at its own width (the bar's styles do the rest). */
-const withViewport = text => text.replace('<head>',
-  '<head><meta name="viewport" content="width=device-width, initial-scale=1">');
+   them out at its own width (the bar's styles do the rest), and they stay
+   upright like every other page. */
+const withViewport = text => uprightStyles(text).replace('<head>',
+  '<head><meta name="viewport" content="width=device-width, initial-scale=1">' +
+  `<style>${UPRIGHT_STYLE}</style><script>${UPRIGHT_SCRIPT}</script>`);
 
 function docExtrasFor(A, project, token, doc, me, ctx) {
   const mayAll = ctx.regieProject === project.id || ctx.directorProject === project.id;

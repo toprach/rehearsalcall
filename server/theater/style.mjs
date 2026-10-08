@@ -9,7 +9,9 @@
    both times it could not be seen, only reasoned out.
    --------------------------------------------------------------------- */
 
-export const STYLE = `
+import { UPRIGHT_STYLE, uprightMedia } from './upright.mjs';
+
+export const STYLE = uprightMedia(`
   :root {
     --ground:#fbfaf8; --card:#fff; --ink:#1c1a18; --muted:#5f5950;
     --rule:#e6e1da; --accent:#b3272d; --good:#166b34;
@@ -603,4 +605,6 @@ export const STYLE = `
   html[data-theme="dark"] table.cal td.fixed, html[data-theme="dark"] table.cal td.day.level3.fixed.me, html[data-theme="dark"] .dot.fixed { background:#1f6b3a; border-color:#2f8a4f }
   html[data-theme="dark"] button.quiet, html[data-theme="dark"] .btn.quiet { background:var(--card); border-color:var(--field-edge);
                              color:var(--ink) }
-`;
+
+${UPRIGHT_STYLE}
+`);

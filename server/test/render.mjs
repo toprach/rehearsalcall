@@ -13,6 +13,7 @@
 
 import { views, ABOUT } from '../theater/views.mjs';
 import { LANGUAGES } from '../theater/texts.mjs';
+import { uprightMedia } from '../theater/upright.mjs';
 
 const project = {
   id: 'abcd1234', titel: 'Test <Play>',
@@ -228,6 +229,15 @@ for (const { code } of LANGUAGES) {
     console.log((ok ? '  ok    ' : '  FAIL  ') + code + ' ' + name + (problem || s.length ? '  - ' + (problem || s.join(' ')) : ''));
     if (!ok) failures++;
   }
+}
+// a phone held sideways: the phone rules get a turned twin, wide rules stay away from it
+{
+  const out = uprightMedia('@media (max-width:700px) { html[data-theme="dark"] .a, .b:not(.c,.d) { x:1 } }\n' +
+    '@media (min-width:701px) { .e { y:2 } }\n@media print { .f { z:3 } }');
+  const ok = out.includes('html.quer[data-theme="dark"] .a, html.quer .b:not(.c,.d) { x:1 }') &&
+    out.includes('html:not(.quer) .e { y:2 }') && out.includes('@media print { .f { z:3 } }') && !/html\.quer \.f/.test(out);
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'upright media queries');
+  if (!ok) { failures++; console.log(out); }
 }
 console.log('  version ' + (ABOUT.version || '(none)'));
 console.log(failures ? `\n${failures} FAILED` : '\nall views render clean');
