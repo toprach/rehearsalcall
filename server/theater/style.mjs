@@ -422,6 +422,10 @@ export const STYLE = uprightMedia(`
   .pass .reveal { display:none; margin:.3rem 0 }
   .pass.sits { border-color:var(--good) }
   .pass.sits .pno { color:var(--good) }
+  /* the title of the part book with the way into the whole play beside it */
+  .heft-kopf { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.4rem 1rem }
+  .heft-kopf h1 { margin-right:auto }
+  .heft-kopf .btn { margin:0; white-space:nowrap }
   .heft-modes { display:flex; gap:.4rem; margin:.8rem 0 1rem; flex-wrap:wrap }
   .heft-modes button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--field-edge) }
   .heft-modes button.on { background:var(--accent); color:#fff; border-color:var(--accent) }

@@ -534,7 +534,7 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
   /* Checking lines in the document: speech number -> learning key, and
      the step reached, for everybody the viewer may record for - the
      director for the whole company, a member for themselves. */
-  const learn = { keys: {}, steps: {}, known: {} };
+  const learn = { keys: {}, steps: {}, known: {}, kann: {} };
   if (project.skript) {
     const targets = mayAll ? (project.personen || []) : (me ? [me] : []);
     for (const x of targets) {
@@ -543,9 +543,11 @@ function docExtrasFor(A, project, token, doc, me, ctx) {
         for (const c of p.chunks) for (const l of c.lines) if (l.nr != null) keys[l.nr] = c.key;
       learn.keys[x.b] = keys;
       learn.steps[x.b] = Object.fromEntries(Object.entries(project.lernen?.[x.id] || {}).map(([k, r]) => [k, r.s]));
-      // for the director: what was last answered "I know it" (checking or the part book)
+      // what was last answered "I know it" (checking or the part book)
       if (mayAll) learn.known[x.b] = Object.entries(project.lernen?.[x.id] || {})
         .filter(([, r]) => (r.l || []).slice(-1)[0] === 2).map(([k]) => k);
+      // and what was ticked by hand beside the passage
+      learn.kann[x.b] = { ...(project.kann?.[x.id] || {}) };
     }
   }
   return A.docExtras(token || '', doc, me, visible, mayAll, people, learn);
@@ -1373,6 +1375,15 @@ export async function handle(request, response, path) {
           who = other; book = partBook(project.skript, other.b);
         }
         if (!book.some(p => p.chunks.some(c => c.key === key))) return answer({ ok: false, reason: 'key' }, 400);
+        /* Der Haken neben der Stelle: sitzt sie? Das ist kein Lernschritt,
+           sondern die eigene Ansage - deshalb ein eigener Platz. */
+        if (fields.kann != null) {
+          project.kann = project.kann || {};
+          const seine = project.kann[who.id] = project.kann[who.id] || {};
+          if (String(fields.kann) === '1') seine[key] = true; else delete seine[key];
+          await S.write(project);
+          return answer({ ok: true, kann: !!seine[key] });
+        }
         project.lernen = project.lernen || {};
         const mine = project.lernen[who.id] = project.lernen[who.id] || {};
         let rec = mine[key] || null;

@@ -2959,11 +2959,11 @@ function adminPage(projects, m, fresh, entry) {
    click, and - in the rehearsal plan - a way to jump between the
    scenes of a rehearsal. Nothing of it prints.
    --------------------------------------------------------------------- */
-function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { keys: {}, steps: {} }) {
+function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { keys: {}, steps: {}, kann: {} }) {
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
-    people, keys: learn.keys || {}, steps: learn.steps || {}, known: learn.known || {},
+    people, keys: learn.keys || {}, steps: learn.steps || {}, known: learn.known || {}, kann: learn.kann || {},
     comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
       name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
       erledigt: !!c.erledigt })),
@@ -2979,6 +2979,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine'),
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
       check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
+      kann: t('kd.kann'), kann_fuer: t('kd.kann_fuer', { who: '#' }),
       check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
       hint_touch: t('kd.hint_touch'),
       more: t('kd.more'), font: t('kd.font'), adhoc: t('kd.adhoc'), adhoc_title: t('kd.adhoc_title'),
@@ -3090,7 +3091,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   p.speech.kmt-veiled { cursor:pointer }
   p.speech.kmt-s0 .kmt-text { color:transparent; background:#d9d4cc; border-radius:3px }
   p.speech.kmt-s0 .kmt-text * { color:transparent !important; background:transparent !important }
-  p.speech.kmt-s0 .kmt-text em.emph { color:#5a554d !important }
+  /* Kursives in einer Replik ist Betonung - sie gehoert zum Text und
+     wird mitverdeckt. Nur was in Klammern steht, ist Regieanweisung
+     und bleibt lesbar. */
+  p.speech.kmt-s0 .kmt-text .dir, p.speech.kmt-s0 .kmt-text .kmt-dir,
+  p.speech.kmt-s0 .kmt-text [data-sem="regieanweisung"] { color:#5a554d !important }
   p.speech.kmt-s1 .kmt-text { display:none }
   p.speech:not(.kmt-s1) .kmt-veil-ph { display:none }
   .kmt-veil-ph { color:#6b655c; letter-spacing:.04em }
@@ -3105,6 +3110,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   @media print { p.speech.kmt-kann { box-shadow:none } }
   p.speech.kmt-no { background:rgba(179,39,45,.12) }
   .kmt-step { font-size:.75em; color:#6b655c; margin-left:.3em; white-space:nowrap }
+  /* Haken neben der eigenen Stelle: sitzt der Text? */
+  .kmt-haken { float:left; margin:.15em .45em 0 -1.6em; cursor:pointer; line-height:1 }
+  .kmt-haken input { width:1.05em; height:1.05em; margin:0; accent-color:#2f9e5a; cursor:pointer }
+  @media (max-width:700px) { .kmt-haken { margin-left:-1.2em } }
+  @media print { .kmt-haken { display:none } }
   @media print { .kmt-text { color:inherit !important; background:none !important; display:inline !important }
     .kmt-check-ui, .kmt-veil-ph, .kmt-step { display:none !important } }
   @media (max-width:700px) {
@@ -3569,6 +3579,60 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     if (adhocBtn) adhocBtn.onclick = function () { openAdhoc(); };
     showStrip();
 
+    /* ---- the tick beside a passage: this one sits.
+
+       One tick per passage of the part book (several speeches can
+       belong to one), shown where the viewer may set it: on one's own
+       lines, and on everybody's for the director and the assistant.
+       It is kept with the project, so it is there on the next device
+       as well. ---- */
+    /* Sitzt die Stelle? Zwei Wege führen dahin: der Haken daneben und
+       ein "kann ich" beim Abprüfen. Angezeigt wird beides gleich, als
+       grüner Balken an der Zeile. */
+    var sitzt = function (name, key) {
+      return !!(D.kann[name] || {})[key] || (D.known[name] || []).indexOf(key) >= 0;
+    };
+    var kannSetzen = function (head, key, name, an, kasten) {
+      var body = 'key=' + encodeURIComponent(key) + '&kann=' + (an ? '1' : '0') + '&fuer=' + encodeURIComponent(name);
+      fetch('/theater/mit/heft', { method: 'POST', credentials: 'same-origin',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (!r.ok) { if (kasten) kasten.checked = !an; alert(T.failed); return; }
+          (D.kann[name] = D.kann[name] || {})[key] = !!r.kann;
+          if (!r.kann) {
+            delete D.kann[name][key];
+            // ein "kann ich" vom Abprüfen würde den Balken sonst stehen lassen
+            D.known[name] = (D.known[name] || []).filter(function (k) { return k !== key; });
+          }
+          kann();
+        })
+        .catch(function () { if (kasten) kasten.checked = !an; alert(T.failed); });
+    };
+    var haken = function () {
+      if (!D.me) return;
+      var gesehen = {};
+      [].forEach.call(document.querySelectorAll('main p.speech[data-nr][data-ensemble]'), function (p) {
+        var name = p.dataset.ensemble, schluessel = D.keys[name];
+        if (!schluessel) return;                       // nicht meine Sache
+        var key = schluessel[p.dataset.nr];
+        if (!key || gesehen[name + '|' + key]) return; // je Passage einer
+        gesehen[name + '|' + key] = true;
+        if (p.querySelector('.kmt-haken')) return;
+        var an = sitzt(name, key);
+        var l = document.createElement('label');
+        l.className = 'kmt-haken';
+        l.title = name === (D.me && D.me.b) ? T.kann : T.kann_fuer.replace('#', name);
+        l.innerHTML = '<input type="checkbox"' + (an ? ' checked' : '') + '>';
+        var kasten = l.firstChild;
+        kasten.setAttribute('aria-label', l.title);
+        kasten.addEventListener('click', function (e) { e.stopPropagation(); });
+        kasten.addEventListener('change', function () { kannSetzen(p, key, name, kasten.checked, kasten); });
+        p.insertBefore(l, p.firstChild);
+      });
+      kann();
+    };
+
     /* ---- checking: the chosen person's lines veiled. A tap shows the
        initials, another the words; then a tick or a cross records the
        line for that person as the part book would. A speech and its
@@ -3578,6 +3642,20 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     var hintEl = document.querySelector('.kmt-hint');
     var firstLetters = function (text) {
       return text.replace(/[\\p{L}\\p{N}\\u2019']+/gu, function (w) { return w.charAt(0) + '\\u00b7'.repeat(Math.min(w.length - 1, 6)); });
+    };
+    /* Die Anfangsbuchstaben-Stufe: alles zu Buchstaben eindampfen, nur
+       die Regieanweisungen in Klammern bleiben, wie sie sind. */
+    var DIR = '.dir, .kmt-dir, [data-sem="regieanweisung"]';
+    var hinweisHtml = function (tx) {
+      var k = tx.cloneNode(true), nodes = [], n;
+      var w = document.createTreeWalker(k, NodeFilter.SHOW_TEXT);
+      while ((n = w.nextNode())) nodes.push(n);
+      nodes.forEach(function (t) {
+        var e = t.parentNode;
+        if (e && e.closest && e.closest(DIR)) return;
+        t.nodeValue = firstLetters(t.nodeValue);
+      });
+      return k.innerHTML;
     };
     /* Whose line is this? Its own speaker - with several people in the
        room every speech is recorded for the one who says it. Only
@@ -3601,7 +3679,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       unit.forEach(function (p) {
         p.classList.remove('kmt-s0', 'kmt-s1', 'kmt-s2'); p.classList.add('kmt-s' + state);
         var ph = p.querySelector('.kmt-veil-ph'), tx = p.querySelector('.kmt-text');
-        if (ph && tx) ph.textContent = state === 1 ? firstLetters(tx.textContent) : '';
+        if (ph && tx) ph.innerHTML = state === 1 ? hinweisHtml(tx) : '';
       });
       var ui = last.querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
       var name = whoOf(head), key = (D.keys[name] || {})[head.dataset.nr];
@@ -3630,11 +3708,10 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         .then(function (r) {
           if (!r.ok) { alert(T.failed); return; }
           (D.steps[name] = D.steps[name] || {})[key] = r.rec.s;
-          if (D.all) {
-            var known = (D.known[name] = (D.known[name] || []).filter(function (k) { return k !== key; }));
-            if (rating === 'kann') known.push(key);
-            kann();
-          }
+          var known = (D.known[name] = (D.known[name] || []).filter(function (k) { return k !== key; }));
+          if (rating === 'kann') known.push(key);
+          else delete (D.kann[name] || {})[key];   // "nochmal" nimmt auch den Haken zurück
+          kann();
           var unit = unitOf(head);
           unit.forEach(function (p) { p.classList.remove('kmt-ok', 'kmt-no'); p.classList.add(rating === 'kann' ? 'kmt-ok' : 'kmt-no'); });
           var ui = unit[unit.length - 1].querySelector('.kmt-check-ui'); if (ui) ui.parentNode.removeChild(ui);
@@ -3646,15 +3723,16 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
        in checking here or in the speaker's own part book - get a green
        bar, continuation paragraphs along with their speech. */
     var kann = function () {
-      if (!D.all) return;
       [].forEach.call(document.querySelectorAll('main p.speech[data-ensemble]'), function (p) {
         var head = p;
         while (head && !head.dataset.nr && head.classList.contains('cont')) head = head.previousElementSibling;
         var b = p.dataset.ensemble, key = head && head.dataset.nr ? (D.keys[b] || {})[head.dataset.nr] : null;
-        p.classList.toggle('kmt-kann', key != null && (D.known[b] || []).indexOf(key) >= 0);
+        p.classList.toggle('kmt-kann', key != null && sitzt(b, key));
+        var kasten = p.querySelector('.kmt-haken input');
+        if (kasten && key != null) kasten.checked = sitzt(b, key);
       });
     };
-    kann();
+    haken();
     /* Not "veil": that is the comment dialog's backdrop element, a few
        hundred lines up and in this same scope. Naming a function the
        same overwrote it, so close() - which every open() calls first -
@@ -3664,14 +3742,36 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-mine'), function (p) {
         if (p.classList.contains('kmt-veiled')) return;
         var span = document.createElement('span'); span.className = 'kmt-text';
-        var who = null, rest = [];
+        var who = null, haken = null, rest = [];
         [].slice.call(p.childNodes).forEach(function (n) {
           if (n.nodeType === 1 && n.classList.contains('who')) { who = n; return; }
+          // der Haken gehoert nicht unter die Decke
+          if (n.nodeType === 1 && n.classList.contains('kmt-haken')) { haken = n; return; }
           if (n.nodeType === 1 && n.classList.contains('kmt-badge')) { rest.push(n); return; }
           span.appendChild(n);
         });
+        /* Was in Klammern steht, ist Anweisung - auch wenn es im
+           Original nicht kursiv gesetzt war. Das bleibt lesbar. */
+        (function (wurzel) {
+          var nodes = [], n, w = document.createTreeWalker(wurzel, NodeFilter.SHOW_TEXT);
+          while ((n = w.nextNode())) nodes.push(n);
+          nodes.forEach(function (t) {
+            if (t.parentNode.closest && t.parentNode.closest(DIR)) return;
+            if (!/\([^()]*\)/.test(t.nodeValue)) return;
+            var teile = t.nodeValue.split(/(\([^()]*\))/), frag = document.createDocumentFragment();
+            teile.forEach(function (teil) {
+              if (!teil) return;
+              if (teil.charAt(0) === '(' && teil.charAt(teil.length - 1) === ')') {
+                var d = document.createElement('span'); d.className = 'kmt-dir'; d.textContent = teil;
+                frag.appendChild(d);
+              } else frag.appendChild(document.createTextNode(teil));
+            });
+            t.parentNode.replaceChild(frag, t);
+          });
+        })(span);
         var ph = document.createElement('span'); ph.className = 'kmt-veil-ph';
         p.innerHTML = '';
+        if (haken) p.appendChild(haken);
         if (who) { p.appendChild(who); p.appendChild(document.createTextNode(' ')); }
         p.appendChild(ph); p.appendChild(span);
         rest.forEach(function (n) { p.appendChild(n); });
@@ -3685,6 +3785,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       [].forEach.call(document.querySelectorAll('main p.speech.kmt-veiled'), function (p) {
         var span = p.querySelector('.kmt-text');
         [].forEach.call(p.querySelectorAll('.kmt-veil-ph, .kmt-check-ui, .kmt-step'), function (x) { x.parentNode.removeChild(x); });
+        [].forEach.call(p.querySelectorAll('span.kmt-dir'), function (d) { d.replaceWith(document.createTextNode(d.textContent)); });
         if (span) { while (span.firstChild) p.insertBefore(span.firstChild, span); p.removeChild(span); }
         p.classList.remove('kmt-veiled', 'kmt-s0', 'kmt-s1', 'kmt-s2', 'kmt-ok', 'kmt-no');
         delete p.dataset.kmtState;
