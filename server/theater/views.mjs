@@ -3165,7 +3165,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     /* ---- anchors on every cue, so a link can point at a line ---- */
     var paras = [].slice.call(document.querySelectorAll('main p[data-nr]'));
     paras.forEach(function (p) { if (p.dataset.nr) p.id = 'nr-' + p.dataset.nr; });
-    if (/^#nr-\d+$/.test(location.hash)) { var tgt = document.getElementById(location.hash.slice(1)); if (tgt) tgt.scrollIntoView({ block: 'center' }); }
+    if (/^#nr-\\d+$/.test(location.hash)) { var tgt = document.getElementById(location.hash.slice(1)); if (tgt) tgt.scrollIntoView({ block: 'center' }); }
 
     /* ---- badges ---- */
     function badge(nr) {
@@ -3204,7 +3204,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     }
     function showNew(nr) {
       var p = document.getElementById('nr-' + nr);
-      var snip = p ? p.textContent.replace(/\s+/g, ' ').trim().slice(0, 140) : '';
+      var snip = p ? p.textContent.replace(/\\s+/g, ' ').trim().slice(0, 140) : '';
       if (!D.me) { open('<p>' + esc(T.signin) + '</p><button class="q" id="kmt-close">' + esc(T.close) + '</button>').querySelector('#kmt-close').onclick = close; return; }
       var box = open('<h3>' + esc(T.new_).replace('{nr}', nr) + '</h3><div class="snip">' + esc(snip) + '</div>' +
         '<textarea id="kmt-text"></textarea>' +
@@ -3333,7 +3333,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       '</select></div>';
     if (scenes.length) {
       // rehearsals in their order 1..N, scenes all of them
-      var probeNr = function (pn) { var m = /(\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
+      var probeNr = function (pn) { var m = /(\\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
       var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
       probes.sort(function (a, b) { return probeNr(a) - probeNr(b) || a.localeCompare(b); });
       more += '<div class="pair"><div><span class="slbl">' + esc(T.rehearsal) + '</span><select id="kmt-probe">' +
@@ -3757,8 +3757,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
           while ((n = w.nextNode())) nodes.push(n);
           nodes.forEach(function (t) {
             if (t.parentNode.closest && t.parentNode.closest(DIR)) return;
-            if (!/\([^()]*\)/.test(t.nodeValue)) return;
-            var teile = t.nodeValue.split(/(\([^()]*\))/), frag = document.createDocumentFragment();
+            // inside this template literal a backslash must be doubled, or the
+            // page gets /([^()]*)/ - which matches everything and, split with
+            // two groups, repeated every speech
+            if (!/\\([^()]*\\)/.test(t.nodeValue)) return;
+            var teile = t.nodeValue.split(/(\\([^()]*\\))/), frag = document.createDocumentFragment();
             teile.forEach(function (teil) {
               if (!teil) return;
               if (teil.charAt(0) === '(' && teil.charAt(teil.length - 1) === ')') {

@@ -46,11 +46,13 @@ function around(flat, from, to, n) {
   for (let i = from - 1; i >= 0 && before.length < n; i--) {
     const e = flat[i];
     if (e.typ === 'kapitel') break;
+    if (e.gestrichen) continue;   // cut by the director: not shown
     if (isSpeech(e) || isDirection(e)) before.push(entry(e));
   }
   for (let i = to + 1; i < flat.length && after.length < n; i++) {
     const e = flat[i];
     if (e.typ === 'kapitel') break;
+    if (e.gestrichen) continue;
     if (isSpeech(e) || isDirection(e)) after.push(entry(e));
   }
   return { before, after };
@@ -63,6 +65,7 @@ export function partBook(structure, b, opt = {}) {
   let chapter = '', act = '';
   let cur = null;                 // the passage being collected
   let cue = null;                 // last speech by somebody else
+  let shownCue = null;            // the same, leaving out what was cut
   let pending = [];               // directions since the last speech
 
   flat.forEach((e, idx) => {
@@ -81,7 +84,7 @@ export function partBook(structure, b, opt = {}) {
 
     if (speaks(e, b)) {
       if (!cur) {
-        cur = { nr: e.nr ?? null, act, chapter, cue, before: pending,
+        cur = { nr: e.nr ?? null, act, chapter, cue, shownCue, before: pending,
                 lines: [], after: [], cut: !!e.gestrichen,
                 role: e.figur && e.figur !== b ? e.figur : '',
                 from: idx - pending.length, to: idx };
@@ -98,6 +101,7 @@ export function partBook(structure, b, opt = {}) {
     } else {
       cur = null;
       cue = { who: e.figur || e.sprecher_im_text || '', text: e.text || '', nr: e.nr ?? null, b: e.ensemble || null };
+      if (!e.gestrichen) shownCue = cue;
       pending = [];
     }
   });
@@ -108,8 +112,29 @@ export function partBook(structure, b, opt = {}) {
     p.ctxBefore = a.before; p.ctxAfter = a.after;
     delete p.from; delete p.to;
     p.chunks = chunksOf(p, b, opt.chunkWords ?? 40);
+    withoutCuts(p, b);
   });
-  return passages;
+  return passages.filter(p => p.chunks.length);
+}
+
+/* What the director cut is not shown in the part book: not as one's own
+   line, not as the cue, not around. The keys stay as they were - they
+   are computed above over every line, so what was learnt before a cut
+   is still found. A chunk left without a word goes, and a passage left
+   without a chunk; the cue becomes the last line still spoken. */
+function withoutCuts(p, b) {
+  const spokenText = (lines) => { for (let i = lines.length - 1; i >= 0; i--) if (lines[i].text) return lines[i].text; return ''; };
+  const kept = [];
+  for (const c of p.chunks) {
+    const lines = c.lines.filter(l => !l.cut);
+    if (!lines.some(l => l.text)) continue;
+    const cue = kept.length ? { who: b, text: spokenText(kept[kept.length - 1].lines), own: true } : p.shownCue;
+    kept.push({ ...c, lines, cue });
+  }
+  p.chunks = kept;
+  p.lines = p.lines.filter(l => !l.cut);
+  p.cue = p.shownCue;
+  delete p.shownCue;
 }
 
 /* The whole play for the screen: chapters, speeches and directions in
@@ -120,7 +145,7 @@ export function wholePlay(structure, b) {
   for (const e of flatten(structure)) {
     if (e.typ === 'kapitel') out.push({ kind: 'chapter', text: e.text || '', act: /^\d+\.$/.test(e.kapitel || '') });
     else if (isDirection(e)) out.push({ kind: 'dir', text: e.text || '' });
-    else if (isSpeech(e)) out.push({ kind: 'speech', nr: e.nr ?? null, who: e.figur || e.sprecher_im_text || '',
+    else if (isSpeech(e) && !e.gestrichen) out.push({ kind: 'speech', nr: e.nr ?? null, who: e.figur || e.sprecher_im_text || '',
                                      text: e.text || '', cont: e.typ === 'fortsetzung', own: speaks(e, b), cut: !!e.gestrichen });
   }
   return out;
