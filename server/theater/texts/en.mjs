@@ -1254,6 +1254,7 @@ export const en = {
   'kd.kann':         'I know this passage',
   'kd.kann_fuer':    '{who} knows this passage',
   'kd.more':            'More',
+  'kd.home':            'Start',
   'kd.font':            'Type size',
   'kd.adhoc':           'Ad hoc',
   'kd.adhoc_title':     'Ad-hoc rehearsal',

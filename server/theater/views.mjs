@@ -2963,6 +2963,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   const data = {
     token, doc, all: !!canSeeAll,
     me: me ? { b: me.b, name: me.name || me.b } : null,
+    // the start button: a member's own start, the director's project, else the entry
+    home: me ? '/theater/mit' : canSeeAll ? '/theater/projekt' : '/theater',
     people, keys: learn.keys || {}, steps: learn.steps || {}, known: learn.known || {}, kann: learn.kann || {},
     comments: comments.map(c => ({ id: c.id, nr: c.nr, text: c.text, wer: c.wer,
       name: c.name || c.wer, datum: c.datum, frage: !!c.frage, antwort: c.antwort || null,
@@ -2979,7 +2981,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       prev_mine: t('kd.prev_mine'), next_mine: t('kd.next_mine'),
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
       check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
-      kann: t('kd.kann'), kann_fuer: t('kd.kann_fuer', { who: '#' }),
+      kann: t('kd.kann'), kann_fuer: t('kd.kann_fuer', { who: '#' }), home: t('kd.home'),
       check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
       hint_touch: t('kd.hint_touch'),
       more: t('kd.more'), font: t('kd.font'), adhoc: t('kd.adhoc'), adhoc_title: t('kd.adhoc_title'),
@@ -3037,6 +3039,10 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-row button.wide { flex:1 1 auto; min-width:0 }
   .kmt-row button.accent { border-color:#b3272d; color:#b3272d }
   .kmt-row button.kmt-end { opacity:.4 }
+  .kmt-row a.kmt-home { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; min-height:2.7rem;
+    min-width:2.7rem; border:1px solid #a9a29a; border-radius:.3rem; background:#fff; color:#1c1a18; text-decoration:none }
+  .kmt-row a.kmt-home svg { width:1.35rem; height:1.35rem; fill:none; stroke:currentColor; stroke-width:1.9;
+    stroke-linecap:round; stroke-linejoin:round }
   .kmt-toast { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:50; max-width:90vw;
     background:#1c1a18; color:#fff; border-radius:.4rem; padding:.5rem .9rem; text-align:center;
     font:14px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; box-shadow:0 4px 16px rgba(0,0,0,.25) }
@@ -3088,6 +3094,10 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   @media print { body { zoom:1 } }
   .kmt-cur { outline:2px solid #b3272d; outline-offset:3px; border-radius:3px }
   .kmt-bar button.on { background:#b3272d; color:#fff; border-color:#b3272d }
+  /* In the rehearsal plan the boxes of rehearsal and scene (and the line
+     that ends one) are left out, on screen and in print - they interrupt
+     reading. The sheet behind "more" still jumps between them. */
+  main.plan .szkopf, main.plan tr.szrow, main.plan p.szende { display:none !important }
   p.speech.kmt-veiled { cursor:pointer }
   p.speech.kmt-s0 .kmt-text { color:transparent; background:#d9d4cc; border-radius:3px }
   p.speech.kmt-s0 .kmt-text * { color:transparent !important; background:transparent !important }
@@ -3310,8 +3320,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         el.id = 'szk-' + i;
         return { i: i, probe: probe, scene: sz, who: (el.querySelector('.szwer') || {}).textContent || '', where: (el.querySelector('.szwo') || {}).textContent || '' };
       });
-      // no overlay on tapping a scene head any more: it got in the way of
-      // reading; the sheet behind "more" jumps between rehearsals and scenes
+      // no overlay on tapping a scene head, and no head shown at all
+      // (style below): the sheet behind "more" jumps between rehearsals
+      // and scenes
     }
 
     /* ---- the fixed bar: rehearsals and scenes, previous and next comment.
@@ -3351,6 +3362,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
 
     inner = '<div class="kmt-strip" id="kmt-strip"></div>' +
       '<div class="kmt-row">' +
+      '<a class="kmt-home" id="kmt-home" href="' + esc(D.home) + '" title="' + esc(T.home) + '" aria-label="' + esc(T.home) + '">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.8V20h5v-5.5h3V20h5V9.8"/></svg></a>' +
       '<button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '" aria-label="' + esc(T.prev_mine) + '">\u25c0</button>' +
       (D.people.length ? '<button type="button" class="wide" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>' : '<span class="wide"></span>') +
       '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '" aria-label="' + esc(T.next_mine) + '">\u25b6</button>' +
@@ -3373,7 +3386,14 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       } else { document.body.style.paddingBottom = ''; if (hint) hint.style.bottom = ''; }
     };
     padBar(); window.addEventListener('resize', padBar); setTimeout(padBar, 300);
-    var jump = function (el) { if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
+    /* The scene heads are not shown on screen (see the style); a jump goes
+       to what follows the head, and the current scene is read from there. */
+    var spot = function (el) {
+      var h = el && (el.closest('tr.szrow') || el), n = h && h.nextElementSibling;
+      while (n && !n.offsetHeight) n = n.nextElementSibling;
+      return n || h;
+    };
+    var jump = function (el) { el = spot(el); if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
     if (scenes.length) {
       var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
       var firstOf = function (pn) { return scenes.filter(function (s) { return s.probe === pn; })[0]; };
@@ -3385,7 +3405,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
         setTimeout(function () {
           syncing = false;
           var cur = null;
-          scenes.forEach(function (s) { var el = document.getElementById('szk-' + s.i); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s; });
+          scenes.forEach(function (s) { var el = spot(document.getElementById('szk-' + s.i)); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s; });
           if (cur && (selP.value !== cur.probe || String(selS.value) !== String(cur.i))) { selP.value = cur.probe; selS.value = String(cur.i); }
         }, 150);
       });

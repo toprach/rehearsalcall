@@ -1257,6 +1257,7 @@ export const de = {
   'kd.kann':         'Diese Stelle kann ich',
   'kd.kann_fuer':    '{who} kann diese Stelle',
   'kd.more':            'Mehr',
+  'kd.home':            'Start',
   'kd.font':            'Schrift',
   'kd.adhoc':           'Ad-hoc',
   'kd.adhoc_title':     'Ad-hoc-Probe',
