@@ -67,6 +67,7 @@ const ICONS = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
   note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/>',
+  play: '<path d="M8 3h9l3 3v13a2 2 0 0 1-2 2H8z"/><path d="M8 7H5v14h11"/><path d="M11 9h6M11 13h6M11 17h4"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   clapper: '<path d="M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 10l1.2-4.6 14.6 2L19 10M8.6 5.9l1.9 4.1M13.6 6.6l1.9 3.4"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
@@ -1636,10 +1637,15 @@ const barOf = (items) => `<nav class="tabbar">${items.map(([href, label, ico, ar
   // whose view this is - screenshots and borrowed phones say it at once
   ctx.who ? `<div class="tabwho${ctx.who.real ? ' as' : ''}">${ctx.who.real
     ? t('nav.who_as', { name: h(ctx.who.name), real: h(ctx.who.real) }) : h(ctx.who.name)}</div>` : ''}</nav>`;
-// the old dates page (/theater/mit/termine) stays reachable, not listed
-const memberItems = () => [
+// the old dates page (/theater/mit/termine) stays reachable, not listed.
+// "Stück" is the whole play: the rehearsal plan where there is one, the
+// play on the screen otherwise.
+const playHref = (project) => project?.druck_token && project.plan?.proben?.length
+  ? `/theater/druck/${h(project.druck_token)}/probenplan` : '/theater/mit/stueck';
+const memberItems = (project) => [
   ['/theater/mit/zeiten', t('navm.tab_avail'), 'calendar'],
   ['/theater/mit/heft', t('navm.tab_book'), 'book'],
+  [playHref(project), t('navm.tab_play'), 'play'],
   ['/theater/mit/kommentare', t('navm.tab_notes'), 'note'],
 ];
 const directItem = () => ['/theater/projekt', t('navm.tab_direct'), 'clapper', '',
@@ -1647,7 +1653,7 @@ const directItem = () => ['/theater/projekt', t('navm.tab_direct'), 'clapper', '
 const gearItem = () => ['/theater/einstellungen?z=' + encodeURIComponent(pfad), '', 'gear', t('nav.settings')];
 /* Two roles: a member, and the director (with the assistant). What only
    the director sees sits behind one item of its own. */
-const memberTabbar = (project, person) => barOf([...memberItems(),
+const memberTabbar = (project, person) => barOf([...memberItems(project),
   ...(ctx.regieProject === project.id || ctx.directorProject === project.id ? [directItem()] : []),
   gearItem()]);
 /* On the director's pages: with a member's identity the same bar, by the
@@ -1911,8 +1917,6 @@ function bookPage(project, person, passages, words, state = {}, today = '', comm
   return page({ title: t('book.title'), nav: navMember(project, person),
                 tabbar: memberTabbar(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p>
-    <p><a class="btn quiet mini" href="${project.druck_token && project.plan?.proben?.length
-        ? `/theater/druck/${h(project.druck_token)}/probenplan` : '/theater/mit/stueck'}">${t('book.play_link')}</a></p>
     <h1>${t('book.title_for', { name: h(who) })}</h1>
     <p class="small muted">${t('book.figures', { passages: passages.length, words })}</p>
     ${filter ? `<div class="notice" id="heft-filter">${filter.mit

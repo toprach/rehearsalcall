@@ -242,6 +242,7 @@ export const de = {
   'navm.tab_avail': 'Termine',
   'navm.tab_dates': 'Termine',
   'navm.tab_book':  'Rolle',
+  'navm.tab_play': 'St\u00fcck',
   'navm.tab_notes': 'Notizen',
   'navm.tab_direct': 'Regie',
   'set.more':        'Mehr',
