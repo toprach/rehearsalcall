@@ -20,7 +20,7 @@ var FILES = 'theater-dateien';
 var OFFLINE = '/theater/offline';
 var WAIT = 6000;
 
-var KEEP = /^\/theater\/mit(\/(zeiten|termine|heft|stueck|kommentare))?\/?$/;
+var KEEP = /^\/theater\/(mit(\/(zeiten|termine|heft|stueck|kommentare))?\/?|druck\/[a-z0-9]+\/gesamt)$/;
 var FILE = /^\/theater\/(stil\.css|heft\.js|kalender\.js|vendor\/[\w.-]+|icon-\d+\.png)$/;
 var FORGET = /^\/theater\/(mit\/abmelden|ich\/|gruppe\/|als\/?$)/;
 

@@ -161,7 +161,8 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.
   if (Date.now() - last < 60 * 60 * 1000) return;
   navigator.serviceWorker.ready.then(function (reg) {
     if (!reg.active) return;
-    reg.active.postMessage({ warm: ['/theater/mit/zeiten', '/theater/mit/termine', '/theater/mit/heft', '/theater/mit/stueck'],
+    var tabs = [].map.call(document.querySelectorAll('.tabbar a'), function (a) { return a.getAttribute('href'); });
+    reg.active.postMessage({ warm: ['/theater/mit/zeiten', '/theater/mit/termine', '/theater/mit/heft'].concat(tabs),
       files: ['/theater/heft.js?v=${HEFT_V}', '/theater/kalender.js?v=${KAL_V}', '/theater/stil.css?v=${STYLE_V}', '/theater/vendor/ical.min.js'] });
     try { localStorage.setItem('vorrat', String(Date.now())); } catch (e) {}
   });
@@ -1554,8 +1555,10 @@ const barOf = (items) => `<nav class="tabbar">${items.map(([href, label, ico, ar
 // the old dates page (/theater/mit/termine) stays reachable, not listed.
 // "Stück" is the whole play: the rehearsal plan where there is one, the
 // play on the screen otherwise.
-const playHref = (project) => project?.druck_token && project.plan?.proben?.length
-  ? `/theater/druck/${h(project.druck_token)}/probenplan` : '/theater/mit/stueck';
+/* "Play": the whole script as the document, with the full bar - start,
+   more, checking, go to page, back and forward to one's own lines. */
+const playHref = (project) => project?.druck_token
+  ? `/theater/druck/${h(project.druck_token)}/gesamt` : '/theater/mit/stueck';
 const memberItems = (project) => [
   ['/theater/mit/zeiten', t('navm.tab_avail'), 'calendar'],
   ['/theater/mit/heft', t('navm.tab_book'), 'book'],
