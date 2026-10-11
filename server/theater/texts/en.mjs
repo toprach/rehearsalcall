@@ -1214,6 +1214,11 @@ export const en = {
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'No connection. As soon as the network is back, it goes on.',
   'pwa.retry':         'Try again',
+  'set.install':       'Install the app',
+  'set.installed':     '\u2713 Installed as an app on this device.',
+  'set.install_mac':   'On a Mac in Safari: menu \u201cFile\u201d \u2192 \u201cAdd to Dock\u201d.',
+  'set.install_firefox': 'Firefox cannot install the page as an app on a computer \u2013 open it in Chrome, Edge or Safari and tap here again.',
+  'set.install_desktop': 'In the browser: the install icon at the right of the address bar, or in the menu (\u22ee) \u201cInstall app\u201d or \u201cInstall page as app\u201d.',
 
   /* ---------- comments ---------- */
   'kd.new':          'New comment at speech {nr}',

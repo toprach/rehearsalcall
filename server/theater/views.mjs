@@ -2006,6 +2006,47 @@ function playPage(project, person, blocks, starts, comments) {
    Settings for this device: language, light or dark, type size. Kept
    in cookies, so each phone and each computer has its own.
    --------------------------------------------------------------------- */
+/* The app on this device, in the settings: a button that is always
+   there (the banner can be dismissed), and does what this browser can -
+   Chrome and Edge on any system ask themselves; Safari on the iPhone and
+   on the Mac, and Firefox, need to be told the way. Installed already,
+   it says so instead. */
+const installBox = () => `<div class="installbox" id="installbox">
+    <button type="button" id="set-install">${h(t('set.install'))}</button>
+    <p class="small muted how" hidden></p>
+    <p class="small done" hidden>${h(t('set.installed'))}</p>
+  </div>
+  <script>
+  (function () {
+    var box = document.getElementById('installbox'); if (!box) return;
+    var btn = box.querySelector('#set-install'), how = box.querySelector('.how'), done = box.querySelector('.done');
+    var installed = function () { btn.hidden = true; how.hidden = true; done.hidden = false; };
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) { installed(); return; }
+    var deferred = null;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; });
+    window.addEventListener('appinstalled', installed);
+    var ua = navigator.userAgent;
+    var ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    var android = /android/i.test(ua);
+    var firefox = /firefox|fxios/i.test(ua);
+    var macSafari = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua) && !ios;
+    btn.addEventListener('click', function () {
+      if (deferred) {
+        deferred.prompt();
+        deferred.userChoice.then(function (c) { deferred = null;
+          if (c && c.outcome === 'accepted') { installed(); document.dispatchEvent(new CustomEvent('app-installiert')); } });
+        return;
+      }
+      how.textContent = ios ? ${JSON.stringify(t('pwa.ios'))}
+        : android ? ${JSON.stringify(t('pwa.android'))}
+        : macSafari ? ${JSON.stringify(t('set.install_mac'))}
+        : firefox ? ${JSON.stringify(t('set.install_firefox'))}
+        : ${JSON.stringify(t('set.install_desktop'))};
+      how.hidden = false;
+    });
+  })();
+  </script>`;
+
 function settingsPage(current, back, m, who) {
   const radio = (name, value, label, checked) => `<label class="inline choice">
       <input type="radio" name="${name}" value="${h(value)}"${checked ? ' checked' : ''}> ${h(label)}</label>`;
@@ -2018,6 +2059,7 @@ function settingsPage(current, back, m, who) {
     <p class="eyebrow">${t('set.eyebrow')}</p>
     <h1>${t('set.title')}</h1>
     ${notice(m)}
+    ${installBox()}
     ${who && folks.length ? `<h2>${t('set.person')}</h2>
     <p class="small muted">${t('set.person_what', { name: h(who.person.name || who.person.b) })}</p>
     <form method="post" action="/theater/mit" class="inline">

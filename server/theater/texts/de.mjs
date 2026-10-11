@@ -1217,6 +1217,11 @@ export const de = {
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'Keine Verbindung. Sobald das Netz wieder da ist, geht es weiter.',
   'pwa.retry':         'Noch einmal versuchen',
+  'set.install':       'App installieren',
+  'set.installed':     '\u2713 Auf diesem Ger\u00e4t als App installiert.',
+  'set.install_mac':   'Am Mac in Safari: Men\u00fc \u201eAblage\u201c \u2192 \u201eZum Dock hinzuf\u00fcgen\u201c.',
+  'set.install_firefox': 'Firefox kann die Seite am Computer nicht als App installieren \u2013 bitte in Chrome, Edge oder Safari \u00f6ffnen und hier noch einmal tippen.',
+  'set.install_desktop': 'Im Browser: das Installieren-Symbol rechts in der Adressleiste, oder im Men\u00fc (\u22ee) \u201eApp installieren\u201c bzw. \u201eSeite als App installieren\u201c.',
 
   /* ---------- Kommentare ---------- */
   'kd.new':          'Neuer Kommentar bei Replik {nr}',
