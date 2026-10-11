@@ -233,6 +233,7 @@ export const en = {
                     + 'when the text has changed, and at most one a day.',
   'src.never':     'Not fetched yet.',
   'src.last':      'Last fetched: {when}.',
+  'src.checked':   'Last check for a new version (every 10 minutes):',
   'src.upload_instead': 'Upload a file instead',
   'src.upload_note': 'The next fetch replaces an uploaded file with the document again, '
                     + 'if the text differs.',

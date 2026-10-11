@@ -1121,6 +1121,10 @@ function versionList(p) {
     <h2>${t('upl.versions')}</h2>
     ${versionNotices(p)}
     <p class="small muted">${t('upl.versions_what')}</p>
+    ${p.skript_quelle?.url ? `<p class="small"><b>${t('src.checked')}</b> ${p.skript_quelle.abgerufen
+      ? h(L.date(p.skript_quelle.abgerufen, { dateStyle: 'medium', timeStyle: 'short' })) +
+        (p.skript_quelle.meldung ? ' \u2013 ' + (p.skript_quelle.meldung.key ? t(p.skript_quelle.meldung.key, p.skript_quelle.meldung.values) : h(p.skript_quelle.meldung.text || '')) : '')
+      : t('src.never')}</p>` : ''}
     <table><tr><th>${t('upl.col_version')}</th><th>${t('upl.col_uploaded')}</th>
       <th>${t('upl.col_file')}</th><th>${t('upl.col_speeches')}</th>
       <th>${t('upl.col_changes')}</th><th></th></tr>

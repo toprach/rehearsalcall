@@ -230,6 +230,7 @@ export const de = {
                     + 'wenn sich der Text geändert hat, und an einem Tag höchstens eine.',
   'src.never':     'Noch nicht abgerufen.',
   'src.last':      'Zuletzt geholt: {when}.',
+  'src.checked':   'Letzte Prüfung auf eine neue Fassung (alle 10 Minuten):',
   'src.upload_instead': 'Stattdessen eine Datei hochladen',
   'src.upload_note': 'Beim nächsten Abruf ersetzt das Dokument die hochgeladene Datei wieder, '
                     + 'sofern sich der Text unterscheidet.',
