@@ -320,8 +320,15 @@ const S = process.env.PGUSER ? await buildDatabase() : fileStore;
 export const storageKind = S.kind;
 export const storageWhere = () => S.kind + ' (' + S.where + ')';
 
-export const read = id => S.read(id);
-export const allProjects = () => S.allProjects();
+/* The derived rehearsal plan (P01, P02 ...) left the program on
+   11.10.2026: rehearsals are dates with what is rehearsed. A plan a
+   record still carries is moved aside as plan_archiv - kept, written
+   back with the next save, read by nothing. */
+const retire = p => { if (p && p.plan) { p.plan_archiv = p.plan; delete p.plan; } return p; };
+const search = async test => retire(await S.search(test));
+
+export const read = async id => retire(await S.read(id));
+export const allProjects = async () => (await S.allProjects()).map(retire);
 export const write = p => S.write(p);
 export const setUp = () => S.setUp();
 export const shutDown = () => S.shutDown();
@@ -336,21 +343,21 @@ export const dropBlob = (id, name) => S.dropBlob(id, name);
 
 export const findByCode = code => {
   const h = hashOf(code);
-  return S.search(p => p.code_streuwert === h);
+  return search(p => p.code_streuwert === h);
 };
 
 export const findByGroupToken = t =>
-  isToken(t) ? S.search(p => p.gruppen_token === t) : Promise.resolve(null);
+  isToken(t) ? search(p => p.gruppen_token === t) : Promise.resolve(null);
 
 export const findByDirectorToken = t =>
-  isToken(t) ? S.search(p => p.regie_token === t) : Promise.resolve(null);
+  isToken(t) ? search(p => p.regie_token === t) : Promise.resolve(null);
 
 export const findByPrintToken = t =>
-  isToken(t) ? S.search(p => p.druck_token === t) : Promise.resolve(null);
+  isToken(t) ? search(p => p.druck_token === t) : Promise.resolve(null);
 
 export async function findByPersonToken(t) {
   if (!isToken(t)) return null;
-  const project = await S.search(p => (p.personen || []).some(x => x.token === t));
+  const project = await search(p => (p.personen || []).some(x => x.token === t));
   if (!project) return null;
   const person = project.personen.find(x => x.token === t);
   return person ? { project, person } : null;

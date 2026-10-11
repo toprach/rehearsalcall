@@ -145,7 +145,7 @@ export const en = {
   'proj.availability': 'Availability',
   'proj.avail_n':    '{m} of {n} entered',
   'proj.dates_n':    '{n} of {m} fixed',
-  'proj.steps_what': 'Every card leads to its page; proposals for dates are recomputed on every visit.',
+  'proj.steps_what': 'Every card leads to its page.',
   'proj.people_yes':     '{n} people, {m} of them with availability entered \u2013 '
                     + '<a href="/theater/leute">look</a>',
   'proj.people_no':  '<span class="muted">comes with the script</span>',
@@ -226,8 +226,8 @@ export const en = {
 
   /* ---------- the script from an address ---------- */
   'src.what':      'The script comes from <a href="{url}" target="_blank" rel="noopener">this document</a>. '
-                    + 'It is fetched anew every 24 hours by itself; a new version is made only '
-                    + 'when the text has changed.',
+                    + 'It is fetched anew every 10 minutes by itself; a new version is made only '
+                    + 'when the text has changed, and at most one a day.',
   'src.never':     'Not fetched yet.',
   'src.last':      'Last fetched: {when}.',
   'src.upload_instead': 'Upload a file instead',
@@ -526,7 +526,7 @@ export const en = {
                     + 'put and the rest give way to them. The <b>place</b> is not sent to '
                     + 'anyone \u2013 please tell people yourself',
   'date.fixed_n':       ' \u2013 currently {n} of {m}',
-  'date.no_plan':    'No rehearsal plan stored yet.',
+  'date.no_plan':    'No rehearsal dates entered yet.',
   'date.col_rehearsal':     'Rehearsal',
   'date.col_cast': 'Cast',
   'date.col_date':    'Date',
@@ -879,7 +879,7 @@ export const en = {
   'r.no_speaker': 'Not a single speaker was found in it. Is there a name followed by a colon in front of each speech?',
   'r.no_person': 'Not a single person – at least one row has to be “a person of their own”.',
   'r.structure_failed': 'The structure could not be built: {reason}',
-  'r.taken_over': '{p1} speeches, {p2} people. On to the rehearsal plan.',
+  'r.taken_over': '{p1} speeches, {p2} people.',
   'r.no_key_entered': 'No key entered.',
   'r.key_stored': 'Key checked and stored.',
   'r.key_removed': 'The key has been removed.',
@@ -949,7 +949,7 @@ export const en = {
   'f.rehearsal_gone': 'There is no rehearsal with that identifier in the current plan. Perhaps it was dropped or merged.',
   'f.not_found3_t': 'Not found',
   'f.not_found3': 'There is no such page.',
-  'r.taken_over_new': '{p1} speeches, {p2} people. {p3} newly created. On to the rehearsal plan.',
+  'r.taken_over_new': '{p1} speeches, {p2} people. {p3} newly created.',
   'r.derived_released': '{p1} rehearsals derived, coverage {p2} of the spoken text. {p3} fixed dates were released in the process – the rehearsal identifiers have been assigned anew.',
 
   /* ---------- added with the translated modules ---------- */
@@ -1000,7 +1000,7 @@ export const en = {
   'admin.figures':      '{people} people, {rehearsals} rehearsals, {entered} with availability',
   'admin.source':       'Script address',
   'admin.source_save':  'Save address',
-  'admin.source_what':  'Script address: the script is fetched from there every 24 hours (Google Docs: '
+  'admin.source_what':  'Script address: the script is fetched from there every 10 minutes (Google Docs: '
                     + '…/export?format=docx). Empty: upload as before.',
   'admin.new':          'Create a project',
   'admin.field_title':  'Title',
@@ -1048,9 +1048,7 @@ export const en = {
   /* ---------- versions of the script ---------- */
   'upl.versions':       'Versions',
   'upl.versions_what':  'Every uploaded script is kept. The comparison shows the speeches '
-                      + 'that changed, came in or were cut \u2013 formatting does not count. '
-                      + 'The rehearsal plan is carried along by content: every passage is '
-                      + 'found again by its first and its last speech.',
+                      + 'that changed, came in or were cut \u2013 formatting does not count.',
   'upl.col_version':    'Version',
   'upl.col_uploaded':   'Uploaded',
   'upl.col_file':       'File',

@@ -159,9 +159,11 @@ page does not exist.
 The admin page also takes a script address per project - typically a
 Google document's export link (`https://docs.google.com/document/d/<id>/export?format=docx`,
 shared as "anyone with the link"). The service fetches it right away,
-then once every 24 hours, and the director's "Upload script" becomes
+then every ten minutes, and the director's "Upload script" becomes
 "Update script", which fetches it on demand. A new version of the script
-is made only when the text read from it changed; a failed fetch (most
+is made only when the text read from it changed, and the fetches of one
+day make one version (the later replaces the earlier; the time zone for
+"day" is `THEATER_ZONE`, default Europe/Vienna). A failed fetch (most
 often: the document is not shared) is shown on the script page and in
 the admin list.
 

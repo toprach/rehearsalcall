@@ -800,7 +800,7 @@ const navDirector = (p) => {
   const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
   return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
-  ${grp(a('/theater/skript', 'nav.script'), p?.demo ? '' : p?.skript_quelle?.url ? scriptRefresh() : scriptUpload(), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
+  ${grp(a('/theater/skript', 'nav.script'), p?.demo ? '' : p?.skript_quelle?.url ? scriptRefresh() : scriptUpload(), a('/theater/besetzung', 'nav.casting'))}
   ${grp(...(ctx.member ? [a('/theater/mit/zeiten', 'nav.dates')] : []), a('/theater/kommentare', 'nav.comments'))}
   ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
@@ -819,7 +819,6 @@ function printPage(p, m) {
 
   const base = p.drucklink || '';
   const folks = (p.personen || []).filter(x => x.b);
-  const hasPlan = !!p.plan?.proben?.length;
   /* Open in the browser (the print link, valid for the company too), or
      take it away as a file. */
   const auf = (weg, datei) => `<p><a class="btn" href="${h(base)}${weg}"
@@ -837,11 +836,6 @@ function printPage(p, m) {
     <h2>${t('print.full')}</h2>
     <p class="small muted">${t('print.full_what')}</p>
     ${copyLink(base + '/gesamt')}${auf('/gesamt', 'gesamt')}
-
-    <h2>${t('print.plan')}</h2>
-    <p class="small muted">${t('print.plan_what')}</p>
-    ${hasPlan ? copyLink(base + '/probenplan') + auf('/probenplan', 'probenplan')
-      : `<div class="notice error">${t('print.plan_missing')}</div>`}
 
     <h2>${t('print.booklets')}</h2>
     <p class="small muted">${t('print.booklets_what')}</p>
@@ -890,7 +884,6 @@ function docsPage(project, base) {
 }
 
 function projectPage(p, m) {
-  const rehearsalCount = p.plan?.proben?.length || 0;
   // The director needs no entries: they count as free except on struck days.
   const cast = (p.personen || []).filter(x => !x.regie);
   const withEntry = cast.filter(x => {
@@ -920,13 +913,9 @@ function projectPage(p, m) {
     step(2, takenOver ? 'done' : (hasScript ? 'open' : 'waits'), '/theater/besetzung', t('proj.casting'), takenOver
       ? t('proj.cast_yes', { speeches: u.repliken, people: u.personen, roles: u.rollen })
       : (hasScript ? t('proj.cast_open') : t('proj.cast_waits'))),
-    step(3, rehearsalCount ? 'done' : (takenOver ? 'open' : 'waits'), '/theater/plan', t('proj.rehearsals'), rehearsalCount
-      ? t('proj.plan_yes', { n: rehearsalCount, substitution: L.percent(p.plan.ersatzanteil || 0),
-                             coverage: L.percent(p.plan.abdeckung || 0) })
-      : (takenOver ? t('proj.plan_no') : t('proj.plan_waits'))),
-    step(4, folks && withEntry === folks ? 'done' : (folks ? 'open' : 'waits'), '/theater/leute', t('proj.availability'),
+    step(3, folks && withEntry === folks ? 'done' : (folks ? 'open' : 'waits'), '/theater/leute', t('proj.availability'),
       folks ? t('proj.avail_n', { m: withEntry, n: folks }) : t('proj.people_no')),
-    step(5, coming ? 'done' : 'open', datesHref, t('proj.dates'),
+    step(4, coming ? 'done' : 'open', datesHref, t('proj.dates'),
       coming ? t('proj.dates_set', { n: coming }) : t('proj.dates_none')),
   ];
 
@@ -1206,137 +1195,6 @@ function castPage(p, m, unresolved = []) {
       richte();
     });
     <\/script>` });
-}
-
-function planPage(p, m, acts = []) {
-  const rehearsals = p.plan?.proben || [];
-  const hasStructure = !!p.skript_ueberblick;
-  const substitution = Math.round((p.plan?.ersatzanteil ?? 0.2) * 100);
-  const maxG = p.plan?.max_gruppe ?? 5;
-  const all = (p.personen || []).map(x => x.b);
-
-  const choose = (name, werte, current) => `<select id="${name}" name="${name}">` +
-    werte.map(([w, txt]) => `<option value="${w}"${Number(w) === Number(current)
-      ? ' selected' : ''}>${txt}</option>`).join('') + '</select>';
-
-  const row = (pr) => {
-    const absent = all.filter(x => !pr.gruppe.includes(x));
-    const act = (action, body, confirm) =>
-      actionForm('/theater/plan', action, { rehearsal: pr.id }, body, { confirm });
-
-    const rebuilt = (pr.szenen || []).some(s => s.umgebaut);
-    const ov = 'ov-' + pr.id.replace(/[^A-Za-z0-9_-]/g, '_');
-    return `<tr class="${pr.unsicher ? 'unsure' : (pr.nachlese ? 'gleaning' : '')}">
-      <td><a href="/theater/plan/${encodeURIComponent(pr.id)}"><b>${h(pr.id)}</b></a>
-        ${pr.nachlese ? '<div class="small muted">' + h(t('plan.the_rest')) + '</div>' : ''}
-        ${pr.unsicher ? '<div class="small open">' + h(t('plan.unsure_row')) + '</div>' : ''}
-        ${!pr.unsicher && rebuilt ? '<div class="small muted">' + h(t('plan.rebuilt_row')) + '</div>' : ''}</td>
-      <td>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}
-        <div class="small muted">${t('plan.scenes_min', {
-          scenes: (pr.szenen || []).length,
-          min: Math.round(pr.minuten || 0),
-          substitution: L.percent(pr.ersatz_anteil || 0) })}</div>
-        ${pr.notiz ? `<div class="small"><i>${h(pr.notiz)}</i></div>` : ''}</td>
-      <td class="actions"><button type="button" class="quiet mini edit" data-for="${ov}"
-          title="${h(t('plan.edit', { id: pr.id }))}" aria-label="${h(t('plan.edit', { id: pr.id }))}">\u270e</button></td>
-    </tr>
-    <tr class="editor" hidden><td colspan="3">
-      <div class="overlay" id="${ov}" hidden><div class="box">
-        <p class="eyebrow" style="margin-top:0">${h(t('plan.edit_title', { id: pr.id }))}</p>
-        <p>${pr.gruppe.map(x => `<span class="chip">${h(x)}</span>`).join('')}</p>
-        ${act('dazu', `<select name="person"><option value="">${
-            h(t('plan.add'))}</option>
-          ${absent.map(x => `<option value="${h(x)}">${h(x)}</option>`).join('')}</select>
-          <button class="quiet mini">+</button>`)}
-        ${pr.gruppe.length > 1 ? act('weg', `<select name="person">
-          <option value="">${h(t('plan.remove'))}</option>
-          ${pr.gruppe.map(x => `<option value="${h(x)}">${h(x)}</option>`).join('')}</select>
-          <button class="quiet mini">\u2212</button>`) : ''}
-        ${act('zusammen', `<select name="others"><option value="">${
-            h(t('plan.merge'))}</option>
-          ${rehearsals.filter(x => x.id !== pr.id).map(x =>
-            `<option value="${h(x.id)}">${h(x.id)} (${h(x.gruppe.join(','))})</option>`
-            ).join('')}</select>
-          <button class="quiet mini">\u21d2</button>`)}
-        ${act('notiz', `<input type="text" name="notiz" value="${h(pr.notiz || '')}"
-            placeholder="${h(t('plan.note'))}"><button class="quiet mini">${
-            h(t('common.save'))}</button>`)}
-        ${act('streichen', '<button class="quiet mini">' + h(t('plan.drop')) +
-          '</button>', t('plan.drop_confirm', { id: pr.id }))}
-        <p style="margin:.8rem 0 0"><button type="button" class="quiet mini close">${h(t('common.close'))}</button></p>
-      </div></div>
-    </td></tr>`;
-  };
-
-  return page({ title: t('plan.title'), nav: navDirector(p), body: `
-    <p class="eyebrow">${t('plan.step')}</p><h1>${t('plan.title')}</h1>
-    ${notice(m)}
-    ${p.plan?.abgleich?.unsicher?.length ? `<div class="notice error">${
-      t('plan.unsure_notice', { ids: p.plan.abgleich.unsicher.map(h).join(', ') })}</div>` : ''}
-    ${!hasStructure ? `<div class="notice error">${t('plan.no_cast')}</div>` : `
-    <p class="muted">${t('plan.what')}</p>
-    <form method="post" action="/theater/plan" id="ableiten">
-      <input type="hidden" name="action" value="ableiten">
-      ${acts.length ? `<input type="hidden" name="akte" value="1"><label>${t('plan.acts')}</label>
-      <div class="acts">${acts.map(a => `<label class="inline"><input type="checkbox"
-        name="akt_${a.nr}" value="1" checked> ${h(a.name)}</label>`).join('')}</div>` : ''}
-      <div class="row">
-        <div><label for="substitution">${t('plan.substitution')}</label>
-          ${choose('substitution', [[0, t('plan.sub_0')], [5, L.percent(0.05)],
-                            [10, t('plan.sub_10')], [15, L.percent(0.15)],
-                            [20, t('plan.sub_20')], [25, L.percent(0.25)],
-                            [30, L.percent(0.30)]], substitution)}</div>
-        <div><label for="maxgruppe">${t('plan.max_group')}</label>
-          ${choose('maxgruppe', [[2, t('plan.people_n', { n: 2 })], [3, '3'], [4, '4'],
-                               [5, '5'], [6, '6'], [7, '7']], maxG)}</div>
-      </div>
-      <p class="small muted" style="margin-top:.8rem">${t('plan.sub_what')}</p>
-      ${rehearsals.length ? `
-      <button type="submit" name="modus" value="ergaenzen">${t('plan.derive_add')}</button>
-      <button type="submit" name="modus" value="ersetzen" class="quiet"
-        onclick="return confirm(${JSON.stringify(t('plan.replace_confirm')).replace(/"/g, '&quot;')})">${
-        t('plan.derive_replace')}</button>
-      <p class="small muted">${t('plan.modes_what')}</p>`
-      : `<button type="submit" name="modus" value="ersetzen">${t('plan.derive')}</button>`}
-    </form>
-    ${rehearsals.length ? actionForm('/theater/plan', 'zuruecksetzen', {},
-      '<button class="quiet mini" type="submit">' + h(t('plan.reset')) + '</button>',
-      { confirm: t('plan.reset_confirm') }) : ''}`}
-
-    ${rehearsals.length ? `
-      <h2>${t('plan.n_rehearsals', { n: rehearsals.length })}</h2>
-      <p class="small muted">${t('plan.figures', {
-        substitution: L.percent(p.plan.ersatzanteil || 0),
-        max: p.plan.max_gruppe,
-        coverage: L.percent(p.plan.abdeckung || 0, 1) })}
-      ${p.plan.bearbeitet ? t('plan.revised',
-        { when: h(L.date(p.plan.bearbeitet)) }) : ''}</p>
-      <table class="plan"><tr><th>${t('plan.col_rehearsal')}</th>
-        <th>${t('plan.col_cast')}</th><th></th></tr>
-      ${rehearsals.map(row).join('')}</table>
-      <script>
-      (function () {
-        var open = null;
-        function show(id) { var o = document.getElementById(id); if (!o) return; o.closest('tr.editor').hidden = false; o.hidden = false; open = o; }
-        function hide() { if (!open) return; open.hidden = true; open.closest('tr.editor').hidden = true; open = null; }
-        document.addEventListener('click', function (e) {
-          var b = e.target.closest('button.edit'); if (b) { hide(); show(b.dataset.for); return; }
-          if (e.target.closest('button.close') || e.target.classList.contains('overlay')) hide();
-        });
-        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
-      })();
-      <\/script>
-      ${rehearsals.some(pr => pr.nachlese)
-        ? `<p class="small muted">${t('plan.gleaning_what')}</p>` : ''}
-      <div class="box small">
-        <b>${t('plan.help_title')}</b><br>
-        ${t('plan.help_add')}<br>
-        ${t('plan.help_remove')}<br>
-        ${t('plan.help_merge')}<br>
-        ${t('plan.help_drop')}<br>
-        ${t('plan.help_rest')}<br>
-        ${t('plan.help_click')}
-      </div>` : ''}` });
 }
 
 /* ---------------------------------------------------------------------
@@ -1788,9 +1646,6 @@ const offlinePage = () => page({ title: t('pwa.offline_t'), narrow: true, body: 
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
   const evenings = Object.values(v.tage || {}).filter(x => x && x.von).length;
-  const rehearsals = (project.plan?.proben || []).filter(pr => pr.gruppe.includes(person.b));
-  const fixed = (project.termine || []).filter(x => x.bestaetigt &&
-    rehearsals.some(pr => pr.id === x.probe_id)).length;
   const who = person.name || person.b;
 
   return page({ title: who, nav: navMember(project, person), tabbar: memberTabbar(project, person), narrow: true, body: `
@@ -1816,9 +1671,6 @@ function memberPage(project, person, m, realSelf) {
         : evenings
         ? t('mem.evenings_yes', { n: evenings })
         : t('mem.evenings_no')}</td></tr>
-      <tr><th>${t('mem.my_rehearsals')}</th><td>${rehearsals.length
-        ? t('mem.rehearsals_yes', { n: rehearsals.length, fixed })
-        : t('mem.rehearsals_no')}</td></tr>
       <tr><th>${t('mem.part_book')}</th><td>${project.drehbuch
         ? t('mem.book_open') : t('mem.no_script')}</td></tr>
       <tr><th>${t('mem.play')}</th><td>${project.skript
@@ -4029,7 +3881,7 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            <a class="btn quiet" href="/theater">${h(t('common.back'))}</a>` });
 
   return { backBar, switchPage, castPage, printPage, docsPage, errorPage, audiobookPage,
-           myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
+           myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
            settingsPage, playPage, offlinePage, rehearsalMessage,

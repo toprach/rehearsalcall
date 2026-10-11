@@ -22,8 +22,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from './storage.mjs';
 import { readScript, buildStructure, buildCast, mappingProposal, normKey } from './script.mjs';
-import { derivePlan, peopleOf, summaryOf } from './plan.mjs';
-import { proposeDates, calendarDays } from './dates.mjs';
+import { peopleOf, summaryOf } from './plan.mjs';
+import { calendarDays, freeEntry } from './dates.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = process.env.THEATER_DEMO || path.resolve(HERE, '../../beispiel/shakespeare');
@@ -128,8 +128,6 @@ export async function seed(def, existing = null) {
                       funktion: x.funktion, token: old?.token || S.randomId(16) });
   }
 
-  p.plan = derivePlan(p.skript, { substitution: 0.2, maxGroup: 5 });
-
   /* Availability: most people have entered a few evenings a week, a
      few have not yet - the way a real company looks a fortnight in. */
   const days = calendarDays(p);
@@ -144,21 +142,26 @@ export async function seed(def, existing = null) {
     p.verfuegbar[x.id] = { tage, stand: now.toISOString() };
   });
 
-  /* A few dates already fixed, from the program's own proposals. */
-  const r = proposeDates(p);
-  for (const pr of r.rehearsals.filter(x => x.proposal).slice(0, 3)) {
-    p.termine.push({ probe_id: pr.id, iso: pr.proposal.iso, von: pr.proposal.from, bis: pr.proposal.to,
-                     gruppe: pr.group, bestaetigt: true, ort: 'Rehearsal hall',
-                     gehalten: now.toISOString(), von_wem: 'demo' });
-  }
+  /* A few rehearsals already set: the three evenings with the most
+     people free, with everybody who is. */
+  const free = days.map(d => ({ iso: d.iso, who: p.personen.filter(x => p.verfuegbar[x.id]?.tage?.[d.iso]?.von) }))
+    .filter(d => d.who.length >= 2).sort((a, b) => b.who.length - a.who.length).slice(0, 3);
+  free.forEach((d, i) => {
+    const times = Object.fromEntries(d.who.map(x => [x.b, { ...p.verfuegbar[x.id].tage[d.iso] }]));
+    const entry = freeEntry(p, d.iso, times, 'Rehearsal hall', 'F-demo' + (i + 1));
+    if (!entry) return;
+    entry.inhalt = ['Act 1', 'Act 2', 'Act 3'][i];
+    entry.gehalten = now.toISOString(); entry.von_wem = 'demo';
+    p.termine.push(entry);
+  });
   return p;
 }
 
 const stale = p => !p.demo_reset || Date.now() - Date.parse(p.demo_reset) > RESET_MS;
 
 /* The demo project for a key, as it is - a visitor never waits for a
-   rebuild (deriving a plan for a big cast takes the better part of a
-   minute). The hourly check below does the resetting. Null when the
+   rebuild (building the structure of a big play takes a while). The
+   hourly check below does the resetting. Null when the
    files are not there or the project has not been made yet. */
 export async function demoProject(key) {
   if (!available().some(d => d.key === key)) return null;

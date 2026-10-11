@@ -142,7 +142,7 @@ export const de = {
   'proj.availability': 'Verf\u00fcgbarkeit',
   'proj.avail_n':    '{m} von {n} eingetragen',
   'proj.dates_n':    '{n} von {m} fixiert',
-  'proj.steps_what': 'Jede Karte f\u00fchrt auf ihre Seite; die Terminvorschl\u00e4ge werden bei jedem Besuch neu berechnet.',
+  'proj.steps_what': 'Jede Karte f\u00fchrt auf ihre Seite.',
   'proj.dates':      'Termine',
   'proj.people_yes':     '{n} Personen, davon {m} mit eingetragener Verfügbarkeit – '
                     + '<a href="/theater/leute">ansehen</a>',
@@ -223,8 +223,8 @@ export const de = {
 
   /* ---------- the script from an address ---------- */
   'src.what':      'Das Drehbuch kommt aus <a href="{url}" target="_blank" rel="noopener">diesem Dokument</a>. '
-                    + 'Es wird alle 24 Stunden von selbst neu geholt; eine neue Fassung entsteht nur, '
-                    + 'wenn sich der Text geändert hat.',
+                    + 'Es wird alle 10 Minuten von selbst neu geholt; eine neue Fassung entsteht nur, '
+                    + 'wenn sich der Text geändert hat, und an einem Tag höchstens eine.',
   'src.never':     'Noch nicht abgerufen.',
   'src.last':      'Zuletzt geholt: {when}.',
   'src.upload_instead': 'Stattdessen eine Datei hochladen',
@@ -524,7 +524,7 @@ export const de = {
                     + 'Termine bleiben stehen, die übrigen weichen ihnen aus. Der '
                     + '<b>Ort</b> wird nicht verschickt – bitte den Leuten sagen',
   'date.fixed_n':       ' – derzeit {n} von {m}',
-  'date.no_plan':    'Noch kein Probenplan hinterlegt.',
+  'date.no_plan':    'Noch keine Probentermine eingetragen.',
   'date.col_rehearsal':     'Probe',
   'date.col_cast': 'Besetzung',
   'date.col_date':    'Termin',
@@ -880,7 +880,7 @@ export const de = {
   'r.no_speaker': 'Darin wurde kein einziger Sprecher gefunden. Steht vor dem Text jeweils ein Name mit Doppelpunkt?',
   'r.no_person': 'Keine einzige Person \\u2013 mindestens eine Zeile muss \\u201eeigene Person\\u201c sein.',
   'r.structure_failed': 'Die Struktur liess sich nicht bauen: {reason}',
-  'r.taken_over': '{p1} Repliken, {p2} Personen. Weiter zum Probenplan.',
+  'r.taken_over': '{p1} Repliken, {p2} Personen.',
   'r.no_key_entered': 'Kein Schluessel eingegeben.',
   'r.key_stored': 'Schluessel geprueft und hinterlegt.',
   'r.key_removed': 'Der Schluessel ist entfernt.',
@@ -950,7 +950,7 @@ export const de = {
   'f.rehearsal_gone': 'Eine Probe mit dieser Kennung gibt es im aktuellen Plan nicht. Vielleicht wurde sie gestrichen oder zusammengelegt.',
   'f.not_found3_t': 'Nicht gefunden',
   'f.not_found3': 'Diese Seite gibt es nicht.',
-  'r.taken_over_new': '{p1} Repliken, {p2} Personen. {p3} neu angelegt. Weiter zum Probenplan.',
+  'r.taken_over_new': '{p1} Repliken, {p2} Personen. {p3} neu angelegt.',
   'r.derived_released': '{p1} Proben abgeleitet, Abdeckung {p2} des gesprochenen Textes. {p3} festgehaltene Termine wurden dabei gelöst – die Probenkennungen sind neu vergeben.',
 
   /* ---------- added with the translated modules ---------- */
@@ -1001,7 +1001,7 @@ export const de = {
   'admin.figures':      '{people} Personen, {rehearsals} Proben, {entered} mit Verf\u00fcgbarkeit',
   'admin.source':       'Skript-Adresse',
   'admin.source_save':  'Adresse speichern',
-  'admin.source_what':  'Skript-Adresse: von dort wird das Drehbuch alle 24 Stunden geholt (Google Docs: '
+  'admin.source_what':  'Skript-Adresse: von dort wird das Drehbuch alle 10 Minuten geholt (Google Docs: '
                     + '…/export?format=docx). Leer: hochladen wie bisher.',
   'admin.new':          'Projekt anlegen',
   'admin.field_title':  'Titel',
@@ -1051,8 +1051,7 @@ export const de = {
   'upl.versions':       'Fassungen',
   'upl.versions_what':  'Jedes hochgeladene Drehbuch bleibt erhalten. Der Vergleich zeigt die '
                       + 'Repliken, die ge\u00e4ndert, neu oder gestrichen sind \u2013 Formatierung '
-                      + 'z\u00e4hlt nicht. Der Probenplan wird inhaltlich mitgef\u00fchrt: jede '
-                      + 'Textstelle wird \u00fcber ihre erste und ihre letzte Replik wiedergefunden.',
+                      + 'z\u00e4hlt nicht.',
   'upl.col_version':    'Fassung',
   'upl.col_uploaded':   'Hochgeladen',
   'upl.col_file':       'Datei',

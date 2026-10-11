@@ -130,84 +130,26 @@ clean('casting page', r);
   check('take over the casting', good(r), say(r));
 }
 
-/* ---- 4. deriving the plan ---- */
-r = await post('/theater/plan', { action: 'ableiten', substitution: '20', maxgruppe: '5' });
-check('derive the plan', good(r), say(r));
-{
-  // Acts: derive for one act only, add for another, replace, reset.
-  const actFields = [...r.text.matchAll(/name="(akt_\d+)"/g)].map(m => m[1]);
-  check('the plan page offers the acts', actFields.length >= 2, actFields.length + ' acts');
-  const count = (html) => new Set([...html.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1])).size;
-  const full = count(r.text);
-  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', akte: '1' });
-  check('derive without any act is refused', errorNotice(r), say(r));
-  r = await post('/theater/plan', { action: 'zuruecksetzen' });
-  check('reset the plan', good(r) && count(r.text) === 0, say(r));
-  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[0]]: '1' });
-  check('derive for the first act only', good(r) && count(r.text) > 0 && count(r.text) < full, count(r.text) + ' of ' + full);
-  const one = count(r.text);
-  r = await post('/theater/plan', { action: 'ableiten', modus: 'ergaenzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[1]]: '1' });
-  check('add the second act', good(r) && count(r.text) > one, count(r.text));
-  const two = count(r.text);
-  r = await post('/theater/plan', { action: 'ableiten', modus: 'ergaenzen', substitution: '20', maxgruppe: '5', akte: '1', [actFields[0]]: '1' });
-  check('adding the first act again adds nothing', good(r) && count(r.text) === two, count(r.text));
-  const all = Object.fromEntries(actFields.map(a => [a, '1']));
-  r = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', ...all });
-  check('replace for all acts gives the full plan back', good(r) && count(r.text) === full, count(r.text) + ' of ' + full);
-}
-clean('plan page', r);
-const ids = [...new Set([...r.text.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1]))];
-check('the plan has rehearsals', ids.length > 0, ids.length + ' rehearsals');
+/* ---- 4. the derived rehearsal plan is gone ----
 
-/* The cast of one rehearsal, read off the plan page. */
-const groupOf = (html, id) => [...new Set([...(new RegExp('>' + id + '</b>[\\s\\S]*?</td>\\s*<td>([\\s\\S]*?)<div')
-  .exec(html) || ['', ''])[1].matchAll(/<span class="chip">([^<]+)<\/span>/g)].map(m => m[1]))];
+   Rehearsals are the dates with what is rehearsed; old links to the
+   plan land on the dates. */
+r = await call('GET', '/theater/plan');
+check('the old plan page leads to the dates', r.status === 303 &&
+      /\/theater\/termine$/.test(r.res.headers.get('location') || ''), 'status ' + r.status);
+r = await call('GET', '/theater/projekt');
+check('the overview has no plan step', r.status === 200 && !/href="\/theater\/plan"/.test(r.text));
 
 /* The people on the company page - they came out of the casting. */
 const people = [...new Set([...(await call('GET', '/theater/leute')).text
   .matchAll(/<span class="chip">([^<]+)<\/span>/g)].map(m => m[1]))];
 check('the company came out of the casting', people.length > 0, people.length + ' people');
 
-/* ---- 5. every change to the plan ---- */
-if (ids.length >= 2) {
-  const first = ids[0], second = ids[1];
-  const inFirst = new Set(groupOf(r.text, first));
-  const who = people.find(x => !inFirst.has(x)) || people[0];
-  r = await post('/theater/plan', { action: 'notiz', rehearsal: first, notiz: 'test note' });
-  check('note on a rehearsal', good(r), say(r));
-  r = await post('/theater/plan', { action: 'dazu', rehearsal: first, person: who });
-  check('add a person', good(r), say(r));
-  r = await post('/theater/plan', { action: 'weg', rehearsal: first, person: who });
-  check('remove a person', good(r), say(r));
-  r = await post('/theater/plan', { action: 'zusammen', rehearsal: first, others: second });
-  check('merge two rehearsals', good(r), say(r));
-  r = await post('/theater/plan', { action: 'streichen', rehearsal: first });
-  check('drop a rehearsal', good(r), say(r));
-  r = await post('/theater/plan', { action: 'streichen', rehearsal: 'P99' });
-  check('dropping an unknown rehearsal is refused', errorNotice(r), say(r));
-}
-
-/* ---- 6. the passages of one rehearsal ---- */
-r = await call('GET', '/theater/plan');
-const planIds = [...new Set([...r.text.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1]))];
-const planHtml = r.text;
-{
-  const id = planIds[0];
-  if (id) {
-    const p = await call('GET', '/theater/plan/' + id);
-    check('passages of a rehearsal', p.status === 200 && /class="line/.test(p.text), 'status ' + p.status);
-    clean('passages page', p);
-  }
-  const gone = await call('GET', '/theater/plan/P99');
-  check('unknown rehearsal gives 404', gone.status === 404, 'status ' + gone.status);
-}
-
 /* ---- 6b. a new version of the script ----
 
-   The plan must survive an upload. A small edit - one speech changed,
-   one cut, one added - keeps every passage; cutting the very first
-   speech of a rehearsal's passage makes that rehearsal unsure; and an
-   older version can be made current again. */
+   A small edit - one speech changed, one added - makes version 2 with
+   its changes listed; a cut makes version 3; an older version can be
+   made current again. */
 {
   const original = fs.readFileSync(SCRIPT, 'utf8');
   const uploadText = async (text, name) => {
@@ -216,22 +158,16 @@ const planHtml = r.text;
     fd.append('style', 'auto');
     return call('POST', '/theater/skript', fd);
   };
-  const target = planIds[0];
-  const idsBefore = planIds.join(',');
-
-  // version 2: change, cut, add - in speeches that are surely not anchors
   const v2 = original
     .replace('Four days will quickly steep themselves in night;',
              'Four days will quickly steep themselves in darkness;')
     .replace(/\nQUINCE\.\nIs all our company here\?\n/, '\nQUINCE.\nIs all our company here?\nAnd is the weather fair?\n');
   check('version 2 differs from the original', v2 !== original);
   r = await uploadText(v2, 'dream-v2.md');
-  check('upload version 2', r.status === 200 && (good(r) || /version_unsure|Fassung/.test(r.text)), say(r));
+  check('upload version 2', good(r), say(r));
   clean('upload page after version 2', r);
   check('version 2 is listed with its changes', /\/theater\/skript\/fassung\/2/.test(r.text));
-  r = await call('GET', '/theater/plan');
-  const idsAfter = [...new Set([...r.text.matchAll(/>(P\d+)<\/b>/g)].map(m => m[1]))].join(',');
-  check('the plan survived the upload', idsAfter === idsBefore, idsAfter.slice(0, 40));
+  check('no word of a rehearsal plan', !/\/theater\/plan/.test(r.text));
   r = await call('GET', '/theater/skript/fassung/2');
   check('version 2 compared with version 1', r.status === 200 && /class="diff"/.test(r.text)
         && /class="changed"/.test(r.text), 'status ' + r.status);
@@ -239,36 +175,18 @@ const planHtml = r.text;
   r = await call('GET', '/theater/skript/fassung/9');
   check('an unknown version gives 404', r.status === 404, 'status ' + r.status);
 
-  // version 3: cut the first speech of the target rehearsal's first passage
-  const pg = await call('GET', '/theater/plan/' + target);
-  const first = /<span class="speaker">([^<]+)<\/span>\s*<span class="words">([^<]+)<\/span>/.exec(pg.text);
-  const who = first ? first[1].replace(/\s*[\u00b7\u2013].*$/, '').trim() : '';
-  const lead = first ? first[2].split(/\s+/).slice(0, 5).join(' ') : '';
-  const at = who && lead ? original.indexOf('\n' + who + '.\n' + lead) : -1;
-  check('found the first speech of ' + target + ' in the file', at >= 0, who + ': ' + lead);
-  if (at >= 0) {
-    const end = original.indexOf('\n\n', at + 1);
-    const v3 = original.slice(0, at) + original.slice(end);
-    r = await uploadText(v3, 'dream-v3.md');
-    check('upload version 3 warns that the plan may not fit', errorNotice(r) &&
-          new RegExp('\\b' + target + '\\b').test(notice(r.text).text), say(r));
-    r = await call('GET', '/theater/plan');
-    check('the rehearsal is marked unsure', /class="unsure"/.test(r.text) &&
-          new RegExp('>' + target + '<').test(r.text));
-    clean('plan page with an unsure rehearsal', r);
-    // back to version 2: the anchors are found again
-    r = await post('/theater/skript', { action: 'zurueck', fassung: '2' });
-    check('version 2 made current again', good(r), say(r));
-    r = await call('GET', '/theater/plan');
-    check('nothing unsure any more', !/class="unsure"/.test(r.text));
-    r = await post('/theater/skript', { action: 'zurueck', fassung: '77' });
-    check('restoring an unknown version is refused', errorNotice(r), say(r));
-  }
+  const v3 = v2.replace(/\nQUINCE\.\nIs all our company here\?\nAnd is the weather fair\?\n/, '\n');
+  check('version 3 differs from version 2', v3 !== v2);
+  r = await uploadText(v3, 'dream-v3.md');
+  check('upload version 3', good(r) && /\/theater\/skript\/fassung\/3/.test(r.text), say(r));
+  r = await post('/theater/skript', { action: 'zurueck', fassung: '2' });
+  check('version 2 made current again', good(r), say(r));
+  r = await post('/theater/skript', { action: 'zurueck', fassung: '77' });
+  check('restoring an unknown version is refused', errorNotice(r), say(r));
 }
 
 /* ---- 7. the company page ---- */
-const target = planIds.find(id => groupOf(planHtml, id).length >= 2) || planIds[0];
-const cast = target ? groupOf(planHtml, target) : [];
+const cast = people.slice(0, 3);
 {
   // The first person of the target rehearsal becomes the director: from
   // then on the director's calendar counts for every date.
@@ -316,10 +234,11 @@ const printBase = (/\/theater\/druck\/[a-z0-9]{10,}/.exec(r.text) || [])[0];
 check('print page shows its link', !!printBase);
 const bookPeople = [...r.text.matchAll(/\/rolle\/([A-Za-z%0-9.]+)"/g)].map(m => m[1]);
 if (printBase) {
-  for (const doc of ['/gesamt', '/probenplan']) {
-    const d = await call('GET', printBase + doc);
-    check('document ' + doc, d.status === 200 && d.text.length > 1000, d.text.length + ' B');
-  }
+  const d1 = await call('GET', printBase + '/gesamt');
+  check('document /gesamt', d1.status === 200 && d1.text.length > 1000, d1.text.length + ' B');
+  const d2 = await call('GET', printBase + '/probenplan');
+  check('the old plan document leads to the whole script', d2.status === 303 &&
+        /\/gesamt$/.test(d2.res.headers.get('location') || ''), 'status ' + d2.status);
   const d0 = await call('GET', printBase);
   check('document index', d0.status === 200 && /\/gesamt/.test(d0.text));
   clean('document index', d0);
@@ -341,7 +260,7 @@ if (printBase) {
    dates page has to propose one of them - that is the calendar being
    counted, not merely stored. */
 const director = cookies;
-check('a rehearsal with a cast to enter times for', cast.length > 0, target + ': ' + cast.join(', '));
+check('people to enter times for', cast.length > 1, cast.join(', '));
 {
   // From the director's pages straight into somebody's calendar.
   r = await post('/theater/als', { person: 'nobody' });
@@ -471,19 +390,14 @@ for (const b of cast) {
     cookies = saved;
     check('the company page comes in the project language', /Meine Verfügbarkeit/.test(me.text) && /lang="de"/.test(me.text));
     const all = await call('GET', '/theater/mit/termine?alle=1');
-    check('all rehearsals for a member', all.status === 200 &&
-          planIds.every(id => all.text.includes('>' + id + '<')), 'status ' + all.status);
+    check('all rehearsals for a member', all.status === 200, 'status ' + all.status);
     clean('all rehearsals page', all);
-    const pg = await call('GET', '/theater/mit/plan/' + target);
-    const lb = await call('GET', '/theater/mit/heft?probe=' + encodeURIComponent(target));
-    check('the book can be narrowed to one rehearsal', lb.status === 200 && /id="heft-filter"/.test(lb.text) &&
-          new RegExp('"filter":\\{"id":"' + target + '"').test(lb.text), 'status ' + lb.status);
+    const pg = await call('GET', '/theater/mit/plan/P01');
+    check('an old rehearsal link leads to the dates', pg.status === 303 &&
+          /\/theater\/mit\/zeiten$/.test(pg.res.headers.get('location') || ''), 'status ' + pg.status);
     const ah = await call('GET', '/theater/mit/heft?mit=' + encodeURIComponent(cast[0]) + '&mit=' + encodeURIComponent(cast[1]));
     check('an ad-hoc rehearsal narrows the book to the cues of the chosen people', ah.status === 200 &&
           /"mit":\["[A-Z]/.test(ah.text) && /id="adhoc"/.test(ah.text), 'status ' + ah.status);
-    check('passages of a rehearsal for a member', pg.status === 200 && /class="line/.test(pg.text)
-          && /\/theater\/mit\/zeiten/.test(pg.text));
-    clean('member passages page', pg);
     const docs = await call('GET', (/\/theater\/druck\/[a-z0-9]{10,}/.exec(me.text) || [])[0] || '/x');
     check('a member reaches the scripts page', docs.status === 200 && /\/gesamt/.test(docs.text));
     const bk = await call('GET', '/theater/mit/heft');
@@ -634,9 +548,9 @@ for (const b of cast) {
   c = await call('POST', printBase + '/kommentar', new URLSearchParams({ action: 'loeschen', id, wer: b }).toString(),
     { 'content-type': 'application/x-www-form-urlencoded' });
   check('the member deletes their comment', /"ok":true/.test(c.text), c.text.slice(0, 60));
-  const pl = await call('GET', printBase + '/probenplan');
-  check('the rehearsal plan carries the scene navigation', /szk-|kmt-data/.test(pl.text));
-  check('the rehearsal plan offers the checking mode with the keys of my lines',
+  const pl = await call('GET', printBase + '/gesamt');
+  check('the whole script carries the comments and the bar', /kmt-data/.test(pl.text) && /id="kmt-goto"/.test(pl.text));
+  check('the whole script offers the checking mode with the keys of my lines',
         /id="kmt-check"/.test(pl.text) && new RegExp('"keys":\\{"' + b + '":\\{"\\d+":"').test(pl.text));
   const chk = await call('POST', '/theater/mit/heft', new URLSearchParams({ key: 'x.y', antwort: 'kann', fuer: cast[0] }).toString(),
     { 'content-type': 'application/x-www-form-urlencoded' });
@@ -658,95 +572,11 @@ for (const b of cast) {
   d = await call('GET', '/theater/mit/termine');
   check('my dates page', d.status === 200, 'status ' + d.status);
   clean('my dates page', d);
-  check('the fix button opens a dialog with the usual place prefilled',
-        new RegExp('data-dialog="fix-' + target + '"').test(d.text) &&
-        new RegExp('<dialog id="fix-' + target + '"[\\s\\S]*?name="place" value="Steinbach &lt;hall&gt;"').test(d.text));
-  const mine = new RegExp('name="rehearsal" value="' + target + '"[\\s\\S]*?name="iso" value="([^"]+)"' +
-    '[\\s\\S]*?name="from" value="([^"]*)"[\\s\\S]*?name="to" value="([^"]*)"').exec(d.text);
-  check('a date is proposed for ' + target, !!mine, mine ? mine[1] + ' ' + mine[2] + '-' + mine[3] : 'none');
-  check('not on the struck day', !mine || mine[1] !== days[0], mine ? mine[1] : '');
-  if (mine) {
-    d = await post('/theater/mit/termine', { action: 'halten', rehearsal: target, iso: mine[1], from: mine[2], to: mine[3], place: 'Attic <room>' });
-    check('confirm the date from the company, with a place', good(d) && /Attic &lt;room&gt;/.test(d.text), say(d));
-    const shareText = (/<pre class="sharetext" id="sharetext">([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || '';
-    const link = (/https?:\/\/\S+\/theater\/gruppe\/[a-z0-9]+\/plan\/[A-Za-z0-9_-]+/.exec(shareText) || [])[0] || '';
-    check('a message to pass on: rehearsal, place, cast and the link',
-          new RegExp(target).test(shareText) && /Attic &lt;room&gt;/.test(shareText) && /Dabei: |With: /.test(shareText) && !!link, shareText.slice(0, 160));
-    check('the WhatsApp link carries the same text', d.text.includes('href="https://wa.me/?text=' + encodeURIComponent(shareText.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"')).slice(0, 60)));
-    const path = link.replace(/^https?:\/\/[^/]+/, '');
-    d = await call('GET', path);
-    check('the link sends a signed-in member straight to the rehearsal', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit/plan/' + target), 'status ' + d.status + ' ' + d.res.headers.get('location'));
-    const keep = cookies; cookies = '';
-    d = await call('GET', path);
-    check('and asks a newcomer for the name, remembering the target', d.status === 200 && new RegExp('name="zu" value="plan/' + target + '"').test(d.text), 'status ' + d.status);
-    const pid = (/name="person" value="([^"]+)"/.exec(d.text) || [])[1];
-    d = await post(path.replace(/\/plan\/.*$/, ''), { person: pid, zu: 'plan/' + target });
-    check('after picking the name it lands on the rehearsal', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit/plan/' + target), 'status ' + d.status + ' ' + d.res.headers.get('location'));
-    d = await post(path.replace(/\/plan\/.*$/, ''), { person: pid, zu: '../admin' });
-    check('a bad target is dropped', d.status === 303 && (d.res.headers.get('location') || '').endsWith('/theater/mit'), d.res.headers.get('location'));
-    cookies = keep;
-    d = await post('/theater/mit/termine', { action: 'place', rehearsal: target, place: 'Stage <left>' });
-    check('enter the place from the company', good(d) && /Stage &lt;left&gt;/.test(d.text), say(d));
-    {
-      // somebody else's rehearsal: neither the date nor the place is mine to set
-      const foreign = planIds.find(id => !groupOf(planHtml, id).includes(cast[cast.length - 1]));
-      if (foreign) {
-        const f1 = await post('/theater/mit/termine', { action: 'place', rehearsal: foreign, place: 'Elsewhere' });
-        check('the place of a foreign rehearsal is refused as well', !good(f1) && !/Elsewhere/.test(f1.text), say(f1));
-        const all = await call('GET', '/theater/mit/termine?alle=1');
-        const row = new RegExp('/theater/mit/plan/' + foreign + '"[\\s\\S]*?</tr>').exec(all.text);
-        check('the list of all rehearsals offers no fixing for a foreign one', !!row && !/data-dialog="fix-/.test(row[0]) && !/name="place"/.test(row[0]));
-      }
-    }
-    d = await post('/theater/mit/termine', { action: 'halten', rehearsal: 'P99', iso: mine[1], from: mine[2], to: mine[3] });
-    check('a foreign rehearsal is refused', errorNotice(d), say(d));
-  }
 
   cookies = director;
   d = await call('GET', '/theater/termine');
   check('dates page', d.status === 200, 'status ' + d.status);
   clean('dates page', d);
-  check('the fixed date shows as fixed', /class="isfixed"/.test(d.text) && /Stage &lt;left&gt;/.test(d.text));
-  check('the director is shown at the rehearsals', /class="chip muted"/.test(d.text));
-  d = await post('/theater/termine', { action: 'loesen', rehearsal: target });
-  check('release the date', good(d), say(d));
-  const m = /name="action" value="halten">([\s\S]*?)<\/form>/.exec(d.text);
-  if (m) {
-    const val = n => (new RegExp('name="' + n + '" value="([^"]*)"').exec(m[1]) || [])[1];
-    d = await post('/theater/termine', { action: 'halten', rehearsal: val('rehearsal'),
-      iso: val('iso'), from: val('from'), to: val('to'), place: 'Stage' });
-    check('fix a date as the director, with a place', good(d) && /value="Stage"/.test(d.text), say(d));
-    check('the director gets the message to pass on as well', /id="sharebox"/.test(d.text) && /Stage/.test((/<pre class="sharetext"[^>]*>([\s\S]*?)<\/pre>/.exec(d.text) || [])[1] || ''));
-    // Deriving afresh leaves the fixed rehearsal and its date alone.
-    const pl = await call('GET', '/theater/plan');
-    const all = Object.fromEntries([...pl.text.matchAll(/name="(akt_\d+)"/g)].map(m => [m[1], '1']));
-    const re = await post('/theater/plan', { action: 'ableiten', modus: 'ersetzen', substitution: '20', maxgruppe: '5', ...all });
-    check('replace keeps the fixed rehearsal', good(re) && new RegExp('>' + val('rehearsal') + '</b>').test(re.text), say(re));
-    d = await call('GET', '/theater/termine');
-    check('and its date is still fixed', new RegExp('name="rehearsal" value="' + val('rehearsal') + '"[\\s\\S]{0,400}?value="loesen"').test(d.text) && /value="Stage"/.test(d.text));
-    d = await post('/theater/termine', { action: 'place', rehearsal: val('rehearsal'), place: 'Rehearsal room' });
-    check('enter the place as the director', good(d) && /Rehearsal room/.test(d.text), say(d));
-    d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '18:30', to: '20:00', place: 'Attic' });
-    check('the director changes time and place of a fixed date', good(d) && /18:30/.test(d.text) && /id="sharebox"/.test(d.text), say(d));
-    d = await post('/theater/termine', { action: 'nachricht', rehearsal: val('rehearsal') });
-    check('and sends the message again later, straight into WhatsApp', d.status === 303 &&
-          /^https:\/\/wa\.me\/\?text=/.test(d.res.headers.get('location') || '') &&
-          /Attic/.test(decodeURIComponent((d.res.headers.get('location') || '').split('text=')[1] || '')), say(d));
-    d = await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: val('iso'), from: '21:00', to: '20:00', place: 'Attic' });
-    check('an end before the start is refused', !good(d), say(d));
-    // a date that is over moves into the history, where it is rated
-    await post('/theater/termine', { action: 'aendern', rehearsal: val('rehearsal'), iso: '2020-01-06', from: '19:00', to: '20:00', place: 'Attic' });
-    d = await call('GET', '/theater/termine');
-    check('a date that is over moves into the history', /id="verlauf"/.test(d.text) && /06\.01\.2020|01\/06\/2020|2020/.test(d.text));
-    clean('dates page with history', d);
-    d = await post('/theater/termine', { action: 'sitzt', rehearsal: val('rehearsal'), iso: '2020-01-06', sitzt: '60', notiz: 'second half <shaky>' });
-    check('the director notes how well it sat', good(d) && /name="sitzt"[^>]*value="60"/.test(d.text) && /second half &lt;shaky&gt;/.test(d.text), say(d));
-    check('the rehearsal is open again and shows what has been', /class="small muted hist"/.test(d.text) && /60(&nbsp;|\u00a0| )%/.test(d.text));
-    d = await post('/theater/termine', { action: 'verlauf-loeschen', rehearsal: val('rehearsal'), iso: '2020-01-06' });
-    check('a history entry can be removed', good(d) && !/id="verlauf"/.test(d.text), say(d));
-    d = await post('/theater/termine', { action: 'loesen', rehearsal: val('rehearsal') });
-    check('release it again', good(d), say(d));
-  } else check('a date to fix as the director', false);
   d = await post('/theater/termine', { action: 'halten', rehearsal: 'P99', iso: '2030-01-01', from: '19:00', to: '21:00' });
   check('fixing an unknown rehearsal is refused', errorNotice(d), say(d));
 
@@ -819,17 +649,17 @@ for (const b of cast) {
 /* ---- 11. languages and the About page ---- */
 r = await post('/theater/projekt', { action: 'sprache', language: '' });
 check('company language back to the browser', good(r), say(r));
-r = await post('/theater/sprache', { language: 'de', back: '/theater/plan' });
+r = await post('/theater/sprache', { language: 'de', back: '/theater/projekt' });
 check('switch language', r.status === 303);
-r = await call('GET', '/theater/plan');
-check('page in German after switching', /Probenplan/.test(r.text));
-clean('plan page in German', r);
+r = await call('GET', '/theater/projekt');
+check('page in German after switching', /lang="de"/.test(r.text) && /Besetzung/.test(r.text));
+clean('overview in German', r);
 r = await call('GET', '/theater/termine');
 clean('dates page in German', r);
 r = await call('GET', '/theater/ueber');
 check('About page in German', r.status === 200 && /Version/.test(r.text) && /\d+\.\d+/.test(r.text));
 clean('About page', r);
-await post('/theater/sprache', { language: 'en', back: '/theater/plan' });
+await post('/theater/sprache', { language: 'en', back: '/theater/projekt' });
 
 /* ---- 12. the audiobook page without a key ---- */
 r = await call('GET', '/theater/hoerbuch');

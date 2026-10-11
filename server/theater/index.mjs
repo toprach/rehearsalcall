@@ -20,10 +20,9 @@ import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
 import { proposeDates, calendarDays, directorsOf, archivePast, freeEntry, freeNames, freeDetail,
   oneDatePerDay, displayDays, dayView } from './dates.mjs';
-import { derivePlan, peopleOf, summaryOf, actsIn, unitsCoveredBy, mergeInto } from './plan.mjs';
+import { peopleOf, summaryOf } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
-import { passagesOf } from './passages.mjs';
 import * as HB from './audiobook.mjs';
 import * as Throttle from './throttle.mjs';
 import { readScript, readMarkdown, speechesOf, buildStructure, buildCast,
@@ -462,7 +461,7 @@ async function takeInScript(project, script) {
       nr, quelle: previous.quelle, hochgeladen: previous.hochgeladen || project.geaendert || null,
       markdown: previous.markdown, sprecherstil: previous.sprecherstil,
       bloecke: previous.bloecke, titel: previous.titel,
-      repliken: (previous.sprecher || []).reduce((a, s) => a + (s.n || 0), 0),
+      repliken: previous.repliken ?? (previous.sprecher || []).reduce((a, s) => a + (s.n || 0), 0),
       aenderungen: previous.aenderungen || null,
     });
     script.nr = Math.max(nr, ...project.fassungen.map(v => v.nr)) + 1;
@@ -521,12 +520,33 @@ async function takeInScript(project, script) {
 /* ---------- the script from an address ----------
 
    The administrator may give a project an address its script comes
-   from (source.mjs). It is fetched once every 24 hours and whenever the
+   from (source.mjs). It is fetched every ten minutes and whenever the
    director presses "update script"; a new version is taken in only when
-   the text read from it differs from the current one. What happened is
-   kept in project.skript_quelle, for the script page and the admin. */
+   the text read from it differs from the current one, and the versions
+   fetched on one day are one version - the later replaces the earlier,
+   compared with the version before that day. What happened is kept in
+   project.skript_quelle, for the script page and the admin. */
+
+const ZONE = process.env.THEATER_ZONE || 'Europe/Vienna';
+const dayOf = (iso) => { try { return new Date(iso).toLocaleDateString('sv-SE', { timeZone: ZONE }); }
+                         catch { return String(iso).slice(0, 10); } };
 
 const refreshing = new Set();
+
+/* Whether a fetched script says anything new: the same markdown, or
+   the same speeches and the same words once emphasis, spacing and line
+   breaks are set aside. Formatting alone makes no new version. */
+const plainOf = (md) => String(md || '').replace(/[*_`#>|\\]/g, '').replace(/\s+/g, ' ').trim();
+function sameText(current, read_) {
+  if (current.markdown === read_.markdown) return true;
+  if (plainOf(current.markdown) !== plainOf(read_.markdown)) return false;
+  try {
+    const cmp = compareSpeeches(
+      speechesOf(current.markdown, current.quelle, current.sprecherstil),
+      speechesOf(read_.markdown, current.quelle, read_.sprecherstil));
+    return !cmp.changed && !cmp.added && !cmp.removed;
+  } catch (e) { console.error('[Quelle] ' + (e && e.stack || e)); return false; }
+}
 
 async function refreshFromSource(id) {
   if (refreshing.has(id)) return { kind: 'error', key: 'src.busy' };
@@ -555,11 +575,18 @@ async function refreshFromSource(id) {
     project = await S.read(id);
     if (!project?.skript_quelle?.url) return { kind: 'error', key: 'src.none' };
     if (read_) {
-      if (project.drehbuch && project.drehbuch.markdown === read_.markdown) {
+      if (project.drehbuch && sameText(project.drehbuch, read_)) {
         result = 'gleich';
         m = { kind: 'good', key: 'src.same', values: { nr: project.drehbuch.nr || 1 } };
       } else {
         const first = !project.drehbuch;
+        // Fetched earlier today already: that version gives way, and the
+        // new one is compared with the one before it.
+        const cur = project.drehbuch;
+        if (cur?.abgerufen && project.fassungen?.length && dayOf(cur.hochgeladen) === dayOf(new Date().toISOString())) {
+          project.drehbuch = project.fassungen.pop();
+          console.log('[Quelle] ' + id + ': version ' + cur.nr + ' of today replaced');
+        }
         m = await takeInScript(project, {
           quelle: got.filename, markdown: read_.markdown,
           titel: read_.titel, bloecke: read_.bloecke, sprecher: read_.sprecher,
@@ -585,24 +612,28 @@ async function refreshFromSource(id) {
   } finally { refreshing.delete(id); }
 }
 
-/* Once an hour: every project with an address whose last fetch is a day
-   old or more. The time is kept in the record, so a restart of the
-   service does not fetch again. */
-const DAY = 24 * 60 * 60 * 1000;
+/* Every ten minutes: each project with an address whose last fetch is
+   that old (a minute's grace for the clock). Reading all projects is the
+   cost, so not more often. */
+const EVERY = 10 * 60 * 1000;
 async function refreshDue() {
   let all;
   try { all = await S.allProjects(); } catch (e) { console.error('[Quelle] ' + (e && e.stack || e)); return; }
   for (const p of all) {
     const q = p.skript_quelle;
     if (p.demo || !q?.url) continue;
-    if (q.abgerufen && Date.now() - Date.parse(q.abgerufen) < DAY - 5 * 60 * 1000) continue;
+    if (q.abgerufen && Date.now() - Date.parse(q.abgerufen) < EVERY - 60 * 1000) continue;
     try { await refreshFromSource(p.id); }
     catch (e) { console.error('[Quelle] ' + p.id + ': ' + (e && e.stack || e)); }
   }
 }
+let looking = false;
 export function startSourceRefresh() {
-  setTimeout(refreshDue, 2 * 60 * 1000).unref();
-  setInterval(refreshDue, 60 * 60 * 1000).unref();
+  setInterval(() => {
+    if (looking) return;
+    looking = true;
+    refreshDue().finally(() => { looking = false; });
+  }, EVERY).unref();
 }
 
 /* What goes into a document after <body>: the comments this viewer may
@@ -1032,6 +1063,10 @@ export async function handle(request, response, path) {
       return answer({ ok: false, reason: 'action' }, 400);
     }
 
+    // The rehearsal plan in the script is gone with the plan; links to it
+    // that went round open the whole script instead.
+    if (action === 'probenplan') return redirect(response, '/theater/druck/' + token + '/gesamt');
+
     if (action === 'original') {
       const o = project.drehbuch?.original;
       if (!o) return html(response,
@@ -1063,8 +1098,6 @@ export async function handle(request, response, path) {
         text = buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
                             { person, context: n == null ? 1 : n });
         meins = person;
-      } else if (action === 'probenplan') {
-        text = buildDocument(project.drehbuch, cast, tokenMap, 'probenplan', { plan: project.plan });
       } else if (action === 'gesamt') {
         const f = new URLSearchParams((request.url || '').split('?')[1] || '');
         const whose = f.get('ich') || '';
@@ -1202,21 +1235,11 @@ export async function handle(request, response, path) {
                                  short: PWA.shortNameOf(project.titel, t_(L, 'pwa.short')) };
     if (second === '') return html(response, A.memberPage(project, person, null, realSelf));
 
-    /* The passages of one rehearsal, for a member: the same page as
-       the director's, with the member's navigation. */
-    if (second === 'plan' && parts[2]) {
+    /* A rehearsal of the old derived plan, from a link that went round:
+       the dates, where rehearsals are now. */
+    if (second === 'plan') {
       await drainBody(request);
-      const id = decodeURIComponent(parts[2]);
-      if (!project.skript || !project.plan) return html(response,
-        A.errorPage('f.no_plan_t', 'f.no_plan'), 404);
-      let d;
-      try { d = passagesOf(project.skript, project.plan, id); }
-      catch (e) {
-        console.error('[Passagen] ' + (e && e.stack || e));
-        return html(response, A.errorPage('f.failed3_t', 'f.failed3', { reason: reasonOf(e) }), 500);
-      }
-      if (!d) return html(response, A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404);
-      return html(response, A.passagesPage(project, d, null, { member: person }));
+      return redirect(response, '/theater/mit/zeiten');
     }
 
     /* A calendar feed fetched on the member's behalf: most calendar
@@ -1973,115 +1996,11 @@ export async function handle(request, response, path) {
     return await show(m);
   }
 
+  /* The derived rehearsal plan is gone (11.10.2026): rehearsals are the
+     dates with what is rehearsed. Old links land on the dates. */
   if (first === 'plan') {
-    /* --- the passages of one rehearsal ---
-
-       The plan names only the cast and the minutes. Whether the cut is
-       any good is decided by the text - so it is one click away.     */
-    if (parts[1]) {
-      await drainBody(request);
-      const id = decodeURIComponent(parts[1]);
-      if (!project.skript || !project.plan) return html(response,
-        A.errorPage('f.no_plan_t', 'f.no_plan'), 404);
-      let d;
-      try { d = passagesOf(project.skript, project.plan, id); }
-      catch (e) {
-        console.error('[Passagen] ' + (e && e.stack || e));
-        return html(response, A.errorPage('f.failed3_t', 'f.failed3', { reason: reasonOf(e) }), 500);
-      }
-      if (!d) return html(response, A.errorPage('f.rehearsal_gone_t', 'f.rehearsal_gone'), 404);
-      return html(response, A.passagesPage(project, d, null));
-    }
-    if (!post) return html(response, A.planPage(project, null, actsIn(project.skript)));
-    if (!project.skript) return html(response, A.planPage(project, {
-      kind: 'error', key: 'r.without_cast' }));
-    const { fields } = await readForm(request);
-    const action = String(fields.action || 'ableiten');
-    const acts = actsIn(project.skript);
-    const show = (m) => html(response, A.planPage(project, m, acts));
-
-    /* --- reset: every rehearsal goes, and with them the fixed dates --- */
-    if (action === 'zuruecksetzen') {
-      // free rehearsals were never the plan's and stay
-      const n = project.plan?.proben?.length || 0, d = (project.termine || []).filter(t => !t.frei).length;
-      project.plan = null; project.termine = (project.termine || []).filter(t => t.frei);
-      await S.write(project);
-      Reminders.refresh(project);
-      return show({ kind: 'good', key: 'r.plan_reset', values: { p1: n, p2: d } });
-    }
-
-    /* --- from Hand nachbessern --- */
-    if (action !== 'ableiten') {
-      if (!project.plan?.proben?.length) return html(response, A.planPage(project, {
-        kind: 'error', key: 'r.no_plan_to_revise' }));
-      const rehearsal = String(fields.rehearsal || '');
-      let m = null;
-      if (action === 'streichen')      m = B.dropRehearsal(project, rehearsal);
-      else if (action === 'zusammen')  m = fields.others
-        ? B.mergeRehearsals(project, rehearsal, String(fields.others))
-        : { kind: 'error', key: 'r.merge_with_what' };
-      else if (action === 'dazu')      m = fields.person
-        ? B.changeCast(project, rehearsal, String(fields.person), true)
-        : { kind: 'error', key: 'r.add_whom' };
-      else if (action === 'weg')       m = fields.person
-        ? B.changeCast(project, rehearsal, String(fields.person), false)
-        : { kind: 'error', key: 'r.remove_whom' };
-      else if (action === 'notiz')     m = B.setNote(project, rehearsal, fields.notiz);
-      else m = { kind: 'error', key: 'r.unknown_action3' };
-
-      if (m.kind === 'good') await S.write(project);
-      return html(response, A.planPage(project, m));
-    }
-
-    /* --- derive: for the chosen acts, adding to or replacing what is
-           there. Rehearsals with a fixed date are never touched.     --- */
-    const substitution = Math.min(40, Math.max(0, Number(fields.substitution ?? 20))) / 100;
-    const maxGroup = Math.min(7, Math.max(2, Number(fields.maxgruppe ?? 5)));
-    const mode = String(fields.modus || 'ersetzen');
-    // A form without the act section (a script, an old client) means all acts.
-    const offered = fields.akte === '1';
-    const chosenActs = offered ? acts.map(a => a.nr).filter(nr => fields['akt_' + nr] === '1')
-                               : acts.map(a => a.nr);
-    const allActs = !acts.length || chosenActs.length === acts.length;
-    if (offered && acts.length && !chosenActs.length) return show({ kind: 'error', key: 'r.no_acts' });
-    const actList = allActs ? [] : chosenActs;
-
-    const had = project.plan?.proben?.length ? project.plan : null;
-    const fixedIds = new Set((project.termine || []).filter(t => t.bestaetigt).map(t => t.probe_id));
-    let kept = [];
-    if (had) {
-      if (mode === 'ergaenzen') kept = had.proben;
-      else kept = had.proben.filter(pr => fixedIds.has(pr.id) ||
-        (!allActs && !(pr.szenen || []).some(sz => chosenActs.includes(Number(sz.akt)))));
-    }
-    let fresh;
-    try {
-      fresh = derivePlan(project.skript, { substitution, maxGroup, acts: actList,
-        covered: kept.length ? unitsCoveredBy(project.skript, kept) : new Set() });
-    } catch (e) {
-      console.error('[Ableitung] ' + (e && e.stack || e));
-      return show({ kind: 'error', key: 'r.derive_failed', values: { reason: reasonOf(e) } });
-    }
-    if (!fresh.proben.length && !kept.length) return show({ kind: 'error', key: 'r.no_rehearsal_found' });
-
-    const droppedFixed = 0;
-    let plan;
-    if (!had) plan = fresh;
-    else {
-      plan = { ...had, proben: kept, erzeugt: fresh.erzeugt };
-      mergeInto(project.skript, plan, fresh, { substitution, maxGroup });
-    }
-    project.plan = plan;
-    // Dates of rehearsals that are gone go with them; fixed ones stayed.
-    const keptIds = new Set(plan.proben.map(pr => pr.id));
-    project.termine = (project.termine || []).filter(t => t.frei || keptIds.has(t.probe_id));
-    await S.write(project);
-    const actNames = (allActs ? acts : acts.filter(a => chosenActs.includes(a.nr))).map(a => h(a.name)).join(', ');
-    return show({ kind: 'good',
-      key: !had ? 'r.derived' : mode === 'ergaenzen' ? 'r.derived_added' : 'r.derived_replaced',
-      values: { p1: fresh.proben.length, p2: { share: plan.abdeckung },
-                p3: kept.filter(pr => fixedIds.has(pr.id)).length, acts: actNames || '\u2013',
-                total: plan.proben.length } });
+    await drainBody(request);
+    return redirect(response, '/theater/termine');
   }
 
   if (first === 'leute') {
@@ -2178,10 +2097,6 @@ export async function handle(request, response, path) {
         text = buildDocument(project.drehbuch, cast, tokenMap, 'rolle',
                             { person, context: query.get('kontext') ?? 1 });
         name = `${shortName} – Rollenheft ${person}.html`;
-      } else if (action === 'probenplan') {
-        text = buildDocument(project.drehbuch, cast, tokenMap, 'probenplan',
-                            { plan: project.plan });
-        name = `${shortName} – Probenplan.html`;
       } else {
         text = buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
         name = `${shortName} – Gesamtskript.html`;
