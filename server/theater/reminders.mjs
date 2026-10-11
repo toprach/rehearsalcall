@@ -29,6 +29,7 @@
    to be sent. No cron entry is needed.
    --------------------------------------------------------------------- */
 
+import { trimStructure, hiddenActs } from './acts.mjs';
 import * as S from './storage.mjs';
 import * as Push from './push.mjs';
 import { partBook } from './book.mjs';
@@ -139,7 +140,7 @@ export function messageFor(project, person, today) {
   const t = language(isLanguage(code) ? code : 'de').t;
   let due = 0, fresh = 0, total = 0;
   try {
-    const chunks = partBook(project.skript, person.b).flatMap(p => p.chunks);
+    const chunks = partBook(trimStructure(project.skript, hiddenActs(project)), person.b).flatMap(p => p.chunks);
     const f = Learn.summary(project.lernen?.[person.id] || {}, chunks, today);
     due = f.due; fresh = f.fresh; total = f.total;
   } catch { /* no script yet: still a nudge */ }

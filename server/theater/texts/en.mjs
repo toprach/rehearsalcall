@@ -187,6 +187,9 @@ export const en = {
   'r.period_saved':     'Rehearsal period saved.',
   'proj.place':         'Rehearsal place',
   'proj.place_what':    'The usual place. It is prefilled when a date is fixed and confirmed or changed there.',
+  'proj.acts':          'Acts for the company',
+  'proj.acts_what':     'What the company sees in the part book, the play and the documents. Acts not released '
+                    + 'are left out there entirely; the director always sees everything.',
   'proj.place_label':   'Usual place',
   'r.place_saved':      'Rehearsal place saved.',
   'proj.road':          'The road',
@@ -1041,6 +1044,7 @@ export const en = {
   'r.admin_code_new':   'New access code for {p1}. The old one no longer works.',
   'r.admin_confirm':    'To delete, type the title exactly as it stands: {p1}',
   'r.admin_deleted':    '{p1} deleted, with everything in it.',
+  'r.acts_saved':       'Saved \u2013 {n} of {m} acts released for the company.',
   'r.admin_source_bad': 'That is not a valid http(s) address.',
   'r.admin_source_off': 'The script of "{p1}" is uploaded again, no longer fetched.',
   'r.admin_source_set': 'Address for "{p1}" saved. First fetch: {result}',

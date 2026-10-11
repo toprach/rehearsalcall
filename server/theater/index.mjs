@@ -41,6 +41,7 @@ import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
 import * as Source from './source.mjs';
+import * as Acts from './acts.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -198,6 +199,24 @@ async function form(request, grenze = 2_000_000) {
 }
 
 const FOREVER = 'public, max-age=31536000, immutable';
+
+/* The acts this viewer does not see: none for the director (unless they
+   are working as somebody else, then what that person sees), the ones
+   not released for everybody else. See acts.mjs. */
+/* The acts the company sees, from the ticked boxes akt_<n>; all ticked
+   means all, acts a later version brings included. */
+function releaseActs(project, fields) {
+  const all = Acts.actsOf(project.skript).map(a => a.nr);
+  const free = all.filter(n => fields['akt_' + n] != null);
+  project.einstellungen = project.einstellungen || {};
+  if (free.length === all.length) delete project.einstellungen.akte_frei;
+  else project.einstellungen.akte_frei = free;
+  return { n: free.length, m: all.length };
+}
+
+const hiddenFor = (ctx, request, project) =>
+  (ctx.regieProject === project.id || ctx.directorProject === project.id) && !sealedCookie(request, REALSELF)
+    ? new Set() : Acts.hiddenActs(project);
 const html = (response, text, status = 200) => {
   response.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
@@ -879,6 +898,7 @@ export async function handle(request, response, path) {
       people: (p.personen || []).length,
       rehearsals: p.plan?.proben?.length || 0,
       quelle: p.demo ? null : (p.skript_quelle || {}),
+      akte: p.demo ? [] : Acts.actsOf(p.skript), akteFrei: p.einstellungen?.akte_frei ?? null,
       withEntry: Object.values(p.verfuegbar || {})
         .filter(v => Object.keys(v.tage || {}).length || (v.wochentage || []).length).length,
     }));
@@ -918,6 +938,14 @@ export async function handle(request, response, path) {
         await S.deleteProject(p.id);
         HB.cancelJob(p.id);
         m = { kind: 'good', key: 'r.admin_deleted', values: { p1: h(p.titel) } };
+      }
+    } else if (action === 'akte') {
+      const p = await S.read(String(fields.id || ''));
+      if (!p || p.demo) m = { kind: 'error', key: 'r.admin_gone' };
+      else {
+        const v = releaseActs(p, fields);
+        await S.write(p);
+        m = { kind: 'good', key: 'r.acts_saved', values: v };
       }
     } else if (action === 'quelle') {
       // The address the script is fetched from; empty takes it away.
@@ -991,7 +1019,8 @@ export async function handle(request, response, path) {
     const here = 'https://' + (request.headers['x-forwarded-host'] ||
                                request.headers.host || 'joku.tv');
     const myBase = (process.env.THEATER_BASIS || here) + '/theater/druck/' + token;
-    if (!action) return html(response, A.docsPage(project, myBase));
+    const hidden = hiddenFor(ctx, request, project);
+    if (!action) return html(response, A.docsPage(project, myBase, { original: !hidden.size }));
 
     /* From the part book back into the application.
 
@@ -1080,7 +1109,8 @@ export async function handle(request, response, path) {
     if (action === 'probenplan') return redirect(response, '/theater/druck/' + token + '/gesamt');
 
     if (action === 'original') {
-      const o = project.drehbuch?.original;
+      // The file holds every act - not for the company while some are not released.
+      const o = hidden.size ? null : project.drehbuch?.original;
       if (!o) return html(response,
         A.errorPage('f.no_original_t', 'f.no_original'), 404);
       const raw = Buffer.from(o.daten, 'base64');
@@ -1119,6 +1149,7 @@ export async function handle(request, response, path) {
       } else {
         return html(response, A.errorPage('f.not_found_t', 'f.not_found'), 404);
       }
+      text = Acts.trimDocument(text, hidden);
     } catch (e) {
       console.error('[Dokument] ' + (e && e.stack || e));
       return html(response, A.errorPage('f.failed_t', 'f.failed', { reason: reasonOf(e) }), 500);
@@ -1440,7 +1471,7 @@ export async function handle(request, response, path) {
     if (second === 'stueck') {
       await drainBody(request);
       if (!project.skript) return html(response, A.errorPage('f.no_structure_t', 'f.no_structure'), 404);
-      const blocks = wholePlay(project.skript, person.b);
+      const blocks = wholePlay(Acts.trimStructure(project.skript, hiddenFor(ctx, request, project)), person.b);
       const starts = {};
       for (const pr of project.plan?.proben || [])
         for (const sz of pr.szenen || []) if (sz.nr_von != null) (starts[sz.nr_von] = starts[sz.nr_von] || []).push(pr.id);
@@ -1505,7 +1536,7 @@ export async function handle(request, response, path) {
     if (second === 'heft') {
       if (!project.skript) { await drainBody(request); return html(response,
         A.errorPage('f.no_structure_t', 'f.no_structure'), 404); }
-      const passages = partBook(project.skript, person.b);
+      const passages = partBook(Acts.trimStructure(project.skript, hiddenFor(ctx, request, project)), person.b);
       const today = Learn.isoToday();
 
       /* An answer while learning, or the note on a chunk. Stored with
@@ -1586,7 +1617,8 @@ export async function handle(request, response, path) {
       const { cast, tokenMap } = buildCast(project.zuordnung, project.drehbuch.sprecher, project.personen);
       let text;
       try {
-        text = buildDocument(project.drehbuch, cast, tokenMap, 'gesamt');
+        text = Acts.trimDocument(buildDocument(project.drehbuch, cast, tokenMap, 'gesamt'),
+                                 hiddenFor(ctx, request, project));
       } catch (e) {
         console.error('[Dokument] ' + (e && e.stack || e));
         return html(response, A.errorPage('f.failed2_t', 'f.failed2', { reason: reasonOf(e) }), 500);
@@ -1727,6 +1759,11 @@ export async function handle(request, response, path) {
       project.einstellungen.ort = String(fields.ort || '').trim().slice(0, 120);
       await S.write(project);
       return html(response, A.projectPage(project, { kind: 'good', key: 'r.place_saved' }));
+    }
+    if (String(fields.action) === 'akte') {
+      const v = releaseActs(project, fields);
+      await S.write(project);
+      return html(response, A.projectPage(project, { kind: 'good', key: 'r.acts_saved', values: v }));
     }
     if (String(fields.action) !== 'zeitraum')
       return html(response, A.projectPage(project, { kind: 'error', key: 'r.unknown_action' }));

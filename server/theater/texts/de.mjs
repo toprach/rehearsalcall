@@ -184,6 +184,9 @@ export const de = {
   'r.period_saved':     'Probenzeitraum gespeichert.',
   'proj.place':         'Probenort',
   'proj.place_what':    'Der \u00fcbliche Ort. Er ist beim Fixieren eines Termins vorausgef\u00fcllt und wird dort best\u00e4tigt oder ge\u00e4ndert.',
+  'proj.acts':          'Akte für das Ensemble',
+  'proj.acts_what':     'Was das Ensemble in Rollenheft, Stück und Dokumenten sieht. Nicht freigegebene Akte '
+                    + 'fehlen dort ganz; die Regie sieht immer alles.',
   'proj.place_label':   'Standard-Probenort',
   'r.place_saved':      'Probenort gespeichert.',
   'proj.road':          'Der Weg',
@@ -1043,6 +1046,7 @@ export const de = {
   'r.admin_code_new':   'Neuer Zugangscode f\u00fcr {p1}. Der alte gilt nicht mehr.',
   'r.admin_confirm':    'Zum L\u00f6schen den Titel genau so eintippen: {p1}',
   'r.admin_deleted':    '{p1} gel\u00f6scht, mit allem, was dazugeh\u00f6rt.',
+  'r.acts_saved':       'Gespeichert \u2013 {n} von {m} Akten für das Ensemble freigegeben.',
   'r.admin_source_bad': 'Das ist keine gültige http(s)-Adresse.',
   'r.admin_source_off': 'Für „{p1}“ wird das Drehbuch wieder hochgeladen, nicht mehr geholt.',
   'r.admin_source_set': 'Adresse für „{p1}“ gespeichert. Erster Abruf: {result}',

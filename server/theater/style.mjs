@@ -77,6 +77,7 @@ export const STYLE = uprightMedia(`
   .pwasheet .inner p { margin:.4rem 0 .8rem }
   .pwasheet button.big { display:block; width:100%; margin:0 0 .6rem; padding:.9rem 1rem; font-size:1.1rem; font-weight:700 }
   .pwasheet button.quiet { margin:0 }
+  .actpick { display:flex; flex-wrap:wrap; gap:.3rem 1.4rem; margin:.4rem 0 .6rem }
   .offnote { position:fixed; left:50%; transform:translateX(-50%); top:.5rem; z-index:60; background:#3d3a36; color:#fff;
     font-size:.8rem; padding:.3rem .8rem; border-radius:1rem; box-shadow:0 2px 8px rgba(0,0,0,.25); max-width:calc(100% - 2rem) }
   textarea.fr-inhalt { width:100%; box-sizing:border-box; resize:vertical; overflow:hidden; min-height:2.6rem; font:inherit; line-height:1.4 }

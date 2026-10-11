@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
 import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
+import { actsOf } from './acts.mjs';
 import { UPRIGHT_SCRIPT } from './upright.mjs';
 import { substitutesOf, historyOf, isoDate, freeNames, freeDetail, freeChoices } from './dates.mjs';
 
@@ -899,7 +900,7 @@ function printPage(p, m) {
     <p class="small muted" style="margin-top:2.5rem">${t('print.takes_time')}</p>` });
 }
 
-function docsPage(project, base) {
+function docsPage(project, base, opt = {}) {
   const folks = (project.personen || []).filter(x => x.b);
   const hasPlan = !!project.plan?.proben?.length;
   return page({ title: t('docs.title'), narrow: true, body: `
@@ -909,7 +910,7 @@ function docsPage(project, base) {
     <div class="box">
       <p><a href="${h(base)}/gesamt">${t('docs.full')}</a></p>
       ${hasPlan ? `<p><a href="${h(base)}/probenplan">${t('docs.plan')}</a></p>` : ''}
-      ${project.drehbuch?.original
+      ${project.drehbuch?.original && opt.original !== false
         ? `<p><a href="${h(base)}/original">${t('docs.original',
             { name: h(project.drehbuch.original.name) })}</a></p>` : ''}
     </div>
@@ -921,6 +922,7 @@ function docsPage(project, base) {
 }
 
 function projectPage(p, m) {
+  const acts = actsOf(p.skript);
   // The director needs no entries: they count as free except on struck days.
   const cast = (p.personen || []).filter(x => !x.regie);
   const withEntry = cast.filter(x => {
@@ -986,6 +988,16 @@ function projectPage(p, m) {
         <div><button type="submit" class="quiet" style="margin-top:0">${h(t('common.save'))}</button></div>
       </div>
     </form>
+
+    ${acts.length ? `<h2>${t('proj.acts')}</h2>
+    <p class="small muted">${t('proj.acts_what')}</p>
+    <form method="post" action="/theater/projekt">
+      <input type="hidden" name="action" value="akte">
+      <div class="actpick">${acts.map(a => `<label class="inline"><input type="checkbox" name="akt_${a.nr}" value="1"${
+        !Array.isArray(p.einstellungen?.akte_frei) || p.einstellungen.akte_frei.includes(a.nr) ? ' checked' : ''}> ${
+        h(a.nr + '. ' + (a.name || ''))}</label>`).join('')}</div>
+      <button type="submit" class="quiet mini">${h(t('common.save'))}</button>
+    </form>` : ''}
 
     <h2>${t('proj.place')}</h2>
     <p class="small muted">${t('proj.place_what')}</p>
@@ -2876,7 +2888,11 @@ function adminPage(projects, m, fresh, entry) {
           `<input type="url" name="url" value="${h(p.quelle.url || '')}" placeholder="https://docs.google.com/document/d/\u2026/export?format=docx"
                   aria-label="${h(t('admin.source'))}" style="min-width:16rem">
            <button class="quiet mini" type="submit">${h(t('admin.source_save'))}</button>`, { cssClass: 'adminsource' })}
-        <div class="muted">${p.quelle.url ? sourceState(p.quelle) : t('admin.source_what')}</div>` : ''}</td>
+        <div class="muted">${p.quelle.url ? sourceState(p.quelle) : t('admin.source_what')}</div>` : ''}${p.akte?.length ? `
+        ${actionForm('/theater/admin', 'akte', { id: p.id }, `<span class="actpick">${p.akte.map(a =>
+          `<label class="inline"><input type="checkbox" name="akt_${a.nr}" value="1"${!p.akteFrei || p.akteFrei.includes(a.nr) ? ' checked' : ''}> ${
+          h(a.nr + '. ' + (a.name || ''))}</label>`).join('')}</span>
+          <button class="quiet mini" type="submit">${h(t('proj.acts'))}</button>`)}` : ''}</td>
       <td>
         ${actionForm('/theater/admin', 'code', { id: p.id },
           '<button class="quiet mini" type="submit">' + h(t('admin.new_code')) + '</button>',
