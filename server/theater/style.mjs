@@ -391,8 +391,10 @@ export const STYLE = uprightMedia(`
   .frame.hastabs, .hasbar .frame { padding-bottom:7rem }
   .hasbar .foot .inner { padding-bottom:6.5rem }
   .head.member button.share { margin-left:auto }
-  body .learnbar { bottom:4.8rem } body.learning .frame.hastabs { padding-bottom:13rem }
-  body .bookstep { bottom:4.8rem }
+  /* the bars of a page sit on the tab bar; --tabh is its measured height */
+  body .learnbar, body .bookstep, body.hasbar .playbar { bottom:var(--tabh, 4.8rem) }
+  body.learning .frame.hastabs { padding-bottom:calc(var(--tabh, 4.8rem) + 8rem) }
+  body.hasbar:has(.playbar) .frame.hastabs { padding-bottom:calc(var(--tabh, 4.8rem) + 5rem) }
   .morelinks { display:flex; flex-wrap:wrap; gap:.4rem }
   @media (min-width:701px) { .tabbar a { font-size:12px } .tabbar a svg { width:24px; height:24px } }
   @media print { .tabbar, .subnav { display:none } }
@@ -404,7 +406,6 @@ export const STYLE = uprightMedia(`
   @media (max-width:700px) {
     .head.member button.share svg { width:22px; height:22px }
     .overlay { align-items:flex-start; padding-top:1rem }
-    body .bookstep { bottom:4.8rem }
   }
   /* --- the part book on the screen --- */
   .bookbar { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; margin:.6rem 0 1rem }
@@ -479,7 +480,6 @@ export const STYLE = uprightMedia(`
   .playbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.6rem; align-items:center;
              justify-content:center; padding:.4rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
   .playbar button { margin:0 }
-  @media (max-width:700px) { body .playbar { bottom:4.8rem } }
   /* --- the fixed bar with the learning buttons: always in the same place --- */
   .learnbar { position:fixed; left:0; right:0; bottom:0; z-index:41; display:flex; gap:.5rem; align-items:center;
               justify-content:center; padding:.5rem .8rem; background:var(--card); border-top:1px solid var(--rule) }
@@ -492,7 +492,7 @@ export const STYLE = uprightMedia(`
   .applause .clap { font-size:3rem; line-height:1.2; margin:0 0 .3rem }
   .applause button { margin:.6rem .3rem 0 }
   body.learning .frame { padding-bottom:9rem }
-  @media (max-width:700px) { body .learnbar { bottom:4.8rem } body.learning .frame.hastabs { padding-bottom:13rem } }
+
   /* --- other calendars in the availability page --- */
   table.cal td.day { position:relative }
   table.cal td.day .ics-dot { position:absolute; right:.2rem; top:.2rem; font-size:.62rem; line-height:1.4;

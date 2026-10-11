@@ -135,6 +135,15 @@ ${tabbar}
 ${tabbar ? `<div class="offnote" id="offnote" hidden data-text="${h(t('pwa.offline_copy', { when: '#' }))}" data-stand="${new Date().toISOString()}"></div>` : ''}
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
+/* The bars of a page (the play's, the learning bar) sit right on the tab
+   bar, whose height depends on the screen and on whether it names whom
+   one works for - so it is measured, not guessed. */
+(function () {
+  var tb = document.querySelector('.tabbar'); if (!tb) return;
+  var put = function () { document.documentElement.style.setProperty('--tabh', tb.offsetHeight + 'px'); };
+  put(); window.addEventListener('resize', put);
+  if (window.ResizeObserver) new ResizeObserver(put).observe(tb);
+})();
 /* A copy kept by the service worker says so when the network is gone;
    now and then a member page has the others fetched ahead, so they are
    there offline as well. */
