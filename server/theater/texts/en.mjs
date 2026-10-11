@@ -27,6 +27,8 @@ export const en = {
   'nav.dates':     'Dates',
   'nav.script_upload': 'Upload script',
   'nav.script_uploading': 'reading \u2026',
+  'nav.script_refresh': 'Update script',
+  'nav.script_refreshing': 'fetching \u2026',
   'nav.who_as':  'Viewing: {name} \u00b7 signed in: {real}',
   'nav.print':     'Print',
   'nav.audiobook':    'Audiobook',
@@ -200,6 +202,7 @@ export const en = {
   /* ---------- uploading the script ---------- */
   'upl.step':      'Step 1',
   'upl.title':        'Upload the script',
+  'upl.title_source': 'Update the script',
   'upl.what':          'A Word file (<code>.docx</code>) or Markdown (<code>.md</code>). '
                     + 'The play is read and the speakers are looked for \u2013 you can '
                     + 'assign them straight afterwards.',
@@ -220,6 +223,29 @@ export const en = {
                     + 'rehearsalcall/blob/main/DREHBUCH-FORMAT.md">DREHBUCH-FORMAT.md</a>. '
                     + 'Word is the better source than Markdown: there it says explicitly '
                     + 'where a paragraph ends.',
+
+  /* ---------- the script from an address ---------- */
+  'src.what':      'The script comes from <a href="{url}" target="_blank" rel="noopener">this document</a>. '
+                    + 'It is fetched anew every 24 hours by itself; a new version is made only '
+                    + 'when the text has changed.',
+  'src.never':     'Not fetched yet.',
+  'src.last':      'Last fetched: {when}.',
+  'src.upload_instead': 'Upload a file instead',
+  'src.upload_note': 'The next fetch replaces an uploaded file with the document again, '
+                    + 'if the text differs.',
+  'src.same':      'Unchanged \u2013 version {nr} stays.',
+  'src.first':     'The script has been fetched.',
+  'src.new':       'New version {nr} taken in.',
+  'src.busy':      'The script is being fetched already \u2013 please wait a moment.',
+  'src.none':      'No address is set for this project.',
+  'src.unreachable': 'The address cannot be reached ({reason}).',
+  'src.not_shared': 'The document does not give out its content (HTTP {status}). In Google Docs: '
+                    + '"Share" \u2192 "General access" \u2192 "Anyone with the link" (viewer).',
+  'src.not_found': 'There is nothing at that address (HTTP 404).',
+  'src.http':      'Fetching failed (HTTP {status}).',
+  'src.too_big':   'The file is larger than 30 MB.',
+  'src.empty':     'The address returns an empty file.',
+  'src.not_docx':  'There is no Word file at that address but {type}.',
 
   /* ---------- printable documents ---------- */
   'docs.title':    'Scripts',
@@ -972,6 +998,10 @@ export const en = {
   'admin.col_email':    'Director',
   'admin.col_state':    'State',
   'admin.figures':      '{people} people, {rehearsals} rehearsals, {entered} with availability',
+  'admin.source':       'Script address',
+  'admin.source_save':  'Save address',
+  'admin.source_what':  'Script address: the script is fetched from there every 24 hours (Google Docs: '
+                    + '…/export?format=docx). Empty: upload as before.',
   'admin.new':          'Create a project',
   'admin.field_title':  'Title',
   'admin.field_email':  'Email address of the director',
@@ -1011,6 +1041,9 @@ export const en = {
   'r.admin_code_new':   'New access code for {p1}. The old one no longer works.',
   'r.admin_confirm':    'To delete, type the title exactly as it stands: {p1}',
   'r.admin_deleted':    '{p1} deleted, with everything in it.',
+  'r.admin_source_bad': 'That is not a valid http(s) address.',
+  'r.admin_source_off': 'The script of "{p1}" is uploaded again, no longer fetched.',
+  'r.admin_source_set': 'Address for "{p1}" saved. First fetch: {result}',
 
   /* ---------- versions of the script ---------- */
   'upl.versions':       'Versions',
@@ -1262,6 +1295,10 @@ export const en = {
   'kd.kann_fuer':    '{who} knows this passage',
   'kd.more':            'More',
   'kd.home':            'Start',
+  'kd.goto':            'Go to page',
+  'kd.goto_go':         'Go',
+  'kd.goto_range':      'Pages {a} to {b} (approximate, as in print).',
+  'kd.goto_done':       'Page {n}',
   'kd.font':            'Type size',
   'kd.adhoc':           'Ad hoc',
   'kd.adhoc_title':     'Ad-hoc rehearsal',

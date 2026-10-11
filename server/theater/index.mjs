@@ -40,6 +40,7 @@ import { UPRIGHT_STYLE, UPRIGHT_SCRIPT, uprightStyles } from './upright.mjs';
 import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
+import * as Source from './source.mjs';
 
 const MEMBER = 'mitglied';
 
@@ -517,6 +518,93 @@ async function takeInScript(project, script) {
   return { kind: 'good', key: project.plan?.proben?.length ? 'r.version_kept' : 'r.version_taken', values };
 }
 
+/* ---------- the script from an address ----------
+
+   The administrator may give a project an address its script comes
+   from (source.mjs). It is fetched once every 24 hours and whenever the
+   director presses "update script"; a new version is taken in only when
+   the text read from it differs from the current one. What happened is
+   kept in project.skript_quelle, for the script page and the admin. */
+
+const refreshing = new Set();
+
+async function refreshFromSource(id) {
+  if (refreshing.has(id)) return { kind: 'error', key: 'src.busy' };
+  refreshing.add(id);
+  try {
+    let project = await S.read(id);
+    const url = project?.skript_quelle?.url;
+    if (!url) return { kind: 'error', key: 'src.none' };
+    let m, result, read_ = null, got = null;
+    try {
+      got = await Source.download(url);
+      read_ = await readScript(got.content, got.filename,
+        { style: project.drehbuch?.sprecherstil || 'auto' });
+      if (!read_.sprecher.length) throw Object.assign(new Error('no speaker'),
+        { key: read_.sprecherstil === 'dot' ? 'r.no_speaker_dot' : 'r.no_speaker' });
+    } catch (e) {
+      if (!e?.key) console.error('[Quelle] ' + (e && e.stack || e));
+      else console.log('[Quelle] ' + id + ': ' + e.key + ' ' + JSON.stringify(e.values || {}));
+      m = e?.key ? { kind: 'error', key: e.key, values: Object.fromEntries(
+            Object.entries(e.values || {}).map(([k, v]) => [k, typeof v === 'string' ? h(v) : v])) }
+          : { kind: 'error', key: 'r.read_failed', values: { reason: h((e && e.message) || String(e)) } };
+      result = 'fehler';
+    }
+    // Read again: the download took a while, and the director may have
+    // saved something meanwhile.
+    project = await S.read(id);
+    if (!project?.skript_quelle?.url) return { kind: 'error', key: 'src.none' };
+    if (read_) {
+      if (project.drehbuch && project.drehbuch.markdown === read_.markdown) {
+        result = 'gleich';
+        m = { kind: 'good', key: 'src.same', values: { nr: project.drehbuch.nr || 1 } };
+      } else {
+        const first = !project.drehbuch;
+        m = await takeInScript(project, {
+          quelle: got.filename, markdown: read_.markdown,
+          titel: read_.titel, bloecke: read_.bloecke, sprecher: read_.sprecher,
+          sprecherstil: read_.sprecherstil, schriften: read_.schriften || null,
+          original: {
+            name: got.filename,
+            mime: /\.docx$/i.test(got.filename)
+              ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              : 'text/markdown; charset=utf-8',
+            bytes: got.content.length,
+            daten: got.content.toString('base64'),
+          },
+          abgerufen: true,
+        }) || { kind: 'good', key: first ? 'src.first' : 'src.new', values: { nr: project.drehbuch.nr } };
+        result = 'neu';
+        console.log('[Quelle] ' + id + ': version ' + project.drehbuch.nr + ' taken in');
+      }
+    }
+    project.skript_quelle = { ...project.skript_quelle, abgerufen: new Date().toISOString(),
+                              ergebnis: result, meldung: m };
+    await S.write(project);
+    return m;
+  } finally { refreshing.delete(id); }
+}
+
+/* Once an hour: every project with an address whose last fetch is a day
+   old or more. The time is kept in the record, so a restart of the
+   service does not fetch again. */
+const DAY = 24 * 60 * 60 * 1000;
+async function refreshDue() {
+  let all;
+  try { all = await S.allProjects(); } catch (e) { console.error('[Quelle] ' + (e && e.stack || e)); return; }
+  for (const p of all) {
+    const q = p.skript_quelle;
+    if (p.demo || !q?.url) continue;
+    if (q.abgerufen && Date.now() - Date.parse(q.abgerufen) < DAY - 5 * 60 * 1000) continue;
+    try { await refreshFromSource(p.id); }
+    catch (e) { console.error('[Quelle] ' + p.id + ': ' + (e && e.stack || e)); }
+  }
+}
+export function startSourceRefresh() {
+  setTimeout(refreshDue, 2 * 60 * 1000).unref();
+  setInterval(refreshDue, 60 * 60 * 1000).unref();
+}
+
 /* What goes into a document after <body>: the comments this viewer may
    see. The director (by code or personal link) sees all, everybody
    else their own. */
@@ -747,6 +835,7 @@ export async function handle(request, response, path) {
       id: p.id, titel: p.titel, angelegt: p.angelegt, email: p.regie_email || '',
       people: (p.personen || []).length,
       rehearsals: p.plan?.proben?.length || 0,
+      quelle: p.demo ? null : (p.skript_quelle || {}),
       withEntry: Object.values(p.verfuegbar || {})
         .filter(v => Object.keys(v.tage || {}).length || (v.wochentage || []).length).length,
     }));
@@ -786,6 +875,24 @@ export async function handle(request, response, path) {
         await S.deleteProject(p.id);
         HB.cancelJob(p.id);
         m = { kind: 'good', key: 'r.admin_deleted', values: { p1: h(p.titel) } };
+      }
+    } else if (action === 'quelle') {
+      // The address the script is fetched from; empty takes it away.
+      const p = await S.read(String(fields.id || ''));
+      const url = Source.checkAddress(fields.url);
+      if (!p || p.demo) m = { kind: 'error', key: 'r.admin_gone' };
+      else if (url === null) m = { kind: 'error', key: 'r.admin_source_bad' };
+      else if (!url) {
+        delete p.skript_quelle;
+        await S.write(p);
+        m = { kind: 'good', key: 'r.admin_source_off', values: { p1: h(p.titel) } };
+      } else {
+        const same = p.skript_quelle?.url === url;
+        p.skript_quelle = same ? p.skript_quelle : { url };
+        await S.write(p);
+        // Fetch at once: whether the address works shows here and now.
+        const r = await refreshFromSource(p.id);
+        m = { kind: r.kind, key: 'r.admin_source_set', values: { p1: h(p.titel), result: A.noticeText(r) } };
       }
     } else m = { kind: 'error', key: 'r.unknown_action' };
     return html(response, A.adminPage(await overview(), m, fresh, entry));
@@ -1639,6 +1746,15 @@ export async function handle(request, response, path) {
       style = String(fields.style || 'auto');
     } catch (e) {
       return html(response, A.uploadPage(project, failureNotice(e, 'r.read_failed')));
+    }
+
+    /* --- fetched anew from the address the admin gave --- */
+    if (String(fields.action || '') === 'aktualisieren') {
+      const hadScript = !!project.drehbuch;
+      const m = await refreshFromSource(project.id);
+      const now = await S.read(project.id);
+      if (!hadScript && now?.drehbuch) return redirect(response, '/theater/besetzung');
+      return html(response, A.uploadPage(now || project, m));
     }
 
     /* --- an older version made current again --- */

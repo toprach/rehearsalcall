@@ -11,7 +11,7 @@
    --------------------------------------------------------------------- */
 
 import http from 'node:http';
-import { handle, storage } from './theater/index.mjs';
+import { handle, storage, startSourceRefresh } from './theater/index.mjs';
 import * as Demo from './theater/demo.mjs';
 import * as Reminders from './theater/reminders.mjs';
 
@@ -84,6 +84,9 @@ await storage.setUp();
    meanwhile. */
 Demo.ensureAll();
 setInterval(() => Demo.ensureAll(), 60 * 60 * 1000).unref();
+
+/* Scripts with an address are fetched anew once a day. */
+startSourceRefresh();
 
 /* The daily learning reminders: a clock that looks once a minute. */
 Reminders.start();

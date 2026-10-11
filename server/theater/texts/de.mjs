@@ -24,6 +24,8 @@ export const de = {
   'nav.dates':     'Termine',
   'nav.script_upload': 'Skript hochladen',
   'nav.script_uploading': 'wird gelesen \u2026',
+  'nav.script_refresh': 'Skript aktualisieren',
+  'nav.script_refreshing': 'wird geholt \u2026',
   'nav.who_as':  'Ansicht: {name} \u00b7 angemeldet: {real}',
   'nav.print':     'Drucken',
   'nav.audiobook':    'Hörbuch',
@@ -197,6 +199,7 @@ export const de = {
   /* ---------- uploading the script ---------- */
   'upl.step':      'Schritt 1',
   'upl.title':        'Drehbuch hochladen',
+  'upl.title_source': 'Drehbuch aktualisieren',
   'upl.what':          'Eine Word-Datei (<code>.docx</code>) oder Markdown '
                     + '(<code>.md</code>). Das Stück wird gelesen, die Sprecher werden '
                     + 'gesucht – zuordnen können Sie sie gleich danach.',
@@ -217,6 +220,29 @@ export const de = {
                     + 'toprach/rehearsalcall/blob/main/DREHBUCH-FORMAT.md">'
                     + 'DREHBUCH-FORMAT.md</a>. Word ist die bessere Vorlage als '
                     + 'Markdown: dort steht ausdrücklich, wo ein Absatz endet.',
+
+  /* ---------- the script from an address ---------- */
+  'src.what':      'Das Drehbuch kommt aus <a href="{url}" target="_blank" rel="noopener">diesem Dokument</a>. '
+                    + 'Es wird alle 24 Stunden von selbst neu geholt; eine neue Fassung entsteht nur, '
+                    + 'wenn sich der Text geändert hat.',
+  'src.never':     'Noch nicht abgerufen.',
+  'src.last':      'Zuletzt geholt: {when}.',
+  'src.upload_instead': 'Stattdessen eine Datei hochladen',
+  'src.upload_note': 'Beim nächsten Abruf ersetzt das Dokument die hochgeladene Datei wieder, '
+                    + 'sofern sich der Text unterscheidet.',
+  'src.same':      'Unverändert – Fassung {nr} bleibt.',
+  'src.first':     'Das Drehbuch ist geholt.',
+  'src.new':       'Neue Fassung {nr} übernommen.',
+  'src.busy':      'Das Drehbuch wird gerade schon geholt – bitte kurz warten.',
+  'src.none':      'Für dieses Projekt ist keine Adresse eingetragen.',
+  'src.unreachable': 'Die Adresse ist nicht erreichbar ({reason}).',
+  'src.not_shared': 'Das Dokument gibt seinen Inhalt nicht heraus (HTTP {status}). In Google Docs: '
+                    + '„Teilen“ → „Allgemeiner Zugriff“ → „Jeder, der über den Link verfügt“ (Betrachter).',
+  'src.not_found': 'Unter der Adresse liegt nichts (HTTP 404).',
+  'src.http':      'Der Abruf ist gescheitert (HTTP {status}).',
+  'src.too_big':   'Die Datei ist größer als 30 MB.',
+  'src.empty':     'Die Adresse liefert eine leere Datei.',
+  'src.not_docx':  'Unter der Adresse liegt keine Word-Datei, sondern {type}.',
 
   /* ---------- printable documents ---------- */
   'docs.title':    'Drehbücher',
@@ -973,6 +999,10 @@ export const de = {
   'admin.col_email':    'Regie',
   'admin.col_state':    'Stand',
   'admin.figures':      '{people} Personen, {rehearsals} Proben, {entered} mit Verf\u00fcgbarkeit',
+  'admin.source':       'Skript-Adresse',
+  'admin.source_save':  'Adresse speichern',
+  'admin.source_what':  'Skript-Adresse: von dort wird das Drehbuch alle 24 Stunden geholt (Google Docs: '
+                    + '…/export?format=docx). Leer: hochladen wie bisher.',
   'admin.new':          'Projekt anlegen',
   'admin.field_title':  'Titel',
   'admin.field_email':  'E-Mail-Adresse der Regie',
@@ -1013,6 +1043,9 @@ export const de = {
   'r.admin_code_new':   'Neuer Zugangscode f\u00fcr {p1}. Der alte gilt nicht mehr.',
   'r.admin_confirm':    'Zum L\u00f6schen den Titel genau so eintippen: {p1}',
   'r.admin_deleted':    '{p1} gel\u00f6scht, mit allem, was dazugeh\u00f6rt.',
+  'r.admin_source_bad': 'Das ist keine gültige http(s)-Adresse.',
+  'r.admin_source_off': 'Für „{p1}“ wird das Drehbuch wieder hochgeladen, nicht mehr geholt.',
+  'r.admin_source_set': 'Adresse für „{p1}“ gespeichert. Erster Abruf: {result}',
 
   /* ---------- Fassungen des Drehbuchs ---------- */
   'upl.versions':       'Fassungen',
@@ -1265,6 +1298,10 @@ export const de = {
   'kd.kann_fuer':    '{who} kann diese Stelle',
   'kd.more':            'Mehr',
   'kd.home':            'Start',
+  'kd.goto':            'Gehe zu Seite',
+  'kd.goto_go':         'Los',
+  'kd.goto_range':      'Seiten {a} bis {b} (ungefähr, wie im Ausdruck).',
+  'kd.goto_done':       'Seite {n}',
   'kd.font':            'Schrift',
   'kd.adhoc':           'Ad-hoc',
   'kd.adhoc_title':     'Ad-hoc-Probe',

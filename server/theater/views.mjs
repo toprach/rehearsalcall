@@ -784,12 +784,23 @@ const scriptUpload = () => `<form method="post" action="/theater/skript" enctype
       accept=".docx,.md,.markdown,.txt" hidden
       onchange="if (this.files.length) { this.parentNode.classList.add('busy'); this.parentNode.firstChild.textContent = ${h(JSON.stringify(t('nav.script_uploading')))}; this.form.submit(); }"></label>
   </form>`;
+/* With an address set by the admin the script is fetched, not uploaded:
+   the same place in the bar fetches it anew. */
+const scriptRefresh = () => actionForm('/theater/skript', 'aktualisieren', {},
+  `<button type="submit" class="quiet mini" onclick="this.classList.add('busy'); this.textContent = ${
+    h(JSON.stringify(t('nav.script_refreshing')))}">${h(t('nav.script_refresh'))}</button>`, { cssClass: 'navupload' });
+
+/* What the last fetch from the address did, in one line. */
+const sourceState = (q) => !q?.abgerufen ? t('src.never')
+  : t('src.last', { when: h(L.date(q.abgerufen, { dateStyle: 'medium', timeStyle: 'short' })) }) +
+    (q.meldung ? ' ' + (q.meldung.key ? t(q.meldung.key, q.meldung.values) : h(q.meldung.text || '')) : '');
+
 const navDirector = (p) => {
   const a = (href, key) => `<a href="${href}"${pfad === href || pfad.startsWith(href + '/') ? ' class="on"' : ''}>${t(key)}</a>`;
   const grp = (...links) => `<span class="grp">${links.join('')}</span>`;
   return `<nav class="subnav" aria-label="${h(t('navm.tab_direct'))}">
   ${grp(a('/theater/projekt', 'nav.overview'), a('/theater/leute', 'nav.company'))}
-  ${grp(a('/theater/skript', 'nav.script'), p?.demo ? '' : scriptUpload(), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
+  ${grp(a('/theater/skript', 'nav.script'), p?.demo ? '' : p?.skript_quelle?.url ? scriptRefresh() : scriptUpload(), a('/theater/besetzung', 'nav.casting'), a('/theater/plan', 'nav.rehearsals'))}
   ${grp(...(ctx.member ? [a('/theater/mit/zeiten', 'nav.dates')] : []), a('/theater/kommentare', 'nav.comments'))}
   ${grp(a('/theater/drucken', 'nav.print'), a('/theater/hoerbuch', 'nav.audiobook'))}
   ${(p?.personen || []).length ? `<form method="post" action="/theater/als" class="whopick">
@@ -977,11 +988,18 @@ function projectPage(p, m) {
 
 function uploadPage(p, m) {
   const d = p.drehbuch;
+  const q = p.skript_quelle?.url ? p.skript_quelle : null;
   const u = p.skript_ueberblick;
   return page({ title: t('proj.script'), nav: navDirector(p), body: `
-    <p class="eyebrow">${t('upl.step')}</p><h1>${t('upl.title')}</h1>
+    <p class="eyebrow">${t('upl.step')}</p><h1>${t(q ? 'upl.title_source' : 'upl.title')}</h1>
     ${notice(m)}
-    <p class="muted">${t('upl.what')}</p>
+    ${q ? `<div class="box important">
+      <p>${t('src.what', { url: h(q.url) })}</p>
+      <p class="small muted">${sourceState(q)}</p>
+      ${actionForm('/theater/skript', 'aktualisieren', {},
+        `<button type="submit" onclick="this.classList.add('busy'); this.textContent = ${
+          h(JSON.stringify(t('nav.script_refreshing')))}">${h(t('nav.script_refresh'))}</button>`)}
+    </div>` : `<p class="muted">${t('upl.what')}</p>`}
     ${d ? `<div class="box">
       <b>${h(d.quelle)}</b>
       <table>
@@ -1002,6 +1020,7 @@ function uploadPage(p, m) {
         href="${h(p.drucklink)}/probenplan">${
         t('upl.read_plan')}</a>` : ''}
     </div>` : ''}
+    ${q ? `<details><summary>${t('src.upload_instead')}</summary>` : ''}
     <form method="post" action="/theater/skript" enctype="multipart/form-data">
       <label for="file">${t('upl.field')}</label>
       <input type="file" id="file" name="file" accept=".docx,.md,.markdown,.txt" required>
@@ -1016,6 +1035,7 @@ function uploadPage(p, m) {
       <button type="submit">${t('upl.upload')}</button>
       <span class="small muted">${t('upl.replaces')}</span>
     </form>
+    ${q ? `<p class="small muted">${t('src.upload_note')}</p></details>` : ''}
     ${versionList(p)}
     <p class="small muted" style="margin-top:2rem">${t('upl.format')}</p>` });
 }
@@ -2960,7 +2980,12 @@ function adminPage(projects, m, fresh, entry) {
       <td class="small">${p.angelegt ? h(L.date(p.angelegt, { dateStyle: 'medium' })) : '\u2014'}</td>
       <td class="small">${p.email ? `<a href="mailto:${h(p.email)}">${h(p.email)}</a>` : '\u2014'}</td>
       <td class="small">${t('admin.figures', { people: p.people, rehearsals: p.rehearsals,
-        entered: p.withEntry })}</td>
+        entered: p.withEntry })}${p.quelle ? `
+        ${actionForm('/theater/admin', 'quelle', { id: p.id },
+          `<input type="url" name="url" value="${h(p.quelle.url || '')}" placeholder="https://docs.google.com/document/d/\u2026/export?format=docx"
+                  aria-label="${h(t('admin.source'))}" style="min-width:16rem">
+           <button class="quiet mini" type="submit">${h(t('admin.source_save'))}</button>`, { cssClass: 'adminsource' })}
+        <div class="muted">${p.quelle.url ? sourceState(p.quelle) : t('admin.source_what')}</div>` : ''}</td>
       <td>
         ${actionForm('/theater/admin', 'code', { id: p.id },
           '<button class="quiet mini" type="submit">' + h(t('admin.new_code')) + '</button>',
@@ -3033,6 +3058,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       person: t('kd.person'), zoom_in: t('kd.zoom_in'), zoom_out: t('kd.zoom_out'), scene_of: t('kd.scene_of'),
       check: t('kd.check'), check_title: t('kd.check_title'), check_hint: t('kd.check_hint'),
       kann: t('kd.kann'), kann_fuer: t('kd.kann_fuer', { who: '#' }), home: t('kd.home'),
+      goto: t('kd.goto'), goto_go: t('kd.goto_go'), goto_range: t('kd.goto_range'), goto_done: t('kd.goto_done'),
       check_ok: t('kd.check_ok'), check_no: t('kd.check_no'), check_step: t('kd.check_step'),
       hint_touch: t('kd.hint_touch'),
       more: t('kd.more'), font: t('kd.font'), adhoc: t('kd.adhoc'), adhoc_title: t('kd.adhoc_title'),
@@ -3088,7 +3114,11 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-row { display:flex; gap:.4rem; align-items:stretch }
   .kmt-row button { flex:0 0 auto; min-height:2.7rem; font-weight:600 }
   .kmt-row > .w10 { flex:10 1 0; min-width:0; padding-left:0; padding-right:0 }
-  .kmt-row > .w35 { flex:35 1 0; min-width:0; font-size:1.15em }
+  .kmt-row > .w35 { flex:30 1 0; min-width:0; font-size:1.15em }
+  .kmt-row #kmt-goto svg { width:1.35rem; height:1.35rem; fill:none; stroke:currentColor; stroke-width:1.9;
+    stroke-linecap:round; stroke-linejoin:round; vertical-align:middle }
+  .kmt-sheet #kmt-goto-form input { flex:1 1 auto; min-width:0; font-size:1.3rem; text-align:center }
+  .kmt-sheet #kmt-goto-form button { flex:0 0 30% }
   .kmt-row .kmt-checkbtn { display:inline-flex; align-items:center; justify-content:center; gap:.35rem }
   .kmt-row .kmt-checkbtn svg { width:1.35rem; height:1.35rem; flex:none; fill:none; stroke:currentColor; stroke-width:1.9;
     stroke-linecap:round; stroke-linejoin:round }
@@ -3404,8 +3434,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></div></div>';
 
     inner = '<div class="kmt-strip" id="kmt-strip"></div>' +
-      /* start, more, checking - small; back and forward - large, under
-         the thumb (10 10 10 35 35) */
+      /* start, more, checking, go to page - small; back and forward -
+         large, under the thumb (10 10 10 10 30 30) */
       '<div class="kmt-row">' +
       '<a class="kmt-home w10" id="kmt-home" href="' + esc(D.home) + '" title="' + esc(T.home) + '" aria-label="' + esc(T.home) + '">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.8V20h5v-5.5h3V20h5V9.8"/></svg></a>' +
@@ -3413,12 +3443,19 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       (D.people.length ? '<button type="button" class="w10 kmt-checkbtn" id="kmt-check" title="' + esc(T.check_title) + '" aria-label="' + esc(T.check) + '">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>' +
         '<span class="lbl2">' + esc(T.check) + '</span></button>' : '<span class="w10"></span>') +
+      '<button type="button" class="w10" id="kmt-goto" title="' + esc(T.goto) + '" aria-label="' + esc(T.goto) + '">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8.5l3.5 3.5v13.5H6z"/><path d="M14.5 3.5V7H18"/><path d="M9 14h6M12.8 11.6 15.2 14l-2.4 2.4"/></svg></button>' +
       '<button type="button" class="w35" id="kmt-me-prev" title="' + esc(T.prev_mine) + '" aria-label="' + esc(T.prev_mine) + '">\u25c0</button>' +
       '<button type="button" class="w35" id="kmt-me-next" title="' + esc(T.next_mine) + '" aria-label="' + esc(T.next_mine) + '">\u25b6</button>' +
       '</div>' +
       '<div class="kmt-sheet-veil" id="kmt-sheet-veil" hidden></div>' +
       '<div class="kmt-sheet" id="kmt-sheet-more" hidden><div class="head"><h3>' + esc(T.more) + '</h3>' +
       '<button type="button" data-close="1" aria-label="' + esc(T.close) + '">\u2715</button></div>' + more + '</div>' +
+      '<div class="kmt-sheet" id="kmt-sheet-goto" hidden><div class="head"><h3>' + esc(T.goto) + '</h3>' +
+      '<button type="button" data-close="1" aria-label="' + esc(T.close) + '">\u2715</button></div>' +
+      '<form id="kmt-goto-form" class="pair"><input type="text" id="kmt-goto-nr" inputmode="numeric" pattern="[0-9]*" ' +
+      'autocomplete="off" aria-label="' + esc(T.goto) + '"><button type="submit" class="accent">' + esc(T.goto_go) + '</button></form>' +
+      '<div class="small" id="kmt-goto-range"></div></div>' +
       (mayAdhoc ? '<div class="kmt-sheet" id="kmt-sheet-adhoc" hidden></div>' : '');
     bar.innerHTML = inner;
     document.body.appendChild(bar); document.body.classList.add('kmt-has-bar');
@@ -3574,8 +3611,8 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     var sheetMore = bar.querySelector('#kmt-sheet-more');
     var sheetAdhoc = bar.querySelector('#kmt-sheet-adhoc');
     var closeSheets = function () {
-      sheetVeil.hidden = true; sheetMore.hidden = true;
-      if (sheetAdhoc) sheetAdhoc.hidden = true;
+      sheetVeil.hidden = true;
+      [].forEach.call(bar.querySelectorAll('.kmt-sheet'), function (x) { x.hidden = true; });
     };
     var openSheet = function (el) { closeSheets(); sheetVeil.hidden = false; el.hidden = false; };
     sheetVeil.onclick = closeSheets;
@@ -3883,6 +3920,35 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     };
     mePrev.onclick = arrow(-1, T.first_mine);
     meNext.onclick = arrow(1, T.last_mine);
+
+    /* ---- go to a page: the page marks the tool sets ("Seite ca. N").
+       A number between two marks goes to the one before it; without
+       marks the button keeps its place but does nothing. ---- */
+    var gotoBtn = bar.querySelector('#kmt-goto'), sheetGoto = bar.querySelector('#kmt-sheet-goto');
+    var marks = [].slice.call(document.querySelectorAll('main .seite[data-seite]'));
+    if (!marks.length) gotoBtn.style.visibility = 'hidden';
+    var gotoNr = bar.querySelector('#kmt-goto-nr');
+    gotoBtn.onclick = function () {
+      var first = Number(marks[0].getAttribute('data-seite')), last = Number(marks[marks.length - 1].getAttribute('data-seite'));
+      bar.querySelector('#kmt-goto-range').textContent = T.goto_range.replace('{a}', first).replace('{b}', last);
+      gotoNr.placeholder = first + '\u2013' + last;
+      gotoNr.value = '';
+      openSheet(sheetGoto);
+      gotoNr.focus();
+    };
+    bar.querySelector('#kmt-goto-form').onsubmit = function (e) {
+      e.preventDefault();
+      var n = parseInt(String(gotoNr.value).replace(/[^0-9]/g, ''), 10);
+      if (!n) { gotoNr.focus(); return; }
+      var hit = marks[0];
+      marks.forEach(function (m) { if (Number(m.getAttribute('data-seite')) <= n) hit = m; });
+      gotoNr.blur();
+      closeSheets();
+      hit.scrollIntoView({ block: 'start' });
+      var r = bar.getBoundingClientRect();
+      if (r.top < 40) window.scrollBy(0, -(r.bottom + 8));
+      say(T.goto_done.replace('{n}', hit.getAttribute('data-seite')));
+    };
     ends();
     var oldBadge = badge;
     badge = function (nr) { oldBadge(nr); count(); };
@@ -3966,5 +4032,6 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage, planPage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
-           settingsPage, playPage, offlinePage, rehearsalMessage };
+           settingsPage, playPage, offlinePage, rehearsalMessage,
+           noticeText: (m) => !m ? '' : m.key ? t(m.key, m.values) : h(m.text) };
 }

@@ -156,6 +156,15 @@ once and offers a ready-made email to send. Guessing the key is braked
 the same way as guessing an access code. Without `THEATER_ADMIN` the
 page does not exist.
 
+The admin page also takes a script address per project - typically a
+Google document's export link (`https://docs.google.com/document/d/<id>/export?format=docx`,
+shared as "anyone with the link"). The service fetches it right away,
+then once every 24 hours, and the director's "Upload script" becomes
+"Update script", which fetches it on demand. A new version of the script
+is made only when the text read from it changed; a failed fetch (most
+often: the document is not shared) is shown on the script page and in
+the admin list.
+
 Credentials come from a `.env` next to `app.js`; there is a template in
 [`server/.env.beispiel`](server/.env.beispiel). Apache passes `/theater`
 through to the service, see [`server/htaccess.txt`](server/htaccess.txt);
