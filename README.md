@@ -1,7 +1,8 @@
 # rehearsalcall
 
-Tools for rehearsing a stage play: personalised scripts, part books, a
-rehearsal plan for small groups, and an audiobook read from the script.
+Tools for rehearsing a stage play: personalised scripts, part books,
+rehearsal dates from the company's availability, and an audiobook read
+from the script.
 Written for „Der nackerte Waunsinn" (after Michael Frayn, *Noises Off*) at
 the Tassilobühne in Bad Hall, Austria.
 
@@ -75,9 +76,9 @@ The server edition, as it runs at
 server-rendered HTML. The director gets in with an access code, every company
 member through a link of their own.
 
-The road leads from the script all the way to the date: upload a `.docx` →
-assign the speakers → derive the rehearsal plan → collect availability →
-dates.
+The road leads from the script all the way to the date: upload a `.docx`
+(or give the address it is fetched from) → assign the speakers → collect
+availability → set the dates, each with what is rehearsed there.
 
 **There is only one parser.** `theater/script.mjs` does not reimplement
 reading `.docx`; it loads `werkzeug/theater-md.html` and runs its script in a
@@ -89,10 +90,8 @@ enters **once** when they are generally free and when they are away; from
 that follows, for every evening, who can come. A rehearsal fits when its
 whole cast can. The director enters nothing: they count as free on every
 evening and strike, for everyone, the days on which nothing can happen.
-Dates are assigned **by scarcity** — the rehearsal with the
-fewest possible evenings first. Otherwise the small groups, which are easy to
-schedule, take exactly the evenings that were the only ones on which the big
-scene would have been possible.
+On a day the director sets the rehearsal - who comes when, where, and what
+is rehearsed - and passes it on to the company as a message.
 
 Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
@@ -127,17 +126,16 @@ On the iPhone this works once the page is on the home screen as an app.
 A script is uploaded more than once while rehearsals run. Every version
 is kept, and the page shows what changed from one to the next as a list
 of speeches (changed, new, cut - formatting does not count), printable
-as a change sheet for the company. The rehearsal plan is not thrown
-away: every passage is anchored to the speaker and first words of its
-first and last speech and found again in the new text. Only when an
-anchor is gone does the director get a warning that the plan may no
-longer fit there, with the choice to derive it again.
+as a change sheet for the company.
 
-Besides that road, the server also shows the **passages** of a single
-rehearsal — what is actually spoken there, with the lines the director has to
-read set apart — it lets the plan be **revised by hand**, and it can have an
-**audiobook** spoken by ElevenLabs: the whole play, one act, or just one
-rehearsal.
+Earlier versions derived a rehearsal plan from the script - small groups
+P01, P02 ... with their passages - and carried it from version to version.
+That was removed on 11.10.2026; rehearsals are the dates. A plan a project
+still holds is kept aside in the record as `plan_archiv`, and old links to
+it lead to the dates or the whole script.
+
+Besides that road, the server can have an **audiobook** spoken by
+ElevenLabs: the whole play or one act.
 
 Storage is one JSON file per project, so the application runs locally with no
 setup and **no dependencies** — `npm install` fetches nothing. PostgreSQL is
