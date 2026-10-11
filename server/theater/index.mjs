@@ -109,11 +109,14 @@ function addCookie(response, zeile) {
     da ? (Array.isArray(da) ? [...da, zeile] : [da, zeile]) : zeile);
 }
 
+/* Who one is, on this device: chosen once from the company link, kept
+   until "Abmelden" in the settings (400 days is as long as browsers keep
+   a cookie; every visit through the company link starts them again). */
 function setMemberCookie(response, projectId, personId) {
   const value = projectId + ':' + personId;
   response.setHeader('Set-Cookie',
     `${MEMBER}=${value}.${seal(value)}; Path=/theater; HttpOnly; SameSite=Lax; ` +
-    `Max-Age=${60 * 60 * 24 * 180}; Secure`);
+    `Max-Age=${60 * 60 * 24 * 400}; Secure`);
 }
 /* A cookie without a seal.
 
@@ -1000,9 +1003,14 @@ export async function handle(request, response, path) {
     projectLanguage(project);
     const zu = safeTarget(parts.slice(2).join('/'));
     if (!post) {
-      // Already in as somebody of this company: straight to the page.
-      const who = zu ? await memberFrom(request) : null;
-      if (who && who.project.id === project.id) return redirect(response, '/theater/mit/' + zu);
+      // Chosen once on this device: straight to one's own pages, the
+      // choice kept going. The list of names only until somebody is
+      // picked, and again after "Abmelden" in the settings.
+      const who = await memberFrom(request);
+      if (who && who.project.id === project.id) {
+        setMemberCookie(response, project.id, who.person.id);
+        return redirect(response, '/theater/mit' + (zu ? '/' + zu : ''));
+      }
       return html(response, A.pickNamePage(project, token, null, zu));
     }
     const { fields } = await readForm(request);
@@ -1169,7 +1177,9 @@ export async function handle(request, response, path) {
       const shown = () => displayDays(project);
       const views = (list) => dayView(project, person, list);
       const ics = person.token ? baseOf(request) + '/theater/ich/' + person.token + '/kalender.ics' : '';
-      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      // Directing is for one's own view: working as somebody else (the switch
+      // in the settings) shows that person's pages as they see them.
+      const mayDirect = (ctx.regieProject === project.id || ctx.directorProject === project.id) && !ctx.who?.real;
       const render = (m) => { const list = shown(); return A.myTimesPage(project, person, m, list, views(list), ics,
         { mayDirect, messages: Object.fromEntries((project.termine || []).filter(t => t.bestaetigt && t.frei)
             .map(t => [t.iso, A.rehearsalMessage(project, t, baseOf(request) + '/theater/mit/zeiten')])) }); };
@@ -1216,7 +1226,9 @@ export async function handle(request, response, path) {
       const { fields } = await readForm(request);
       const rehearsal = String(fields.rehearsal || '');
       const mine = (project.plan?.proben || []).find(x => x.id === rehearsal);
-      const mayDirect = ctx.regieProject === project.id || ctx.directorProject === project.id;
+      // Directing is for one's own view: working as somebody else (the switch
+      // in the settings) shows that person's pages as they see them.
+      const mayDirect = (ctx.regieProject === project.id || ctx.directorProject === project.id) && !ctx.who?.real;
 
       /* A free rehearsal from the day panel: who comes, each from when
          to when. Asked for by script, answered in JSON. */

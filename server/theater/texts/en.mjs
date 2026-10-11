@@ -1220,6 +1220,7 @@ export const en = {
   'set.install_mac':   'On a Mac in Safari: menu \u201cFile\u201d \u2192 \u201cAdd to Dock\u201d.',
   'set.install_firefox': 'Firefox cannot install the page as an app on a computer \u2013 open it in Chrome, Edge or Safari and tap here again.',
   'set.install_desktop': 'In the browser: the install icon at the right of the address bar, or in the menu (\u22ee) \u201cInstall app\u201d or \u201cInstall page as app\u201d.',
+  'set.signout_what':  'This device remembers {name} \u2013 the company link leads straight to these pages. \u201cSign out\u201d forgets that; then the link asks for the name again.',
 
   /* ---------- comments ---------- */
   'kd.new':          'New comment at speech {nr}',

@@ -1223,6 +1223,7 @@ export const de = {
   'set.install_mac':   'Am Mac in Safari: Men\u00fc \u201eAblage\u201c \u2192 \u201eZum Dock hinzuf\u00fcgen\u201c.',
   'set.install_firefox': 'Firefox kann die Seite am Computer nicht als App installieren \u2013 bitte in Chrome, Edge oder Safari \u00f6ffnen und hier noch einmal tippen.',
   'set.install_desktop': 'Im Browser: das Installieren-Symbol rechts in der Adressleiste, oder im Men\u00fc (\u22ee) \u201eApp installieren\u201c bzw. \u201eSeite als App installieren\u201c.',
+  'set.signout_what':  'Dieses Ger\u00e4t merkt sich {name} \u2013 der Ensemble-Link f\u00fchrt direkt zu diesen Seiten. \u201eAbmelden\u201c vergisst das; danach fragt der Link wieder nach dem Namen.',
 
   /* ---------- Kommentare ---------- */
   'kd.new':          'Neuer Kommentar bei Replik {nr}',

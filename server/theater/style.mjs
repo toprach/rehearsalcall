@@ -77,6 +77,7 @@ export const STYLE = uprightMedia(`
   .pwasheet .inner p { margin:.4rem 0 .8rem }
   .pwasheet button.big { display:block; width:100%; margin:0 0 .6rem; padding:.9rem 1rem; font-size:1.1rem; font-weight:700 }
   .pwasheet button.quiet { margin:0 }
+  textarea.fr-inhalt { width:100%; box-sizing:border-box; resize:vertical; overflow:hidden; min-height:2.6rem; font:inherit; line-height:1.4 }
   .installbox { margin:.4rem 0 1.6rem } .installbox button { margin:0 } .installbox .how { margin-top:.6rem }
   .installbox .done { color:var(--muted); margin:0 }
   .pwasheet .how { background:var(--ground); border-radius:6px; padding:.5rem .7rem }

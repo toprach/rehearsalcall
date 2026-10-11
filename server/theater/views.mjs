@@ -2104,7 +2104,8 @@ function settingsPage(current, back, m, who) {
       <a class="btn quiet" href="/theater/ueber">${h(t('about.title'))}</a>
       ${who ? `<a class="btn quiet" href="/theater/mit/abmelden">${h(t('nav.signout'))}</a>`
             : `<a class="btn quiet" href="/theater/abmelden">${h(t('nav.signout'))}</a>`}
-    </p>` : ''}` });
+    </p>
+    ${who ? `<p class="small muted">${t('set.signout_what', { name: h(who.person.name || who.person.b) })}</p>` : ''}` : ''}` });
 }
 
 /* ---------------------------------------------------------------------
@@ -2766,7 +2767,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         (function () {
           var pane = document.getElementById('pane-probe');
           if (!withProbe) return;
-          var head = D ? '<p style="margin:.6rem 0 .4rem"><b>' + esc(W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
+          var head = D ? '<p style="margin:.6rem 0 .4rem;overflow-wrap:anywhere"><b>' + esc(W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
             esc(D.von + '–' + D.bis) + (D.ort ? ' · ' + esc(D.ort) : '') + '</span></p>' : '';
           var what = D && D.inhalt ? '<div class="frei-inhalt small">' + esc(W.frei_what_line.replace('#', D.inhalt)) + '</div>' : '';
           if (!regie || past) {
@@ -2822,11 +2823,15 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : hm(c.hi)) + '</select></span></div>';
             }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
-            '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><input type="text" id="fr-inhalt" maxlength="300" value="' + esc(D ? D.inhalt : '') + '">' +
+            '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><textarea id="fr-inhalt" class="fr-inhalt" maxlength="300" rows="2">' + esc(D ? D.inhalt : '') + '</textarea>' +
             '<p style="margin-top:.8rem">' + (list.length ? '<button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' : '') +
             (D ? '<a class="btn quiet" id="fr-msg" target="_blank" rel="noopener" href="https://wa.me/?text=' +
                  encodeURIComponent(D.message) + '">' + esc(W.whatsapp) + '</a> ' +
                  '<button type="button" id="fr-weg" class="quiet">' + esc(W.cancel) + '</button>' : '') + '</p>';
+          // what is rehearsed: the whole text in view, the field grows with it
+          var inhaltEl = document.getElementById('fr-inhalt');
+          if (inhaltEl) { var grow = function () { inhaltEl.style.height = 'auto'; inhaltEl.style.height = (inhaltEl.scrollHeight + 2) + 'px'; };
+            inhaltEl.addEventListener('input', grow); setTimeout(grow, 0); }
           var zeilen = [].slice.call(pane.querySelectorAll('.frei-zeile'));
           zeilen.forEach(function (z) {
             var box = z.querySelector('input');
@@ -3082,11 +3087,20 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
   .kmt-bar { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:.3rem }
   .kmt-row { display:flex; gap:.4rem; align-items:stretch }
   .kmt-row button { flex:0 0 auto; min-height:2.7rem; font-weight:600 }
-  .kmt-row button.wide { flex:1 1 auto; min-width:0 }
+  .kmt-row > .w10 { flex:10 1 0; min-width:0; padding-left:0; padding-right:0 }
+  .kmt-row > .w35 { flex:35 1 0; min-width:0; font-size:1.15em }
+  .kmt-row .kmt-checkbtn { display:inline-flex; align-items:center; justify-content:center; gap:.35rem }
+  .kmt-row .kmt-checkbtn svg { width:1.35rem; height:1.35rem; flex:none; fill:none; stroke:currentColor; stroke-width:1.9;
+    stroke-linecap:round; stroke-linejoin:round }
+  .kmt-row .kmt-checkbtn .lbl2 { display:none }
+  @media (min-width:701px) { .kmt-row .kmt-checkbtn .lbl2 { display:inline; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } }
+  .kmt-sheet button.wide { width:100% }
+  .kmt-sheet button.accent { border-color:#b3272d; color:#b3272d; font-weight:600 }
+  .kmt-sheet button.accent.on { background:#b3272d; color:#fff }
   .kmt-row button.accent { border-color:#b3272d; color:#b3272d }
   .kmt-row button.kmt-end { opacity:.4 }
-  .kmt-row a.kmt-home { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; min-height:2.7rem;
-    min-width:2.7rem; border:1px solid #a9a29a; border-radius:.3rem; background:#fff; color:#1c1a18; text-decoration:none }
+  .kmt-row a.kmt-home { display:inline-flex; align-items:center; justify-content:center; min-height:2.7rem;
+    border:1px solid #a9a29a; border-radius:.3rem; background:#fff; color:#1c1a18; text-decoration:none }
   .kmt-row a.kmt-home svg { width:1.35rem; height:1.35rem; fill:none; stroke:currentColor; stroke-width:1.9;
     stroke-linecap:round; stroke-linejoin:round }
   .kmt-toast { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:50; max-width:90vw;
@@ -3103,6 +3117,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     border-top:1px solid #d8d3cc; border-radius:.6rem .6rem 0 0; box-shadow:0 -10px 30px rgba(0,0,0,.2);
     padding:.8rem 1rem 1.1rem; max-height:82vh; overflow:auto; display:flex; flex-direction:column; gap:.7rem;
     font:15px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif }
+  .kmt-sheet > * { flex:none }      /* taller than the screen: scroll, never squeeze */
   .kmt-sheet .head { display:flex; align-items:center; gap:.6rem }
   .kmt-sheet .head h3 { margin:0; font-size:1.05rem; flex:1 1 auto }
   .kmt-sheet .slbl { display:block; font-size:.85em; color:#6b655c; margin-bottom:.2rem }
@@ -3136,8 +3151,10 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     main p, main td p { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
   }
   body.kmt-has-bar { padding-top:3.2rem }
-  body { zoom:var(--kmt-zoom, 1) }
-  @media print { body { zoom:1 } }
+  /* A- and A+ change the text, not the bar, its sheets or the dialogs;
+     on screen the text starts a tenth larger than the A4 layout */
+  main { zoom:calc(var(--kmt-zoom, 1) * 1.1) }
+  @media print { main { zoom:1 } }
   .kmt-cur { outline:2px solid #b3272d; outline-offset:3px; border-radius:3px }
   .kmt-bar button.on { background:#b3272d; color:#fff; border-color:#b3272d }
   /* In the rehearsal plan the boxes of rehearsal and scene (and the line
@@ -3186,6 +3203,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     main, main.plan { width:auto !important; max-width:100% !important; box-sizing:border-box }
     main.plan { padding-left:6mm !important }
     table.split { width:100% !important; table-layout:fixed }
+    /* a long word in a narrow column must not widen the page - the phone
+       would zoom the whole view out to fit it */
+    main p, main td, main th, main li { overflow-wrap:anywhere; -webkit-hyphens:auto; hyphens:auto }
     table.split td, table.split th { width:50% !important }
     table.cast { width:100%; font-size:.78em }
     table.cast td, table.cast th { word-break:break-word }
@@ -3356,22 +3376,7 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       setTimeout(function () { if (h && h.parentNode && h.textContent === HINT) { h.parentNode.removeChild(h); } }, 5000);
     }
 
-    /* ---- the rehearsal plan: its scenes, for the selectors in the sheet ---- */
-    var scenes = [];
-    if (D.doc === 'probenplan') {
-      var heads = [].slice.call(document.querySelectorAll('main .szkopf'));
-      scenes = heads.map(function (el, i) {
-        var probe = (el.querySelector('.szn') ? el.querySelector('.szn').firstChild.textContent : '').trim();
-        var sz = (el.querySelector('.szp') ? el.querySelector('.szp').textContent : '').trim();
-        el.id = 'szk-' + i;
-        return { i: i, probe: probe, scene: sz, who: (el.querySelector('.szwer') || {}).textContent || '', where: (el.querySelector('.szwo') || {}).textContent || '' };
-      });
-      // no overlay on tapping a scene head, and no head shown at all
-      // (style below): the sheet behind "more" jumps between rehearsals
-      // and scenes
-    }
-
-    /* ---- the fixed bar: rehearsals and scenes, previous and next comment.
+    /* ---- the fixed bar: start, more, checking, and back and forward.
        Top of the screen on a desk, bottom on a phone; never printed. ---- */
     var bar = document.createElement('div'); bar.className = 'kmt-bar';
     var inner = '';
@@ -3388,17 +3393,9 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
     if (D.people.length) more += '<div><span class="slbl">' + esc(T.person) + '</span><select id="kmt-person">' +
       D.people.map(function (x) { return '<option value="' + esc(x.b) + '"' + (x.b === personB ? ' selected' : '') + '>' + esc(x.b) + '</option>'; }).join('') +
       '</select></div>';
-    if (scenes.length) {
-      // rehearsals in their order 1..N, scenes all of them
-      var probeNr = function (pn) { var m = /(\\d+)/.exec(pn); return m ? Number(m[1]) : 0; };
-      var probes = []; scenes.forEach(function (s) { if (probes.indexOf(s.probe) < 0) probes.push(s.probe); });
-      probes.sort(function (a, b) { return probeNr(a) - probeNr(b) || a.localeCompare(b); });
-      more += '<div class="pair"><div><span class="slbl">' + esc(T.rehearsal) + '</span><select id="kmt-probe">' +
-        probes.map(function (pn) { return '<option value="' + esc(pn) + '">' + esc(pn) + '</option>'; }).join('') + '</select></div>' +
-        '<div><span class="slbl">' + esc(T.scene) + '</span><select id="kmt-scene">' +
-        scenes.map(function (s) { return '<option value="' + s.i + '">' + esc(T.scene_of.replace('{k}', s.i + 1).replace('{n}', scenes.length)) + ' \u00b7 ' + esc(s.probe) + '</option>'; }).join('') +
-        '</select></div></div>';
-    }
+    // an ad-hoc rehearsal is started from here, not from the bar
+    if (mayAdhoc) more += '<div><span class="slbl">' + esc(T.adhoc_title) + '</span>' +
+      '<button type="button" class="accent wide" id="kmt-adhoc">' + esc(T.adhoc) + '</button></div>';
     more += '<div><span class="slbl">' + esc(T.comments) + ' <span class="cnt" id="kmt-cnt"></span></span>' +
       '<div class="pair"><button type="button" id="kmt-prev" title="' + esc(T.prev) + '">\u25c0 \u270e</button>' +
       '<button type="button" id="kmt-next" title="' + esc(T.next) + '">\u270e \u25b6</button></div></div>' +
@@ -3407,14 +3404,17 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       '<button type="button" id="kmt-zoom-in" title="' + esc(T.zoom_in) + '">A+</button></div></div>';
 
     inner = '<div class="kmt-strip" id="kmt-strip"></div>' +
+      /* start, more, checking - small; back and forward - large, under
+         the thumb (10 10 10 35 35) */
       '<div class="kmt-row">' +
-      '<a class="kmt-home" id="kmt-home" href="' + esc(D.home) + '" title="' + esc(T.home) + '" aria-label="' + esc(T.home) + '">' +
+      '<a class="kmt-home w10" id="kmt-home" href="' + esc(D.home) + '" title="' + esc(T.home) + '" aria-label="' + esc(T.home) + '">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.8V20h5v-5.5h3V20h5V9.8"/></svg></a>' +
-      '<button type="button" id="kmt-me-prev" title="' + esc(T.prev_mine) + '" aria-label="' + esc(T.prev_mine) + '">\u25c0</button>' +
-      (D.people.length ? '<button type="button" class="wide" id="kmt-check" title="' + esc(T.check_title) + '">' + esc(T.check) + '</button>' : '<span class="wide"></span>') +
-      '<button type="button" id="kmt-me-next" title="' + esc(T.next_mine) + '" aria-label="' + esc(T.next_mine) + '">\u25b6</button>' +
-      (mayAdhoc ? '<button type="button" class="accent" id="kmt-adhoc">' + esc(T.adhoc) + '</button>' : '') +
-      '<button type="button" id="kmt-more" title="' + esc(T.more) + '" aria-label="' + esc(T.more) + '">\u22ef</button>' +
+      '<button type="button" class="w10" id="kmt-more" title="' + esc(T.more) + '" aria-label="' + esc(T.more) + '">\u22ef</button>' +
+      (D.people.length ? '<button type="button" class="w10 kmt-checkbtn" id="kmt-check" title="' + esc(T.check_title) + '" aria-label="' + esc(T.check) + '">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>' +
+        '<span class="lbl2">' + esc(T.check) + '</span></button>' : '<span class="w10"></span>') +
+      '<button type="button" class="w35" id="kmt-me-prev" title="' + esc(T.prev_mine) + '" aria-label="' + esc(T.prev_mine) + '">\u25c0</button>' +
+      '<button type="button" class="w35" id="kmt-me-next" title="' + esc(T.next_mine) + '" aria-label="' + esc(T.next_mine) + '">\u25b6</button>' +
       '</div>' +
       '<div class="kmt-sheet-veil" id="kmt-sheet-veil" hidden></div>' +
       '<div class="kmt-sheet" id="kmt-sheet-more" hidden><div class="head"><h3>' + esc(T.more) + '</h3>' +
@@ -3432,30 +3432,6 @@ function docExtras(token, doc, me, comments, canSeeAll, people = [], learn = { k
       } else { document.body.style.paddingBottom = ''; if (hint) hint.style.bottom = ''; }
     };
     padBar(); window.addEventListener('resize', padBar); setTimeout(padBar, 300);
-    /* The scene heads are not shown on screen (see the style); a jump goes
-       to what follows the head, and the current scene is read from there. */
-    var spot = function (el) {
-      var h = el && (el.closest('tr.szrow') || el), n = h && h.nextElementSibling;
-      while (n && !n.offsetHeight) n = n.nextElementSibling;
-      return n || h;
-    };
-    var jump = function (el) { el = spot(el); if (el) { el.scrollIntoView({ block: 'start' }); if (window.innerWidth > 700) window.scrollBy(0, -bar.offsetHeight - 8); } };
-    if (scenes.length) {
-      var selP = bar.querySelector('#kmt-probe'), selS = bar.querySelector('#kmt-scene');
-      var firstOf = function (pn) { return scenes.filter(function (s) { return s.probe === pn; })[0]; };
-      selP.onchange = function () { var f = firstOf(selP.value); if (f) { selS.value = String(f.i); jump(document.getElementById('szk-' + f.i)); } };
-      selS.onchange = function () { var s = scenes[Number(selS.value)]; if (s) { selP.value = s.probe; jump(document.getElementById('szk-' + s.i)); } };
-      var syncing = false;
-      window.addEventListener('scroll', function () {
-        if (syncing) return; syncing = true;
-        setTimeout(function () {
-          syncing = false;
-          var cur = null;
-          scenes.forEach(function (s) { var el = spot(document.getElementById('szk-' + s.i)); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s; });
-          if (cur && (selP.value !== cur.probe || String(selS.value) !== String(cur.i))) { selP.value = cur.probe; selS.value = String(cur.i); }
-        }, 150);
-      });
-    }
     var count = function () {
       var n = document.querySelectorAll('.kmt-badge').length;
       bar.querySelector('#kmt-cnt').textContent = n ? '\u270e ' + n : T.none;
