@@ -1245,6 +1245,7 @@ export const en = {
   'pwa.android':       'In the browser menu (\u22ee) choose \u201cInstall app\u201d or \u201cAdd to Home screen\u201d.',
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'No connection. As soon as the network is back, it goes on.',
+  'pwa.offline_copy':  'Offline \u2013 as of {when}',
   'pwa.retry':         'Try again',
   'set.install':       'Install the app',
   'set.installed':     '\u2713 Installed as an app on this device.',

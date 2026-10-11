@@ -36,6 +36,7 @@ import nodePath from 'node:path';
 import * as Demo from './demo.mjs';
 import * as PWA from './pwa.mjs';
 import { UPRIGHT_STYLE, UPRIGHT_SCRIPT, uprightStyles } from './upright.mjs';
+import { STYLE } from './style.mjs';
 import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
@@ -196,6 +197,7 @@ async function form(request, grenze = 2_000_000) {
   return out;
 }
 
+const FOREVER = 'public, max-age=31536000, immutable';
 const html = (response, text, status = 200) => {
   response.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
@@ -697,6 +699,8 @@ export async function handle(request, response, path) {
   const parts = path.replace(/^\/theater\/?/, '').replace(/\/$/, '').split('/');
   const first = parts[0] || '';
   const post = request.method === 'POST';
+  // A file asked for with its version in the address never changes.
+  const versioned = /[?&]v=[\w-]+/.test(request.url || '');
 
   /* Language: what the visitor chose last, otherwise what their browser
      sends. The views hang on it, so bind it once here - then every call
@@ -771,12 +775,20 @@ export async function handle(request, response, path) {
     return redirect(response, own(back) ? back : (who ? '/theater/mit' : '/theater'));
   }
 
+  /* --- the stylesheet: one file for every page, kept by the browser; the
+     address carries its version, so a new one is fetched at once --- */
+  if (first === 'stil.css') {
+    await drainBody(request);
+    response.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': versioned ? FOREVER : 'no-cache' });
+    return response.end(STYLE);
+  }
+
   /* --- the script of the part book: a file, so nothing is escaped --- */
   if (first === 'heft.js' || first === 'sw.js' || first === 'kalender.js') {
     await drainBody(request);
     const file = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), 'static', first);
     response.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8',
-      'Cache-Control': first === 'sw.js' ? 'no-cache' : 'public, max-age=3600' });
+      'Cache-Control': first === 'sw.js' ? 'no-cache' : versioned ? FOREVER : 'public, max-age=3600' });
     return response.end(fs.readFileSync(file));
   }
   /* A library we ship: ical.js (Mozilla, MPL 2.0) reads calendars in the browser. */

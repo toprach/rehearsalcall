@@ -1249,6 +1249,7 @@ export const de = {
   'pwa.android':       'Im Browser-Men\u00fc (\u22ee) \u201eApp installieren\u201c oder \u201eZum Startbildschirm hinzuf\u00fcgen\u201c w\u00e4hlen.',
   'pwa.offline_t':     'Offline',
   'pwa.offline':       'Keine Verbindung. Sobald das Netz wieder da ist, geht es weiter.',
+  'pwa.offline_copy':  'Offline \u2013 Stand vom {when}',
   'pwa.retry':         'Noch einmal versuchen',
   'set.install':       'App installieren',
   'set.installed':     '\u2713 Auf diesem Ger\u00e4t als App installiert.',

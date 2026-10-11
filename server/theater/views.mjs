@@ -9,6 +9,7 @@
    --------------------------------------------------------------------- */
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { language, LANGUAGES } from './texts.mjs';
@@ -32,11 +33,14 @@ function readVersion() {
     return String(p.version || '');
   } catch { return ''; }
 }
-/* The book script is cached for an hour; its address changes with the file. */
+/* Scripts and the stylesheet are cached for good; their address changes
+   with their content. */
+const hashV = (text) => crypto.createHash('md5').update(text).digest('hex').slice(0, 10);
 const fileV = (name) => {
-  try { return String(Math.round(fs.statSync(new URL('./static/' + name, import.meta.url)).mtimeMs)); }
+  try { return hashV(fs.readFileSync(new URL('./static/' + name, import.meta.url))); }
   catch { return '0'; }
 };
+export const STYLE_V = hashV(STYLE);
 const HEFT_V = fileV('heft.js');
 const KAL_V = fileV('kalender.js');
 
@@ -95,7 +99,7 @@ function page({ title, body, nav = '', narrow = false, tabbar = '' }) {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="${h(ctx.app ? ctx.app.short : t('pwa.short'))}">
 <link rel="apple-touch-icon" href="${ctx.app ? `/theater/app/${h(ctx.app.token)}/icon-192.png` : '/theater/icon-192.png'}">
-<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><style>${STYLE}</style><script>${UPRIGHT_SCRIPT}</script></head><body${tabbar ? ' class="hasbar"' : ''}>
+<title>${h(title === name ? name : title + ' \u2013 ' + name)}</title><link rel="stylesheet" href="/theater/stil.css?v=${STYLE_V}"><script>${UPRIGHT_SCRIPT}</script></head><body${tabbar ? ' class="hasbar"' : ''}>
 <header class="head${tabbar ? ' member' : ''}"><div class="inner">
   <a class="brand" href="${home}">${h(name.toUpperCase())}</a>${tabbar ? '' : `${L.picker(pfad)}
   <form method="post" action="/theater/thema" class="themepick">
@@ -128,8 +132,31 @@ ${ctx.share ? `<script>
   ? `<div class="notice demo">${t('demo.banner', { when: h(L.date(ctx.demo.until,
       { weekday: 'short', hour: '2-digit', minute: '2-digit' })) })}</div>` : ''}${directing ? nav : ''}${body}</div>
 ${tabbar}
+${tabbar ? `<div class="offnote" id="offnote" hidden data-text="${h(t('pwa.offline_copy', { when: '#' }))}" data-stand="${new Date().toISOString()}"></div>` : ''}
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/theater/sw.js').catch(function () {});
+/* A copy kept by the service worker says so when the network is gone;
+   now and then a member page has the others fetched ahead, so they are
+   there offline as well. */
+(function () {
+  var note = document.getElementById('offnote'); if (!note) return;
+  var show = function () {
+    if (navigator.onLine) { note.hidden = true; return; }
+    var when = new Date(note.dataset.stand);
+    note.textContent = note.dataset.text.replace('#', when.toLocaleString(document.documentElement.lang, { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    note.hidden = false;
+  };
+  show(); window.addEventListener('online', show); window.addEventListener('offline', show);
+  if (!navigator.onLine || !('serviceWorker' in navigator)) return;
+  var last = 0; try { last = Number(localStorage.getItem('vorrat') || 0); } catch (e) {}
+  if (Date.now() - last < 60 * 60 * 1000) return;
+  navigator.serviceWorker.ready.then(function (reg) {
+    if (!reg.active) return;
+    reg.active.postMessage({ warm: ['/theater/mit/zeiten', '/theater/mit/termine', '/theater/mit/heft', '/theater/mit/stueck'],
+      files: ['/theater/heft.js?v=${HEFT_V}', '/theater/kalender.js?v=${KAL_V}', '/theater/stil.css?v=${STYLE_V}', '/theater/vendor/ical.min.js'] });
+    try { localStorage.setItem('vorrat', String(Date.now())); } catch (e) {}
+  });
+})();
 // the installed app stays upright (the manifest says so too); where the lock is refused - Safari, a browser tab - upright.mjs turns the page back
 try { if ((window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) && screen.orientation && screen.orientation.lock)
   screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}

@@ -12,6 +12,7 @@
 
 import http from 'node:http';
 import { handle, storage, startSourceRefresh } from './theater/index.mjs';
+import { compressing } from './theater/compress.mjs';
 import * as Demo from './theater/demo.mjs';
 import * as Reminders from './theater/reminders.mjs';
 
@@ -44,6 +45,7 @@ function log(request, response, path, started) {
 const server = http.createServer(async (request, response) => {
   const path = (request.url || '/').split('?')[0];
   const started = Date.now();
+  compressing(request, response);
   response.on('finish', () => {
     if (path !== '/gesund') log(request, response, path, started);
   });
