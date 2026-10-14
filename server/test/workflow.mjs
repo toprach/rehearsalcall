@@ -312,14 +312,13 @@ for (const b of cast) {
   if (b === cast[0]) check('the struck day shows as struck', new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(e.text));
   else check('a member sees the struck day but cannot strike', new RegExp('blocked[^"]*" data-iso="' + days[0] + '"').test(e.text) && !/name="g_/.test(e.text));
   if (b === cast[1]) {
-    // a day struck for oneself is a decided no and stays one
+    // only the director strikes days: a member's "struck for me" is no more
     const nf = {}; days.forEach((d, i) => { nf['t_' + d] = i ? '1' : ''; nf['v_' + d] = '18:00'; nf['b_' + d] = '23:00'; }); nf['n_' + days[0]] = '1';
     const ne = await post('/theater/mit/zeiten', nf);
-    // (that day is also struck by the director, whose hatching wins on the page)
-    check('a day struck for oneself is kept', good(ne) && new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(ne.text) &&
-          new RegExp('name="n_' + days[0] + '" value="1"').test(ne.text), say(ne));
+    check('a member cannot strike a day for themselves', good(ne) && !/name="n_/.test(ne.text) &&
+          !/id="neint"/.test(ne.text) && !/class="dot nein"/.test(ne.text), say(ne));
     const back = await post('/theater/mit/zeiten', fields);
-    check('and can be entered again', good(back) && !new RegExp('nein[^"]*" data-iso="' + days[0] + '"').test(back.text), say(back));
+    check('and enters again as before', good(back), say(back));
   }
   const me = await call('GET', '/theater/mit');
   // The director enters nothing that counts: their page says so instead of a number.
@@ -628,6 +627,20 @@ for (const b of cast) {
       check('the director\u2019s dates page lists it', new RegExp('name="rehearsal" value="' + j.id + '"').test(dp.text));
       check('with a dialog to change who comes when', new RegExp('value="frei-aendern">\\s*<input type="hidden" name="rehearsal" value="' + j.id + '"').test(dp.text) &&
             new RegExp('name="mit_' + who[0] + '" value="1" checked').test(dp.text));
+      {
+        // somebody who gave nothing that day can be put in all the same, at
+        // any time - settled on the phone
+        const dlg = (new RegExp('<dialog id="[^"]*"[^>]*>(?:(?!</dialog>)[\\s\\S])*?value="' + j.id + '"[\\s\\S]*?</dialog>').exec(dp.text) || [''])[0];
+        const without = [...dlg.matchAll(/name="mit_([^"]+)" value="1"> [^<]*<span class="small muted">/g)].map(m => m[1]);
+        check('people without an entry are offered too, marked so', without.length > 0, without.join(', '));
+        if (without[0]) {
+          const x = without[0];
+          const add = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id,
+            ['mit_' + who[0]]: '1', ['von_' + who[0]]: form['von_' + who[0]], ['bis_' + who[0]]: form['bis_' + who[0]],
+            ['mit_' + x]: '1', ['von_' + x]: '07:00', ['bis_' + x]: '08:30' });
+          check('and set at a time of the director\u2019s choosing', good(add) && new RegExp('name="mit_' + x + '" value="1" checked').test(add.text), say(add));
+        }
+      }
       // afterwards: the first person a quarter of an hour later, the second no longer in it
       const later = hm(Math.ceil(win[who[0]][0] / 15) * 15 + 15);
       const changed = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id,

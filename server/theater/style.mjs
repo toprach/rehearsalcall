@@ -208,10 +208,6 @@ export const STYLE = uprightMedia(`
     background:repeating-linear-gradient(135deg, var(--chip) 0 6px, var(--card) 6px 12px);
     border-color:var(--field-edge) }
   table.cal td.blocked .num { text-decoration:line-through }
-  table.cal td.nein { background:#e9e5df; border-color:#d0cac2; color:var(--muted) }
-  table.cal td.nein .num { text-decoration:line-through }
-  html[data-theme="dark"] table.cal td.nein { background:#2a2a30; border-color:#3a3a42 }
-  .dot.nein { background:#e9e5df; border-color:#c9c3ba }
   .pref { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; margin:1rem 0 0 }
   .pref input[type=time] { margin:0; padding:.2rem .35rem; width:auto }
   .pref label.inline { margin:0 }
@@ -239,7 +235,7 @@ export const STYLE = uprightMedia(`
   table.cal td.past { opacity:.55 }
   table.cal td.today .num { background:var(--ink); color:var(--card); border-radius:1rem; padding:0 .3rem }
   table.cal td .who { display:block; font-size:.62rem; line-height:1.2; margin-top:.1rem; color:#3d2a12 }
-  table.cal td.nein .who, table.cal td.blocked .who { color:var(--muted) }
+  table.cal td.blocked .who { color:var(--muted) }
   html[data-theme="dark"] table.cal td .who { color:inherit }
   table.cal td .who i { display:block; font-style:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   table.cal td .who i.more { display:none }
@@ -317,7 +313,7 @@ export const STYLE = uprightMedia(`
   .balken .spur b.selbst { background:var(--accent) }
   .balken .spur b.selbst.vorschau { background:transparent; border:2px dashed var(--accent); box-sizing:border-box }
   .balken .wer.selbst.vorschau { opacity:.75 }
-  .balken .wer.leer, .balken .wer.nein { color:var(--muted) }
+  .balken .wer.leer { color:var(--muted) }
   .balken .wann.leer { font-style:italic }
   .balken .vorschau-hinweis { font-size:.85em; font-style:italic; color:var(--accent); margin:.1rem 0 .3rem }
   .balken .spur em.ich { position:absolute; top:0; bottom:0; background:rgba(179,39,45,.16) }

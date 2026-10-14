@@ -37,7 +37,7 @@ function windowOn(entry, date) {
 
   if (entry.tage) {
     const t = entry.tage[iso];
-    if (!t || t.nein) return null;
+    if (!t) return null;
     const a = asMinutes(t.von), b = asMinutes(t.bis);
     return (a == null || b == null || b <= a) ? null : { from: a, to: b };
   }
@@ -286,7 +286,9 @@ export function freeEntry(project, iso, times, place, id) {
 /* Who can be at a free rehearsal, for changing it afterwards: everybody
    (the directors aside) who gave time for its day, from the first to
    the last quarter hour of that time - and the people already in it, at
-   least across their present time, even if their entry changed since. */
+   least across their present time, even if their entry changed since.
+   Whoever gave nothing for the day is there too, at any time of day and
+   marked so (ohne): the director may have settled it on the phone. */
 export function freeChoices(project, entry) {
   const d = asDate(entry.iso);
   const out = [];
@@ -299,11 +301,12 @@ export function freeChoices(project, entry) {
       const a = asMinutes(z.von), c = asMinutes(z.bis);
       lo = lo == null ? a : Math.min(lo, a); hi = hi == null ? c : Math.max(hi, c);
     }
-    if (lo == null || hi - lo < 15) continue;
-    out.push({ b: x.b, name: x.name || x.b, lo, hi, in: !!z,
-               von: z ? z.von : clock(lo), bis: z ? z.bis : clock(hi) });
+    let ohne = false;
+    if (lo == null || hi - lo < 15) { ohne = true; lo = 6 * 60; hi = 23 * 60 + 45; }
+    out.push({ b: x.b, name: x.name || x.b, lo, hi, in: !!z, ohne,
+               von: z ? z.von : ohne ? entry.von : clock(lo), bis: z ? z.bis : ohne ? entry.bis : clock(hi) });
   }
-  return out.sort((a, c) => a.lo - c.lo || a.name.localeCompare(c.name));
+  return out.sort((a, c) => (a.ohne ? 1 : 0) - (c.ohne ? 1 : 0) || a.lo - c.lo || a.name.localeCompare(c.name));
 }
 
 /* One date per day. A day used to be able to hold several fixed
@@ -415,9 +418,7 @@ export function dayView(project, person, days) {
         history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
       };
     }
-    // who struck the day for themselves - the rest without a window gave nothing
-    const nein = people.filter(x => !directors.includes(x.b) && project.verfuegbar?.[x.id]?.tage?.[t.iso]?.nein).map(x => x.b);
-    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, nein, date };
+    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, date };
   }
   return out;
 }

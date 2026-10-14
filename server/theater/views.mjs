@@ -388,7 +388,8 @@ function freeDialog(target, e, project) {
     return o;
   };
   const rows = freeChoices(project, e).map(c => `<div class="frei-zeile${c.in ? ' an' : ''}">
-      <label><input type="checkbox" name="mit_${h(c.b)}" value="1"${c.in ? ' checked' : ''}> ${h(c.name)}</label>
+      <label><input type="checkbox" name="mit_${h(c.b)}" value="1"${c.in ? ' checked' : ''}> ${h(c.name)}${c.ohne
+        ? ` <span class="small muted">(${t('free.said_nothing')})</span>` : ''}</label>
       <span class="frei-zeit"><select name="von_${h(c.b)}" aria-label="${h(t('my.from'))}">${opts(c.lo, c.hi - 15, c.von)}</select>
         <span>–</span>
         <select name="bis_${h(c.b)}" aria-label="${h(t('my.to'))}">${opts(c.lo + 15, c.hi, c.bis)}</select></span></div>`).join('');
@@ -2283,7 +2284,7 @@ function datesPage(p, result, m, share = null) {
    A day with a date (one per day, see dates.mjs oneDatePerDay) is dark
    green, framed red when I am in it; a day I gave time for is framed
    red; a day somebody else has time is orange, with their names; a day
-   I struck is grey, one the director struck hatched. Picking people
+   the director struck is hatched. Picking people
    above frames blue the days on which they all have an hour in common.
    A tap on a day opens two tabs: the date ("Probe" - the director and
    the assistant set it there, everybody else reads it) and the
@@ -2337,7 +2338,6 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
     // a date set on a struck day is still a date
     if (date) cls.push('fixed', ...(date.withMe ? ['withme'] : []));
     else if (vw.blocked) cls.push('blocked');
-    else if (e?.nein) cls.push('nein');
     else if (others.length) cls.push('others');
     if (!date && e?.von) cls.push('me');
     const who = !date && others.length ? `<span class="who">${others.map((b, i) =>
@@ -2348,12 +2348,11 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
     return `<td class="${cls.join(' ')}" data-iso="${tg.iso}" data-edit="${editable ? 1 : 0}"
         data-past="${vw.past ? 1 : 0}" data-outside="${tg.outside ? 1 : 0}"
         data-mine="${e?.von ? h(e.von + '-' + e.bis) : ''}"
-        data-fenster="${h(JSON.stringify(vw.windows || {}))}" data-nein="${h((vw.nein || []).join(','))}" title="${h(tip)}">
+        data-fenster="${h(JSON.stringify(vw.windows || {}))}" title="${h(tip)}">
       <span class="num">${tg.day}</span>
       ${date ? `<span class="fix"><span class="fl">${t('kd.rehearsal')} </span>${h(date.von)}</span>` : who}
       <span class="time">${!date && e?.von ? h(e.von + '–' + e.bis) : ''}</span>
       ${editable ? `<input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
-      <input type="hidden" name="n_${tg.iso}" value="${e?.nein ? '1' : ''}">
       <input type="hidden" name="v_${tg.iso}" value="${h(e?.von || '')}">
       <input type="hidden" name="b_${tg.iso}" value="${h(e?.bis || '')}">
       ${director ? `<input type="hidden" name="g_${tg.iso}" value="${vw.blocked ? '1' : ''}">` : ''}` : ''}
@@ -2389,7 +2388,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
   const dates = {};
   for (const [iso, x] of Object.entries(views)) if (x.date) dates[iso] = { ...x.date, message: opt.messages?.[iso] || '' };
   const legend = [['fixed withme', 'my.lg_fixed_me'], ['fixed', 'my.lg_fixed'], ['me', 'my.lg_mine'],
-    ['others', 'my.lg_others'], ['nein', 'my.lg_nein'], ['blocked', 'my.legend_blocked'], ['allfree', 'my.lg_allfree']];
+    ['others', 'my.lg_others'], ['blocked', 'my.legend_blocked'], ['allfree', 'my.lg_allfree']];
 
   return page({ title: t('my.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p>
@@ -2492,13 +2491,14 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 blocked: ${js('my.blocked')}, block: ${js('my.block')}, unblock: ${js('my.unblock')},
                 zeit: ${js('my.free_then')}, bars_common: ${js('my.bars_common')}, bars_none: ${js('my.bars_none')},
                 von: ${js('my.from')}, bis: ${js('my.to')},
-                ja: ${js('my.can')}, nein: ${js('my.cannot')}, offen: ${js('my.open')},
+                ja: ${js('my.can')}, offen: ${js('my.open')},
                 falsch: ${js('my.time_wrong')},
                 autosave: ${js('my.autosave')}, saving: ${js('my.saving')},
                 saved: ${js('my.saved', { when: '#' })}, save_failed: ${js('my.save_failed')},
                 tab_probe: ${js('my.tab_probe')}, tab_avail: ${js('my.tab_avail')},
                 locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
+                frei_leer: ${js('free.said_nothing')},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 frei_what_line: ${js('free.what_line', { text: '#' })}, frei_blocked: ${js('free.blocked_confirm')},
                 ort: ${js('fix.place')}, save: ${js('free.save')}, go: ${js('free.go')},
@@ -2507,7 +2507,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 sits: ${js('hist.sits')}, note: ${js('hist.note')}, keep: ${js('common.save')},
                 nobody: ${js('my.nobody')},
                 unsaved_new: ${js('my.bars_unsaved_new')}, unsaved_changed: ${js('my.bars_unsaved_changed')},
-                bars_no: ${js('my.bars_no')}, bars_unknown: ${js('my.bars_unknown')}, no_entry: ${js('my.no_entry')} };
+                bars_unknown: ${js('my.bars_unknown')}, no_entry: ${js('my.no_entry')} };
       var current = ${startMonth};
 
       var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -2598,18 +2598,16 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         var f = fenster(td);
         var others = Object.keys(f).filter(function (b) { return b !== ME; })
           .sort(function (a, b) { return f[a][0] - f[b][0]; });
-        // everybody else is listed too: who struck the day, and who gave nothing
-        var nein = (td.dataset.nein || '').split(',').filter(function (b) { return b && b !== ME; });
-        var leer = ENSEMBLE.filter(function (b) { return b !== ME && !f[b] && nein.indexOf(b) < 0; });
+        // everybody else is listed too: who gave nothing for the day
+        var leer = ENSEMBLE.filter(function (b) { return b !== ME && !f[b]; });
         var vI = td.querySelector('input[name^="v_"]'), bI = td.querySelector('input[name^="b_"]');
-        var tI = td.querySelector('input[name^="t_"]'), nI = td.querySelector('input[name^="n_"]');
+        var tI = td.querySelector('input[name^="t_"]');
         var gI = td.querySelector('input[name^="g_"]');
         var pv = document.getElementById('pref-von'), pb = document.getElementById('pref-bis');
         if (pv && pb && pv.value && pb.value) preset = { von: pv.value, bis: pb.value };
         var mine = (td.dataset.mine || '').split('-');
-        var struck = !!(nI && nI.value === '1');
-        var von0 = vI ? (vI.value || (struck ? '' : preset.von)) : (mine[0] || '');
-        var bis0 = bI ? (bI.value || (struck ? '' : preset.bis)) : (mine[1] || '');
+        var von0 = vI ? (vI.value || preset.von) : (mine[0] || '');
+        var bis0 = bI ? (bI.value || preset.bis) : (mine[1] || '');
         var why = past ? W.past : D ? W.locked : outside ? W.outside : '';
         schleier.hidden = false;
         tafel.innerHTML =
@@ -2630,7 +2628,6 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
               '<div><label for="tb">' + esc(W.bis) + '</label><input type="time" id="tb" step="900" value="' + esc(bis0) + '"' + (edit ? '' : ' disabled') + '></div>' +
             '</div>' +
             (edit ? '<button type="button" id="jat">' + esc(W.ja) + '</button> ' +
-              '<button type="button" id="neint" class="quiet">' + esc(W.nein) + '</button> ' +
               '<button type="button" id="offen" class="quiet">' + esc(W.offen) + '</button>' +
               (regie && gI ? ' <button type="button" id="sperrt" class="quiet">' + esc(blocked ? W.unblock : W.block) + '</button>' : '') : '') +
           '</div>';
@@ -2649,7 +2646,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
            own window across them, what is common to all above. */
         (function () {
           var box = document.getElementById('tafel-balken');
-          if (!others.length && !nein.length && !leer.length) { box.hidden = true; return; }
+          if (!others.length && !leer.length) { box.hidden = true; return; }
           var draw = function () {
             var a = mins(document.getElementById('tv').value), b = mins(document.getElementById('tb').value);
             var own = a != null && b != null && b > a ? [a, b] : null;
@@ -2677,7 +2674,6 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             };
             box.innerHTML = '<div class="zeile achse"><span class="wer"></span><span class="spur">' + ticks + '</span><span class="wann"></span></div>' +
               others.map(function (p) { return row(esc(names[p] || p), f[p], 'noetig'); }).join('') +
-              nein.map(function (p) { return row(esc(names[p] || p), null, 'nein', W.bars_no); }).join('') +
               leer.map(function (p) { return row(esc(names[p] || p), null, 'leer', W.bars_unknown); }).join('') +
               (own ? row(esc(MYNAME), own, 'selbst' + (state ? ' vorschau' : '')) : '') +
               (own && state ? '<div class="vorschau-hinweis">' + esc((state === 'neu' ? W.unsaved_new : W.unsaved_changed).replace('{name}', MYNAME)) + '</div>' : '') +
@@ -2728,10 +2724,18 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             var c = cand[r.b] || { lo: mins(r.von), hi: mins(r.bis) };
             cand[r.b] = { lo: Math.min(c.lo, mins(r.von)), hi: Math.max(c.hi, mins(r.bis)) };
           });
+          // and everybody else of the company, at any time of day: the
+          // director may have settled it on the phone
+          var ohne = {}, sonst = { von: (D && D.von) || preset.von || '19:00', bis: (D && D.bis) || preset.bis || '22:00' };
+          ENSEMBLE.concat([ME]).forEach(function (b) {
+            if (cand[b] && cand[b].hi - cand[b].lo >= 15) return;
+            if (!(b === ME && regie)) ohne[b] = true;   // the director is always free
+            cand[b] = { lo: 6 * 60, hi: 23 * 60 + 45 };
+          });
           // those in it first, by start; then whoever else has time
           var list = Object.keys(cand).filter(function (b) { return cand[b].hi - cand[b].lo >= 15; })
             .sort(function (a, b) {
-              return (inIt[b] ? 1 : 0) - (inIt[a] ? 1 : 0) ||
+              return (inIt[b] ? 1 : 0) - (inIt[a] ? 1 : 0) || (ohne[a] ? 1 : 0) - (ohne[b] ? 1 : 0) ||
                 (inIt[a] && inIt[b] ? inIt[a].von.localeCompare(inIt[b].von) : cand[a].lo - cand[b].lo) ||
                 String(names[a] || a).localeCompare(String(names[b] || b));
             });
@@ -2745,9 +2749,10 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             (list.length ? list.map(function (b) {
               var c = cand[b], r = inIt[b];
               return '<div class="frei-zeile' + (r ? ' an' : '') + '" data-b="' + esc(b) + '">' +
-                '<label><input type="checkbox"' + (r ? ' checked' : '') + '> ' + esc(b === ME ? MYNAME : (names[b] || b)) + '</label>' +
-                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(c.lo, c.hi - 15, r ? r.von : hm(c.lo)) + '</select>' +
-                '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : hm(c.hi)) + '</select></span></div>';
+                '<label><input type="checkbox"' + (r ? ' checked' : '') + '> ' + esc(b === ME ? MYNAME : (names[b] || b)) +
+                (ohne[b] && !r ? ' <span class="small muted">(' + esc(W.frei_leer) + ')</span>' : '') + '</label>' +
+                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(c.lo, c.hi - 15, r ? r.von : ohne[b] ? sonst.von : hm(c.lo)) + '</select>' +
+                '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : ohne[b] ? sonst.bis : hm(c.hi)) + '</select></span></div>';
             }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
             '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><textarea id="fr-inhalt" class="fr-inhalt" maxlength="300" rows="2">' + esc(D ? D.inhalt : '') + '</textarea>' +
@@ -2803,8 +2808,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
           var a = document.getElementById('tv').value, b = document.getElementById('tb').value;
           if (!a && !b) { a = preset.von; b = preset.bis; }
           if (!a || !b || b <= a) { alert(W.falsch); return; }
-          tI.value = '1'; vI.value = a; bI.value = b; if (nI) nI.value = '';
-          td.classList.add('me'); td.classList.remove('nein');
+          tI.value = '1'; vI.value = a; bI.value = b;
+          td.classList.add('me');
           td.querySelector('.time').textContent = a + '–' + b;
           preset = { von: a, bis: b };
           schleier.hidden = true; zaehle(); speichere();
@@ -2814,17 +2819,10 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
           var chip = document.querySelector('.chip[data-iso="' + iso + '"]');
           if (chip) chip.remove();
         };
-        document.getElementById('neint').onclick = function () {
-          tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '1';
-          vergiss();
-          td.classList.remove('me', 'others'); td.classList.add('nein');
-          td.querySelector('.time').textContent = '';
-          schleier.hidden = true; zaehle(); speichere();
-        };
         document.getElementById('offen').onclick = function () {
-          tI.value = ''; vI.value = ''; bI.value = ''; if (nI) nI.value = '';
+          tI.value = ''; vI.value = ''; bI.value = '';
           vergiss();
-          td.classList.remove('me', 'nein');
+          td.classList.remove('me');
           if (others.length) td.classList.add('others');
           td.querySelector('.time').textContent = '';
           schleier.hidden = true; zaehle(); speichere();
