@@ -26,10 +26,12 @@ function sweep(now) {
 }
 
 /* Who is asking? Behind the proxy the real address is in the
-   X-Forwarded-For header; without it we take what the socket says. */
+   X-Forwarded-For header; without it we take what the socket says.
+   The proxy appends the address it saw LAST - anything before it came
+   from the client, which could send a new one with every guess. */
 export function origin(request) {
   const forwarded = String(request.headers['x-forwarded-for'] || '')
-    .split(',')[0].trim();
+    .split(',').pop().trim();
   return forwarded || request.socket?.remoteAddress || 'unknown';
 }
 

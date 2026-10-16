@@ -14,6 +14,7 @@
 import { views, ABOUT } from '../theater/views.mjs';
 import { LANGUAGES } from '../theater/texts.mjs';
 import { uprightMedia } from '../theater/upright.mjs';
+import { origin } from '../theater/throttle.mjs';
 
 const project = {
   id: 'abcd1234', titel: 'Test <Play>',
@@ -236,6 +237,14 @@ for (const { code } of LANGUAGES) {
     out.includes('html:not(.quer) .e { y:2 }') && out.includes('@media print { .f { z:3 } }') && !/html\.quer \.f/.test(out);
   console.log((ok ? '  ok    ' : '  FAIL  ') + 'upright media queries');
   if (!ok) { failures++; console.log(out); }
+}
+// the brake counts the address the proxy saw, not one the client made up
+{
+  const ask = (xff) => origin({ headers: xff == null ? {} : { 'x-forwarded-for': xff }, socket: { remoteAddress: '127.0.0.1' } });
+  const ok = ask('198.51.100.7') === '198.51.100.7' && ask('203.0.113.9, 198.51.100.7') === '198.51.100.7' &&
+    ask('a, b ,198.51.100.7 ') === '198.51.100.7' && ask(null) === '127.0.0.1';
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'throttle: forged X-Forwarded-For entries are ignored');
+  if (!ok) failures++;
 }
 console.log('  version ' + (ABOUT.version || '(none)'));
 console.log(failures ? `\n${failures} FAILED` : '\nall views render clean');
