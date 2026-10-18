@@ -1139,8 +1139,8 @@ export const en = {
   'book.mode_hard':  'The hard ones',
   'book.read_what':  'Every passage with its cue. The arrows show more of what comes before and after.',
   'book.learn_what': 'The cue is shown, your lines are hidden. Say them out loud, reveal, judge yourself. '
-                   + 'Passages due from earlier days come first, then new ones in the order of the play, '
-                   + 'in batches of six that repeat in random order until each has sat twice. '
+                   + 'Passages due from earlier days come first, then new ones, '
+                   + 'in batches of six that come round in turn until each has sat twice \u2013 all in the order of the play. '
                    + 'What you know comes back after one day, then three, seven, fourteen, thirty.',
   'book.hard_what':  'The passages that went wrong at least twice in the last ten tries, worst first.',
   'book.due':        'due today: {n}',

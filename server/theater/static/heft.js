@@ -7,10 +7,11 @@
    words of the interface.
 
    Learning is retrieval: the cue is shown, the own lines are hidden;
-   speak, reveal, judge. A batch of up to six chunks is repeated in
-   random order until each has been known twice (a chunk seen for the
-   first time is shown open once before). Chunks due from earlier days
-   come first, then new ones in the order of the play. The steps and
+   speak, reveal, judge. A batch of up to six chunks goes round in the
+   order of the play until each has been known twice (a chunk seen for
+   the first time is shown open once before). Chunks due from earlier
+   days come first, then new ones - both in the order of the play, never
+   at random (asked for 18.10.2026). The steps and
    the due dates are computed by the server and mirrored here so the
    figures move at once.
 
@@ -46,13 +47,14 @@
     if (!inFilter(passByNr[Number(sec.dataset.nr)])) sec.hidden = true;
   });
   var byKey = {};
-  items.forEach(function (c) { byKey[c.key] = c; });
+  items.forEach(function (c, i) { byKey[c.key] = c; c.pos = i; });   // pos: place in the play
 
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var fmt = function (s, v) { return String(s).replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); };
   function addDays(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
-  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  /* learning goes in the order of the play, never at random */
+  var inPlay = function (a, b) { return (a.item || a).pos - (b.item || b).pos; };
   var rec = function (key) { return state[key] || null; };
   var failCount = function (r) { return (r && r.l || []).filter(function (x) { return x === 0; }).length; };
   var failRate = function (r) { var l = r && r.l || []; return l.length ? failCount(r) / l.length : 0; };
@@ -258,7 +260,7 @@
   function startSession(kind, again) {
     var queue;
     if (kind === 'lernen') {
-      var due = shuffle(items.filter(function (c) { var r = rec(c.key); return r && r.f <= today; }));
+      var due = items.filter(function (c) { var r = rec(c.key); return r && r.f <= today; });
       var fresh = items.filter(function (c) { return !rec(c.key); });
       queue = due.map(function (c) { return { item: c, fresh: false }; })
         .concat(fresh.map(function (c) { return { item: c, fresh: true }; }));
@@ -266,7 +268,7 @@
         // asked for one more round with nothing due: what is due soonest, one batch
         var soon = items.filter(function (c) { return !!rec(c.key); })
           .sort(function (a, b) { return rec(a.key).f < rec(b.key).f ? -1 : rec(a.key).f > rec(b.key).f ? 1 : 0; }).slice(0, BATCH);
-        queue = shuffle(soon).map(function (c) { return { item: c, fresh: false }; });
+        queue = soon.sort(inPlay).map(function (c) { return { item: c, fresh: false }; });
       }
     } else if (kind === 'wiederholen') {
       var learnt = items.filter(function (c) { return !!rec(c.key); });
@@ -306,11 +308,17 @@
     if (session.testNext && session.batch.indexOf(session.testNext) >= 0) {
       var tn = session.testNext; session.testNext = null; return tn;
     }
-    var cands = session.batch.filter(function (e) { return e !== session.last; });
-    if (!cands.length) cands = session.batch;
-    var unseen = cands.filter(function (e) { return e.fresh && !e.shown; });
+    /* new ones are read once first, then the batch goes round in the
+       order of the play: the next after the one just shown, then from
+       the top again - until each has sat often enough */
+    var batch = session.batch.slice().sort(inPlay);
+    var unseen = batch.filter(function (e) { return e.fresh && !e.shown; });
     if (unseen.length) return unseen[0];
-    return cands[Math.floor(Math.random() * cands.length)];
+    var cands = batch.filter(function (e) { return e !== session.last; });
+    if (!cands.length) return batch[0];
+    var from = session.last ? session.last.item.pos : -1;
+    var after = cands.filter(function (e) { return e.item.pos > from; });
+    return after.length ? after[0] : cands[0];
   }
   function next() {
     fill();

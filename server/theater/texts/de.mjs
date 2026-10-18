@@ -1143,8 +1143,8 @@ export const de = {
   'book.mode_hard':  'Die heiklen',
   'book.read_what':  'Jede Passage mit ihrem Stichwort. Die Pfeile zeigen mehr von dem, was davor und danach kommt.',
   'book.learn_what': 'Das Stichwort steht da, der eigene Text ist verdeckt. Laut sprechen, aufdecken, selbst beurteilen. '
-                   + 'Zuerst kommt, was von fr\u00fcheren Tagen f\u00e4llig ist, dann Neues in der Reihenfolge des St\u00fccks, '
-                   + 'in Paketen zu sechs, die in zuf\u00e4lliger Reihenfolge wiederkommen, bis jede Passage zweimal sa\u00df. '
+                   + 'Zuerst kommt, was von fr\u00fcheren Tagen f\u00e4llig ist, dann Neues, '
+                   + 'in Paketen zu sechs, die der Reihe nach wiederkommen, bis jede Passage zweimal sa\u00df \u2013 alles in der Reihenfolge des St\u00fccks. '
                    + 'Was sitzt, kommt nach einem Tag wieder, dann nach drei, sieben, vierzehn, drei\u00dfig.',
   'book.hard_what':  'Die Passagen, die bei den letzten zehn Versuchen mindestens zweimal danebengingen, die schlechteste zuerst.',
   'book.due':        'heute f\u00e4llig: {n}',
