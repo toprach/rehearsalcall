@@ -2598,7 +2598,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 frei_leer: ${js('free.said_nothing')},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
-                ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')},
+                ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')}, ens_go: ${js('ens.go')},
                 frei_what_line: ${js('free.what_line', { text: '#' })}, frei_blocked: ${js('free.blocked_confirm')},
                 ort: ${js('fix.place')}, save: ${js('free.save')}, go: ${js('free.go')},
                 whatsapp: ${js('date.whatsapp')}, cancel: ${js('date.cancel')},
@@ -2867,7 +2867,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') + '</div>' +
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
             '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><textarea id="fr-inhalt" class="fr-inhalt" maxlength="300" rows="2">' + esc(D ? D.inhalt : '') + '</textarea>' +
-            '<p style="margin-top:.8rem"><button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' +
+            '<p style="margin-top:.8rem"><button type="button" id="fr-go">' + esc(D ? W.save : ens ? W.ens_go : W.go) + '</button> ' +
             (D ? '<a class="btn quiet" id="fr-msg" target="_blank" rel="noopener" href="https://wa.me/?text=' +
                  encodeURIComponent(D.message) + '">' + esc(W.whatsapp) + '</a> ' +
                  '<button type="button" id="fr-weg" class="quiet">' + esc(W.cancel) + '</button>' : '') + '</p>';
@@ -2888,6 +2888,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             r.addEventListener('change', function () {
               document.getElementById('fr-ensemble').hidden = art() !== 'ensemble';
               document.getElementById('fr-personen').hidden = art() === 'ensemble';
+              if (!D) go.textContent = art() === 'ensemble' ? W.ens_go : W.go;
             });
           });
           var send = function (data) {

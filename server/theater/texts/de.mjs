@@ -147,6 +147,7 @@ export const de = {
   'ens.no_list':     'Nein ({n})',
   'ens.yes_list':    'Ja ({n})',
   'ens.edit':        'Probe bearbeiten',
+  'ens.go':          'Anlegen',
   'ens.create':      'Ensemble-Probe anlegen',
   'ens.create_hint': 'Im Kalender einen Tag antippen, dann „Ensemble-Probe“ wählen.',
   'ens.kind':        'Art der Probe',

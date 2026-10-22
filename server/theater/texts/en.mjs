@@ -149,6 +149,7 @@ export const en = {
   'ens.no_list':     'No ({n})',
   'ens.yes_list':    'Yes ({n})',
   'ens.edit':        'Change the rehearsal',
+  'ens.go':          'Create',
   'ens.create':      'Set an ensemble rehearsal',
   'ens.create_hint': 'Tap a day in the calendar, then choose “ensemble rehearsal”.',
   'ens.kind':        'Kind of rehearsal',
