@@ -264,11 +264,14 @@ for (const { code } of LANGUAGES) {
   const ask = A.memberPage(project, project.personen[0], null, null);
   const said = A.memberPage(project, project.personen[1], null, null);
   const dir = AD.memberPage(project, project.personen[2], null, null);
+  // the assistant directs as well, but is asked like everybody else
+  const assist = AD.memberPage(project, project.personen[0], null, null);
   const ok = ask.includes('name="action" value="abstimmen"') && ask.includes('value="ja"') && ask.includes('Antwort fehlt') &&
     ask.includes('Act 2 &lt;by heart&gt;') && !ask.includes('name="text"') &&
     said.includes('Ja, dabei') && said.includes('value="nein"') && !said.includes('Antwort fehlt') &&
-    dir.includes('name="text"') && dir.includes('1 Ja \u00b7 0 Nein \u00b7 1 ohne Antwort') && !dir.includes('value="abstimmen"');
-  console.log((ok ? '  ok    ' : '  FAIL  ') + 'start page: vote, answer, count, note');
+    dir.includes('name="text"') && dir.includes('1 Ja \u00b7 0 Nein \u00b7 1 ohne Antwort') && !dir.includes('value="abstimmen"') &&
+    assist.includes('name="text"') && assist.includes('value="abstimmen"') && assist.includes('1 Ja \u00b7 0 Nein');
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'start page: vote, answer, count, note, the assistant asked too');
   if (!ok) failures++;
 }
 // an ensemble rehearsal: answers move people in and out, survive a change of time and the day being over

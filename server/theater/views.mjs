@@ -1749,12 +1749,20 @@ function memberPage(project, person, m, realSelf) {
     const d = day(x.iso, 'long');
     const when = `${h(d.wd)}, ${h(d.date)}`;
     const where = `${t('date.clock', { from: h(x.von), to: h(x.bis) })}${x.ort ? ' · ' + h(x.ort) : ''}`;
+    const said = x.antworten?.[person.b] || '';
+    // one's own answer: everybody but the director is asked, the assistant too
+    const mine = person.regie ? '' : said
+      ? `<p class="home-row"><span>${said === 'ja' ? t('ens.said_yes') : t('ens.said_no')}</span>
+        ${said === 'ja' ? vote(x, 'nein', t('ens.change_no'), 'quiet mini') : vote(x, 'ja', t('ens.change_yes'), 'quiet mini')}</p>`
+      : `<p><b>${t('ens.question')}</b></p>
+        <div class="home-yesno">${vote(x, 'ja', t('ens.yes'), 'big yes')}${vote(x, 'nein', t('ens.no'), 'big quiet')}</div>`;
     if (mayDirect) {
       const c = ensembleCount(project, x), all = c.ja.length + c.nein.length + c.offen.length || 1;
       const names = list => list.map(p => h(p.name || p.b)).join(', ');
       return `<section class="box home-vote">
         <p class="home-h vote">${t('ens.title')}</p>
         <p class="home-when"><b>${when}</b><br><span class="small muted">${where}</span></p>
+        ${mine}
         <div class="home-bar" role="img" aria-label="${h(t('ens.count', { ja: c.ja.length, nein: c.nein.length, offen: c.offen.length }))}">
           <i class="ja" style="width:${(c.ja.length / all * 100).toFixed(1)}%"></i><i class="nein" style="width:${(c.nein.length / all * 100).toFixed(1)}%"></i></div>
         <p class="small">${t('ens.count', { ja: c.ja.length, nein: c.nein.length, offen: c.offen.length })}</p>
@@ -1767,7 +1775,6 @@ function memberPage(project, person, m, realSelf) {
       </section>`;
     }
     if (person.regie) return '';
-    const said = x.antworten?.[person.b] || '';
     if (said) return `<section class="box home-vote done">
         <p class="home-row"><span><span class="home-h">${t('ens.title')} · ${h(d.date)}</span><br>${
           said === 'ja' ? t('ens.said_yes') : t('ens.said_no')}</span>
@@ -1776,8 +1783,7 @@ function memberPage(project, person, m, realSelf) {
     return `<section class="box home-vote ask">
         <p class="home-h vote">${t('ens.title')}</p>
         <p class="home-when"><b>${when}</b><br>${where}${x.inhalt ? `<br><span class="small muted">${h(x.inhalt)}</span>` : ''}</p>
-        <p><b>${t('ens.question')}</b></p>
-        <div class="home-yesno">${vote(x, 'ja', t('ens.yes'), 'big yes')}${vote(x, 'nein', t('ens.no'), 'big quiet')}</div>
+        ${mine}
       </section>`;
   }).join('');
 
@@ -2679,7 +2685,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         return fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
           headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
       };
-      var back = function (iso) { location.href = '/theater/mit/zeiten?tag=' + encodeURIComponent(iso); };
+      // after saving: the same month again, the day open only when asked (rating goes on there)
+      var back = function (iso, open) { location.href = '/theater/mit/zeiten?tag=' + encodeURIComponent(iso) + (open ? '' : '&zu=1'); };
 
       function oeffne(td, tab) {
         var iso = td.dataset.iso;
@@ -2800,7 +2807,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             [].forEach.call(pane.querySelectorAll('.rate'), function (r) {
               r.querySelector('.r-go').onclick = function () {
                 post({ action: 'sitzt', rehearsal: r.dataset.id, iso: iso, sitzt: r.querySelector('.r-sitzt').value, notiz: r.querySelector('.r-notiz').value })
-                  .then(function (x) { if (x.ok) back(iso); else alert(W.failed); }).catch(function () { alert(W.failed); });
+                  .then(function (x) { if (x.ok) back(iso, true); else alert(W.failed); }).catch(function () { alert(W.failed); });
               };
             });
             zeige(tab || 'probe');
@@ -2955,10 +2962,10 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         td.addEventListener('click', function () { oeffne(td); });
       });
       zaehle();
-      // back from saving a date: the same day open again, on its date
-      var wanted = new URLSearchParams(location.search).get('tag');
+      // back from saving a date: its month, the day closed again (zu=1); a link to a day opens it
+      var query = new URLSearchParams(location.search), wanted = query.get('tag');
       var td0 = wanted && document.querySelector('.month td.day[data-iso="' + wanted + '"]');
-      if (td0) { zeigeMonat(months.indexOf(td0.closest('.month'))); oeffne(td0); }
+      if (td0) { zeigeMonat(months.indexOf(td0.closest('.month'))); if (query.get('zu') !== '1') oeffne(td0); }
     })();
     <\/script>` });
 }
