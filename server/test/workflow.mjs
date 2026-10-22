@@ -387,7 +387,7 @@ for (const b of cast) {
     const me2 = await call('GET', '/theater/mit');
     check('the director sees the project link', /href="\/theater\/projekt"/.test(me2.text));
     cookies = saved;
-    check('the company page comes in the project language', /Meine Verfügbarkeit/.test(me.text) && /lang="de"/.test(me.text));
+    check('the company page comes in the project language', /Fixe Termine/.test(me.text) && /lang="de"/.test(me.text));
     const all = await call('GET', '/theater/mit/termine?alle=1');
     check('all rehearsals for a member', all.status === 200, 'status ' + all.status);
     clean('all rehearsals page', all);
@@ -654,6 +654,59 @@ for (const b of cast) {
       check('and one ending before it starts', !good(wrong), say(wrong));
       const gone = await post('/theater/termine', { action: 'loesen', rehearsal: j.id });
       check('and cancels it', good(gone) && !new RegExp('value="' + j.id + '"').test(gone.text), say(gone));
+
+      /* An ensemble rehearsal on the same day: everybody is asked on the
+         start page, a yes puts the person in, the director sees the count. */
+      cookies = '';
+      await call('GET', ich || '/theater/ich/x');
+      const asDirector = cookies;
+      const late = await post('/theater/mit/termine', { action: 'frei', ensemble: '1', iso: day, von: '12:00', bis: '10:00' });
+      check('an ensemble rehearsal ending before it starts is refused', late.status === 400, 'status ' + late.status);
+      const set = await post('/theater/mit/termine', { action: 'frei', ensemble: '1', iso: day, von: '10:00', bis: '12:00',
+                                                       place: 'Hall <west>', inhalt: 'Run <1+2>' });
+      let e = {}; try { e = JSON.parse(set.text); } catch {}
+      check('the director sets an ensemble rehearsal', set.status === 200 && e.ok && /Ensemble/.test(e.names || '') && e.von === '10:00', set.text.slice(0, 200));
+      let home = await post('/theater/mit', { action: 'info', text: 'Act 2 <by heart>' });
+      check('the director writes the note on the start page', good(home) && home.text.includes('Act 2 &lt;by heart&gt;') && /name="text"/.test(home.text), say(home));
+      check('and sees the ensemble rehearsal without an answer', home.text.includes('value="' + e.id + '"') && !/value="abstimmen"/.test(home.text));
+      clean('start page of the director', home);
+      cookies = member;
+      home = await call('GET', '/theater/mit');
+      clean('start page with a question', home);
+      check('a member reads the note and is asked', home.text.includes('Act 2 &lt;by heart&gt;') && !/name="text"/.test(home.text) &&
+            new RegExp('value="abstimmen"><input type="hidden" name="probe" value="' + e.id + '"').test(home.text));
+      const odd = await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'maybe' });
+      check('an answer that is neither is refused', errorNotice(odd), say(odd));
+      const noInfo = await post('/theater/mit', { action: 'info', text: 'mine now' });
+      check('a member cannot write the note', errorNotice(noInfo), say(noInfo));
+      const yes = await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'ja' });
+      check('the member says yes', good(yes) && /value="nein"/.test(yes.text) && !/answer missing|Antwort fehlt/.test(yes.text), say(yes));
+      const tz = await call('GET', '/theater/mit/zeiten');
+      check('and is in it on the calendar', /"ensemble":true/.test(tz.text) && /"antwort":"ja"/.test(tz.text));
+      const no = await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'nein' });
+      check('and may change the answer', good(no) && /value="ja"/.test(no.text) && /without you|ohne Sie/.test(no.text), say(no));
+      await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'ja' });
+      cookies = asDirector;
+      home = await call('GET', '/theater/mit');
+      check('the director sees who said yes', /1 (yes|Ja) \u00b7 0 (no|Nein) \u00b7 \d+ (without an answer|ohne Antwort)/.test(home.text), (/\d+ (yes|Ja) [^<]*/.exec(home.text) || [''])[0]);
+      const ask = await post('/theater/mit/termine', { action: 'nachricht', rehearsal: e.id });
+      const text = decodeURIComponent((ask.res.headers.get('location') || '').split('text=')[1] || '');
+      check('its message asks to answer on the start page', ask.status === 303 && /Ensemble rehearsal|Ensemble-Probe/.test(text) &&
+            /yes or no|Ja oder Nein/.test(text) && /\/theater\/mit$/.test(text.trim()), text.slice(0, 300));
+      const moved = await post('/theater/mit/termine', { action: 'frei', ensemble: '1', iso: day, von: '14:00', bis: '16:00', place: 'Hall <west>' });
+      let e2 = {}; try { e2 = JSON.parse(moved.text); } catch {}
+      home = await call('GET', '/theater/mit');
+      check('a new time keeps the answers', e2.ok && e2.id === e.id && /1 (yes|Ja) /.test(home.text) && /14:00/.test(home.text), moved.text.slice(0, 200));
+      cookies = director;
+      const dpe = await call('GET', '/theater/termine');
+      clean('dates page with an ensemble rehearsal', dpe);
+      check('the dates page offers no person list for it', !new RegExp('value="frei-aendern">\\s*<input type="hidden" name="rehearsal" value="' + e.id + '"').test(dpe.text));
+      const pick = await post('/theater/termine', { action: 'frei-aendern', rehearsal: e.id, ['mit_' + who[0]]: '1', ['von_' + who[0]]: '10:00', ['bis_' + who[0]]: '11:00' });
+      check('and refuses to pick its people by hand', !good(pick), say(pick));
+      const off = await post('/theater/termine', { action: 'loesen', rehearsal: e.id });
+      check('the director cancels the ensemble rehearsal', good(off) && !new RegExp('value="' + e.id + '"').test(off.text), say(off));
+      cookies = asDirector;
+      await post('/theater/mit', { action: 'info', text: '' });
     }
     cookies = director;
   }

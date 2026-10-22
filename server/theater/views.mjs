@@ -17,7 +17,7 @@ import { summary as summaryOf } from './learn.mjs';
 import { STYLE } from './style.mjs';
 import { actsOf } from './acts.mjs';
 import { UPRIGHT_SCRIPT } from './upright.mjs';
-import { substitutesOf, historyOf, isoDate, freeNames, freeDetail, freeChoices } from './dates.mjs';
+import { substitutesOf, historyOf, isoDate, freeNames, freeDetail, freeChoices, isEnsemble, ensembleCount } from './dates.mjs';
 
 export const h = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -378,7 +378,7 @@ function dateDialog(target, pr, e, project) {
    participants always), then place, message, cancel. */
 function freeDialog(target, e, project) {
   const id = 'chg-' + String(e.probe_id).replace(/[^A-Za-z0-9_-]/g, '');
-  const title = t('free.title', { who: freeNames(project, e) });
+  const title = freeTitle(project, e);
   const clock = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
   const opts = (from, to, sel) => {
     let o = '';
@@ -393,17 +393,22 @@ function freeDialog(target, e, project) {
       <span class="frei-zeit"><select name="von_${h(c.b)}" aria-label="${h(t('my.from'))}">${opts(c.lo, c.hi - 15, c.von)}</select>
         <span>–</span>
         <select name="bis_${h(c.b)}" aria-label="${h(t('my.to'))}">${opts(c.lo + 15, c.hi, c.bis)}</select></span></div>`).join('');
-  return `<dialog id="${id}" class="fixbox">
-      <p class="eyebrow">${h(title)}</p>
-      <p class="small">${t('date.clock', { from: h(e.von), to: h(e.bis) })}<br>${h(freeDetail(project, e))}</p>
-      <form method="post" action="${h(target)}" class="frei-form">
+  // an ensemble rehearsal is changed in the day panel: everybody answers for themselves
+  const people = isEnsemble(e) ? '' : `<form method="post" action="${h(target)}" class="frei-form">
         <input type="hidden" name="action" value="frei-aendern">
         <input type="hidden" name="rehearsal" value="${h(e.probe_id)}">
         <label>${t('free.people_title')}</label>
         ${rows}
         <p class="small muted" style="margin:.3rem 0">${t('free.change_hint')}</p>
         <button type="submit" class="mini">${h(t('free.save'))}</button>
-      </form>
+      </form>`;
+  const count = isEnsemble(e) ? ensembleCount(project, e) : null;
+  return `<dialog id="${id}" class="fixbox">
+      <p class="eyebrow">${h(title)}</p>
+      <p class="small">${t('date.clock', { from: h(e.von), to: h(e.bis) })}<br>${count
+        ? t('ens.count', { ja: count.ja.length, nein: count.nein.length, offen: count.offen.length })
+        : h(freeDetail(project, e))}</p>
+      ${people}
       <label>${t('fix.place')}</label>
       ${placeField(target, e.probe_id, e.ort)}
       <div class="datetools" style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin:.8rem 0">
@@ -415,6 +420,9 @@ function freeDialog(target, e, project) {
       </div>
     </dialog>`;
 }
+const freeTitle = (project, x) => isEnsemble(x) ? t('ens.title') : t('free.title', { who: freeNames(project, x) });
+// the name alone, for notices: "Anna+Ben" or "Ensemble-Probe"
+const freeLabel = (project, x) => isEnsemble(x) ? t('ens.title') : freeNames(project, x);
 const upcomingFree = (project) => (project.termine || [])
   .filter(x => x.frei && x.bestaetigt && x.iso && x.iso >= isoDate(new Date()))
   .sort((a, b) => (a.iso + a.von).localeCompare(b.iso + b.von));
@@ -628,7 +636,7 @@ function historySection(target, project) {
     return `<tr>
       <td>${h(L.weekday(d.getUTCDay(), 'short'))} ${h(L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }))}
         <div class="small muted">${h(v.von || '')}${v.bis ? '\u2013' + h(v.bis) : ''}${v.ort ? ' \u00b7 ' + h(v.ort) : ''}</div></td>
-      <td><b>${h(v.frei ? t('free.title', { who: freeNames(project, v) }) : v.probe_id)}</b> ${v.frei
+      <td><b>${h(v.frei ? freeTitle(project, v) : v.probe_id)}</b> ${v.frei
           ? `<div class="small muted">${h(freeDetail(project, v))}</div>`
           : (v.gruppe || []).map(b => `<span class="chip">${h(b)}</span>`).join('')}</td>
       <td>${actionForm(target, 'sitzt', { rehearsal: v.probe_id, iso: v.iso },
@@ -659,11 +667,11 @@ function rehearsalMessage(project, entry, link) {
   const nameOf = b => { const x = (project.personen || []).find(y => y.b === b); return x?.name || b; };
   const d = new Date(entry.iso + 'T00:00:00Z');
   if (entry.frei) return [
-    t('free.title', { who: freeNames(project, entry) }) + ' – ' + project.titel,
+    freeTitle(project, entry) + ' – ' + project.titel,
     t('fix.when', { weekday: L.weekday(d.getUTCDay()), date: L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric' }),
                     from: entry.von, to: entry.bis }),
     entry.ort ? t('share.line_place', { place: entry.ort }) : t('share.line_place_open'),
-    freeDetail(project, entry, '\n'),
+    isEnsemble(entry) ? t('ens.message_ask') : freeDetail(project, entry, '\n'),
     ...(entry.inhalt ? [t('free.what_line', { text: entry.inhalt })] : []),
     ...(directors.length ? [t('date.director') + ': ' + directors.map(nameOf).join(', ')] : []),
     t('share.line_link', { link }),
@@ -1699,44 +1707,127 @@ const offlinePage = () => page({ title: t('pwa.offline_t'), narrow: true, body: 
     <p class="muted">${t('pwa.offline')}</p>
     <p><a class="btn quiet" href="/theater/mit">${t('pwa.retry')}</a></p>` });
 
+/* The member's start page: what the director has to say, the
+   ensemble rehearsals waiting for an answer, the next fixed dates with
+   whether one is in them, and the way to one's own times. The director
+   and the assistant write the note here and see how the answers stand. */
+const HOME_DATES = 6;
 function memberPage(project, person, m, realSelf) {
   const v = project.verfuegbar?.[person.id] || {};
   const evenings = Object.values(v.tage || {}).filter(x => x && x.von).length;
   const who = person.name || person.b;
+  const first = String(who).trim().split(/\s+/)[0] || who;
+  const mayDirect = (ctx.regieProject === project.id || ctx.directorProject === project.id) && !ctx.who?.real;
+  const today = isoDate(new Date());
+  const plan = project.plan?.proben || [];
+  const coming = (project.termine || []).filter(x => x.bestaetigt && x.iso && x.iso >= today)
+    .sort((a, b) => (a.iso + (a.von || '')).localeCompare(b.iso + (b.von || '')));
+  const day = (iso, style = 'short') => { const d = new Date(iso + 'T00:00:00Z');
+    return { wd: L.weekday(d.getUTCDay(), style), date: L.date(d, { day: 'numeric', month: 'numeric' }) }; };
+  const dayLink = iso => '/theater/mit/zeiten?tag=' + encodeURIComponent(iso);
+  const titleOf = x => x.frei ? freeTitle(project, x) : x.probe_id;
+
+  const info = project.regie_info?.text || '';
+  const infoBox = mayDirect ? `<section class="box home-info">
+      <form method="post" action="/theater/mit">
+        <input type="hidden" name="action" value="info">
+        <label for="regie-info" class="home-h">${t('home.info_title')}</label>
+        <textarea id="regie-info" name="text" rows="4" maxlength="2000">${h(info)}</textarea>
+        <div class="home-row"><span class="small muted">${t('home.info_who')}</span>
+          <button type="submit" class="mini">${h(t('common.save'))}</button></div>
+      </form></section>`
+    : info ? `<section class="box home-info">
+      <div class="home-row"><h2 class="home-h">${t('home.info_title')}</h2>${project.regie_info.zeit
+        ? `<span class="small muted">${h(day(project.regie_info.zeit.slice(0, 10)).date)}</span>` : ''}</div>
+      <p class="home-infotext">${h(info)}</p></section>` : '';
+
+  /* the ensemble rehearsals: a question for each member, the count for the director */
+  const ensembles = coming.filter(isEnsemble);
+  const vote = (x, answer, label, cls) => actionForm('/theater/mit', 'abstimmen', { probe: x.probe_id, antwort: answer },
+    `<button type="submit" class="${cls}">${h(label)}</button>`);
+  const voteBoxes = ensembles.map(x => {
+    const d = day(x.iso, 'long');
+    const when = `${h(d.wd)}, ${h(d.date)}`;
+    const where = `${t('date.clock', { from: h(x.von), to: h(x.bis) })}${x.ort ? ' · ' + h(x.ort) : ''}`;
+    if (mayDirect) {
+      const c = ensembleCount(project, x), all = c.ja.length + c.nein.length + c.offen.length || 1;
+      const names = list => list.map(p => h(p.name || p.b)).join(', ');
+      return `<section class="box home-vote">
+        <p class="home-h vote">${t('ens.title')}</p>
+        <p class="home-when"><b>${when}</b><br><span class="small muted">${where}</span></p>
+        <div class="home-bar" role="img" aria-label="${h(t('ens.count', { ja: c.ja.length, nein: c.nein.length, offen: c.offen.length }))}">
+          <i class="ja" style="width:${(c.ja.length / all * 100).toFixed(1)}%"></i><i class="nein" style="width:${(c.nein.length / all * 100).toFixed(1)}%"></i></div>
+        <p class="small">${t('ens.count', { ja: c.ja.length, nein: c.nein.length, offen: c.offen.length })}</p>
+        ${c.offen.length ? `<details open><summary class="small"><b>${t('ens.open_list', { n: c.offen.length })}</b></summary><p class="small">${names(c.offen)}</p></details>` : ''}
+        ${c.nein.length ? `<details><summary class="small"><b>${t('ens.no_list', { n: c.nein.length })}</b></summary><p class="small">${names(c.nein)}</p></details>` : ''}
+        ${c.ja.length ? `<details><summary class="small"><b>${t('ens.yes_list', { n: c.ja.length })}</b></summary><p class="small">${names(c.ja)}</p></details>` : ''}
+        <p class="home-row left">${actionForm('/theater/mit/termine', 'nachricht', { rehearsal: x.probe_id },
+          `<button class="quiet mini" type="submit">${h(t('date.whatsapp'))}</button>`, { newWindow: true })}
+          <a class="small" href="${dayLink(x.iso)}">${t('ens.edit')}</a></p>
+      </section>`;
+    }
+    if (person.regie) return '';
+    const said = x.antworten?.[person.b] || '';
+    if (said) return `<section class="box home-vote done">
+        <p class="home-row"><span><span class="home-h">${t('ens.title')} · ${h(d.date)}</span><br>${
+          said === 'ja' ? t('ens.said_yes') : t('ens.said_no')}</span>
+        ${said === 'ja' ? vote(x, 'nein', t('ens.change_no'), 'quiet mini') : vote(x, 'ja', t('ens.change_yes'), 'quiet mini')}</p>
+      </section>`;
+    return `<section class="box home-vote ask">
+        <p class="home-h vote">${t('ens.title')}</p>
+        <p class="home-when"><b>${when}</b><br>${where}${x.inhalt ? `<br><span class="small muted">${h(x.inhalt)}</span>` : ''}</p>
+        <p><b>${t('ens.question')}</b></p>
+        <div class="home-yesno">${vote(x, 'ja', t('ens.yes'), 'big yes')}${vote(x, 'nein', t('ens.no'), 'big quiet')}</div>
+      </section>`;
+  }).join('');
+
+  /* the next fixed dates, and whether one is in them */
+  const rows = coming.slice(0, HOME_DATES).map(x => {
+    const group = x.gruppe || plan.find(p => p.id === x.probe_id)?.gruppe || [];
+    const own = x.frei ? x.zeiten?.[person.b] : null;
+    const said = isEnsemble(x) ? x.antworten?.[person.b] || '' : '';
+    let badge;
+    if (person.regie) {
+      const c = isEnsemble(x) ? ensembleCount(project, x) : null;
+      badge = c ? `<span class="tag">${t('ens.count_short', { ja: c.ja.length, offen: c.offen.length })}</span>` : '';
+    } else if (isEnsemble(x) && !said) badge = `<span class="tag open">${t('home.badge_open')}</span>`;
+    else badge = group.includes(person.b) ? `<span class="tag in">${t('home.badge_in')}</span>`
+      : `<span class="tag out">${t('home.badge_out')}</span>`;
+    const d = day(x.iso);
+    const out = !person.regie && !group.includes(person.b) && !(isEnsemble(x) && !said);
+    return `<a class="home-date${out ? ' out' : ''}" href="${dayLink(x.iso)}">
+        <span class="home-day"><span class="small">${h(d.wd)}</span><b>${h(d.date)}</b></span>
+        <span class="home-what"><b>${h(titleOf(x))}</b><span class="small muted">${
+          t('date.clock', { from: h(own?.von || x.von || ''), to: h(own?.bis || x.bis || '') })}${x.ort ? ' · ' + h(x.ort) : ''}</span></span>
+        ${badge}</a>`;
+  }).join('');
+  const datesBox = `<section class="home-dates">
+      <div class="home-row"><h2>${t('home.dates_title')}</h2><a class="small" href="/theater/mit/zeiten">${t('home.dates_all')}</a></div>
+      ${rows ? `<div class="home-list">${rows}</div>` : `<p class="small muted">${t('home.dates_none')}</p>`}
+    </section>`;
+
+  const timesBox = person.regie ? `<section class="home-times">
+      <a class="btn big" href="/theater/mit/zeiten">${t('ens.create')}</a>
+      <p class="small muted">${t('ens.create_hint')}</p>
+      <p class="small muted">${t('mem.my_times')}: ${t('mem.director_always')} \u00b7 <a href="/theater/mit/zeiten">${t('mem.director_go')}</a></p></section>`
+    : `<section class="home-times">
+      ${!evenings ? `<p class="small"><b>${t('mem.call_title')}</b> ${t('mem.call_what')}</p>` : ''}
+      <a class="btn big" href="/theater/mit/zeiten">${t('home.times_go')}</a>
+      <p class="small muted">${evenings ? t('home.times_n', { n: evenings }) : t('home.times_none')}</p></section>`;
 
   return page({ title: who, nav: navMember(project, person), tabbar: memberTabbar(project, person), narrow: true, body: `
     <p class="eyebrow">${h(project.titel)}</p>
-    <h1>${t('mem.hello', { name: h(who) })}</h1>
+    <h1>${t('mem.hello', { name: h(first) })}</h1>
     ${notice(m)}
     ${realSelf ? `<div class="notice foreign">${t('mem.for_other', { name: h(who) })}
       ${actionForm('/theater/mit', 'wechseln', { person: realSelf.id },
         '<button class="quiet mini">' +
         t('mem.back_to', { name: h(realSelf.name || realSelf.b) }) + '</button>')}
       </div>` : ''}
-    ${person.regie ? `<div class="box">
-      <p class="small muted" style="margin:0 0 .6rem">${t('mem.director_note')}</p>
-      <a class="btn quiet" href="/theater/mit/zeiten">${t('mem.director_go')}</a>
-    </div>` : !evenings ? `<div class="box important callout">
-      <p><b>${t('mem.call_title')}</b></p>
-      <p class="small muted">${t('mem.call_what')}</p>
-      <a class="btn big" href="/theater/mit/zeiten">${t('mem.call_go')}</a>
-    </div>` : ''}
-    <table>
-      <tr><th>${t('mem.my_times')}</th><td>${person.regie
-        ? t('mem.director_always')
-        : evenings
-        ? t('mem.evenings_yes', { n: evenings })
-        : t('mem.evenings_no')}</td></tr>
-      <tr><th>${t('mem.part_book')}</th><td>${project.drehbuch
-        ? t('mem.book_open') : t('mem.no_script')}</td></tr>
-      <tr><th>${t('mem.play')}</th><td>${project.skript
-        ? t('mem.play_open') : '<span class="muted">\u2014</span>'}</td></tr>
-      <tr><th>${t('mem.full_script')}</th><td>${project.drehbuch
-        ? t('mem.full_open') : '<span class="muted">\u2014</span>'}</td></tr>
-      ${project.drehbuch && project.plan?.proben?.length && project.druck_token
-        ? `<tr><th>${t('mem.plan_book')}</th><td>${t('mem.plan_open',
-            { url: '/theater/druck/' + h(project.druck_token) + '/probenplan' })}</td></tr>` : ''}
-    </table>
+    ${infoBox}
+    ${voteBoxes}
+    ${datesBox}
+    ${timesBox}
     ${project.druck_token ? `<p class="small muted">${t('mem.docs',
       { url: '/theater/druck/' + h(project.druck_token) })}</p>` : ''}
 ` });
@@ -2161,7 +2252,7 @@ function myDatesPage(project, person, result, m, opt = {}) {
   for (const x of freeOnes) {
     const own = !isDirector && x.zeiten?.[person.b];
     events.push({ id: x.probe_id, iso: x.iso, from: x.von, to: x.bis, place: x.ort || '',
-                  title: t('free.title', { who: freeNames(project, x) }) +
+                  title: freeTitle(project, x) +
                          (own ? ' (' + t('free.you', { me: person.name || person.b, von: own.von, bis: own.bis }) + ')' : '') });
   }
   const fixedCount = fixed.length + freeOnes.length;
@@ -2240,7 +2331,7 @@ function datesPage(p, result, m, share = null) {
 
   const freeRows = upcomingFree(p).map(x => {
     const d = new Date(x.iso + 'T00:00:00Z');
-    const title = t('free.title', { who: freeNames(p, x) });
+    const title = freeTitle(p, x);
     return `<tr class="isfixed">
       <td>${h(title)}<div class="small muted">${t('free.no_scenes')}</div></td>
       <td class="small">${h(freeDetail(p, x))}</td>
@@ -2343,7 +2434,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
     const who = !date && others.length ? `<span class="who">${others.map((b, i) =>
       `<i${i >= 2 ? ' class="x"' : ''}>${h(label(b))}</i>`).join('')}${
       others.length > 2 ? `<i class="more">+${others.length - 2}</i>` : ''}</span>` : '';
-    const tip = date ? t('free.title', { who: date.names }) + ' ' + date.von + '–' + date.bis
+    const tip = date ? (date.ensemble ? t('ens.title') : t('free.title', { who: date.names })) + ' ' + date.von + '–' + date.bis
       : others.map(b => names.get(b) || b).join(', ');
     return `<td class="${cls.join(' ')}" data-iso="${tg.iso}" data-edit="${editable ? 1 : 0}"
         data-past="${vw.past ? 1 : 0}" data-outside="${tg.outside ? 1 : 0}"
@@ -2500,6 +2591,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
                 frei_leer: ${js('free.said_nothing')},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
+                ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
+                ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')},
                 frei_what_line: ${js('free.what_line', { text: '#' })}, frei_blocked: ${js('free.blocked_confirm')},
                 ort: ${js('fix.place')}, save: ${js('free.save')}, go: ${js('free.go')},
                 whatsapp: ${js('date.whatsapp')}, cancel: ${js('date.cancel')},
@@ -2690,7 +2783,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         (function () {
           var pane = document.getElementById('pane-probe');
           if (!withProbe) return;
-          var head = D ? '<p style="margin:.6rem 0 .4rem;overflow-wrap:anywhere"><b>' + esc(W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
+          var head = D ? '<p style="margin:.6rem 0 .4rem;overflow-wrap:anywhere"><b>' + esc(D.ensemble ? W.ens_title : W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
             esc(D.von + '–' + D.bis) + (D.ort ? ' · ' + esc(D.ort) : '') + '</span></p>' : '';
           var what = D && D.inhalt ? '<div class="frei-inhalt small">' + esc(W.frei_what_line.replace('#', D.inhalt)) + '</div>' : '';
           if (!regie || past) {
@@ -2744,7 +2837,18 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             for (var m = from; m <= to; m += 15) { var x = hm(m); if (x === sel) seen = true; o += '<option' + (x === sel ? ' selected' : '') + '>' + x + '</option>'; }
             return (sel && !seen ? '<option selected>' + esc(sel) + '</option>' : '') + o;
           };
+          // the kind: whom the director picks, or the whole company, asked to answer
+          var ens = !!(D && D.ensemble);
+          var ensVon = (D && D.von) || preset.von || '19:00', ensBis = (D && D.bis) || preset.bis || '22:00';
           pane.innerHTML = head +
+            '<fieldset class="art"><legend class="small"><b>' + esc(W.ens_kind) + '</b></legend>' +
+              '<label class="inline"><input type="radio" name="fr-art" value="auswahl"' + (ens ? '' : ' checked') + '> ' + esc(W.ens_pick) + '</label>' +
+              '<label class="inline"><input type="radio" name="fr-art" value="ensemble"' + (ens ? ' checked' : '') + '> ' + esc(W.ens_all) + '</label>' +
+            '</fieldset>' +
+            '<div id="fr-ensemble"' + (ens ? '' : ' hidden') + '><p class="small muted" style="margin:.3rem 0">' + esc(W.ens_what) + '</p>' +
+              '<span class="frei-zeit"><select id="fr-ev" aria-label="' + esc(W.von) + '">' + opts(6 * 60, 23 * 60 + 30, ensVon) + '</select>' +
+              '<span>–</span><select id="fr-eb" aria-label="' + esc(W.bis) + '">' + opts(6 * 60 + 15, 23 * 60 + 45, ensBis) + '</select></span></div>' +
+            '<div id="fr-personen"' + (ens ? ' hidden' : '') + '>' +
             '<p class="small" style="margin:.4rem 0"><b>' + esc(W.frei_title) + '</b></p>' +
             (list.length ? list.map(function (b) {
               var c = cand[b], r = inIt[b];
@@ -2753,10 +2857,10 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 (ohne[b] && !r ? ' <span class="small muted">(' + esc(W.frei_leer) + ')</span>' : '') + '</label>' +
                 '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(c.lo, c.hi - 15, r ? r.von : ohne[b] ? sonst.von : hm(c.lo)) + '</select>' +
                 '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : ohne[b] ? sonst.bis : hm(c.hi)) + '</select></span></div>';
-            }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') +
+            }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') + '</div>' +
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
             '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><textarea id="fr-inhalt" class="fr-inhalt" maxlength="300" rows="2">' + esc(D ? D.inhalt : '') + '</textarea>' +
-            '<p style="margin-top:.8rem">' + (list.length ? '<button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' : '') +
+            '<p style="margin-top:.8rem"><button type="button" id="fr-go">' + esc(D ? W.save : W.go) + '</button> ' +
             (D ? '<a class="btn quiet" id="fr-msg" target="_blank" rel="noopener" href="https://wa.me/?text=' +
                  encodeURIComponent(D.message) + '">' + esc(W.whatsapp) + '</a> ' +
                  '<button type="button" id="fr-weg" class="quiet">' + esc(W.cancel) + '</button>' : '') + '</p>';
@@ -2772,8 +2876,29 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             });
             box.addEventListener('change', function () { z.classList.toggle('an', box.checked); });
           });
+          var art = function () { var r = pane.querySelector('input[name="fr-art"]:checked'); return r ? r.value : 'auswahl'; };
+          [].forEach.call(pane.querySelectorAll('input[name="fr-art"]'), function (r) {
+            r.addEventListener('change', function () {
+              document.getElementById('fr-ensemble').hidden = art() !== 'ensemble';
+              document.getElementById('fr-personen').hidden = art() === 'ensemble';
+            });
+          });
+          var send = function (data) {
+            go.disabled = true;
+            post(data).then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) { if (j.ok) back(iso); else { go.disabled = false; alert(W.failed); } })
+              .catch(function () { go.disabled = false; alert(W.failed); });
+          };
           var go = document.getElementById('fr-go');
           if (go) go.onclick = function () {
+            if (art() === 'ensemble') {
+              var ev = document.getElementById('fr-ev').value, eb = document.getElementById('fr-eb').value;
+              if (eb <= ev) { alert(W.falsch); return; }
+              if (blocked && !D && !confirm(W.frei_blocked)) return;
+              send({ action: 'frei', ensemble: '1', iso: iso, von: ev, bis: eb,
+                     place: document.getElementById('fr-ort').value, inhalt: document.getElementById('fr-inhalt').value });
+              return;
+            }
             var g = zeilen.filter(function (z) { return z.querySelector('input').checked; }).map(function (z) {
               return { b: z.dataset.b, von: z.querySelector('.fv').value, bis: z.querySelector('.fb').value };
             });
@@ -2783,14 +2908,11 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             var data = { action: 'frei', iso: iso, wer: g.map(function (x) { return x.b; }).join(','),
                          place: document.getElementById('fr-ort').value, inhalt: document.getElementById('fr-inhalt').value };
             g.forEach(function (x) { data['von_' + x.b] = x.von; data['bis_' + x.b] = x.bis; });
-            go.disabled = true;
-            post(data).then(function (r) { return r.json().catch(function () { return {}; }); })
-              .then(function (j) { if (j.ok) back(iso); else { go.disabled = false; alert(W.failed); } })
-              .catch(function () { go.disabled = false; alert(W.failed); });
+            send(data);
           };
           var weg = document.getElementById('fr-weg');
           if (weg) weg.onclick = function () {
-            if (!confirm(W.cancel_confirm.replace('#', W.frei_name.replace('#', D.names)))) return;
+            if (!confirm(W.cancel_confirm.replace('#', D.ensemble ? W.ens_title : W.frei_name.replace('#', D.names)))) return;
             post({ action: 'loesen', rehearsal: D.id }).then(function (r) { if (r.ok) back(iso); else alert(W.failed); })
               .catch(function () { alert(W.failed); });
           };
@@ -3941,6 +4063,6 @@ const errorPage = (titelSchluessel, textSchluessel, werte) => page({
            myTimesPage, companyPage, myDatesPage, memberPage, pickNamePage,
            passagesPage, projectPage, uploadPage, entryPage, datesPage, aboutPage,
            adminLoginPage, adminPage, versionPage, docExtras, commentsPage, myCommentsPage, bookPage,
-           settingsPage, playPage, offlinePage, rehearsalMessage,
+           settingsPage, playPage, offlinePage, rehearsalMessage, freeLabel,
            noticeText: (m) => !m ? '' : m.key ? t(m.key, m.values) : h(m.text) };
 }

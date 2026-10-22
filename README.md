@@ -93,6 +93,12 @@ evening and strike, for everyone, the days on which nothing can happen.
 On a day the director sets the rehearsal - who comes when, where, and what
 is rehearsed - and passes it on to the company as a message.
 
+A member's start page shows a note from the director, the next fixed
+dates with whether one is in them, and the way to one's own times. For
+an **ensemble rehearsal** the director sets only day and time; every
+member is asked on the start page "will you be there? yes | no", a yes
+puts them into it, and the answer can be changed until the day is over.
+
 Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
 Framadate, Nuudel): there, one poll is always one date.

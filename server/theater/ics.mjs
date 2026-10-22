@@ -73,7 +73,7 @@ export function feedFor(project, person, base) {
         DTSTAMP: now,
         DTSTART: stamp(x.iso, x.von),
         DTEND: x.bis ? stamp(x.iso, x.bis) : null,
-        SUMMARY: esc(t('free.title', { who: freeNames(project, x) })),
+        SUMMARY: esc(x.ensemble ? t('ens.title') : t('free.title', { who: freeNames(project, x) })),
         DESCRIPTION: esc([freeDetail(project, x, '\n'), x.inhalt ? t('free.what_line', { text: x.inhalt }) : '',
           x.ort ? t('ics.place', { place: x.ort }) : ''].filter(Boolean).join('\n')),
         LOCATION: x.ort ? esc(x.ort) : null,

@@ -15,6 +15,7 @@ import { views, ABOUT } from '../theater/views.mjs';
 import { LANGUAGES } from '../theater/texts.mjs';
 import { uprightMedia } from '../theater/upright.mjs';
 import { origin } from '../theater/throttle.mjs';
+import { ensembleEntry, answerEnsemble, ensembleCount, archivePast, oneDatePerDay } from '../theater/dates.mjs';
 
 const project = {
   id: 'abcd1234', titel: 'Test <Play>',
@@ -53,6 +54,11 @@ project.fassungen = [{ nr: 1, quelle: 'dream-v1.md', hochgeladen: '2026-09-01T10
 project.plan.abgleich = { datum: '2026-09-02T10:00:00Z', unsicher: ['P02'], umgebaut: ['P01'] };
 project.plan.proben[1].unsicher = true;
 project.plan.proben[0].szenen[0].umgebaut = true;
+// an ensemble rehearsal: PUCK said yes, the others have not answered
+project.termine.push({ probe_id: 'F-e1e2e3', frei: true, ensemble: true, iso: '2099-10-03', von: '10:00', bis: '13:00',
+  bestaetigt: true, ort: 'Hall <y>', inhalt: 'Run <1+2>', gruppe: ['PUCK'], zeiten: { PUCK: { von: '10:00', bis: '13:00' } },
+  antworten: { PUCK: 'ja' } });
+project.regie_info = { text: 'Act 2 <by heart>\nbring costumes', zeit: '2099-09-20T10:00:00Z', von: 'TITANIA' };
 const diff = { equal: 100, changed: 1, added: 1, removed: 1, hunks: [{ items: [
   { kind: 'changed', old: { nr: 12, who: 'OBERON', text: 'Ill met by moonlight' },
                      new: { nr: 12, who: 'OBERON', text: 'Ill met by daylight' } },
@@ -130,6 +136,8 @@ for (const { code } of LANGUAGES) {
   const A = views(code, '/theater/x', { theme: code === 'de' ? 'dunkel' : 'hell', demo: code === 'en' ? { until: new Date() } : null,
                                         share: code === 'de' ? 'https://x.example/theater/ich/abc/heft' : '',
                                         app: code === 'de' ? { token: 'abc', title: 'A <Dream>', short: 'A <Dream>' } : null });
+  // the same, seen by the director of the project
+  const AD = views(code, '/theater/mit', { regieProject: project.id, theme: 'hell' });
   const pages = {
     entryPage: () => A.entryPage({ kind: 'error', key: 'r.code_unknown' }),
     entryDemos: () => A.entryPage(null, [{ key: 'midsummer', title: 'A <Dream>' }]),
@@ -151,6 +159,9 @@ for (const { code } of LANGUAGES) {
     companyPage: () => A.companyPage(project, null, 'https://x'),
     pickNamePage: () => A.pickNamePage(project, 'tok', { kind: 'error', key: 'r.name_gone' }),
     memberPage: () => A.memberPage(project, person, null, project.personen[1]),
+    memberVoted: () => A.memberPage(project, project.personen[1], { kind: 'good', key: 'ens.thanks_yes' }, null),
+    memberHomeEmpty: () => A.memberPage({ ...project, termine: [], regie_info: null }, person, null, null),
+    memberHomeDirecting: () => AD.memberPage(project, project.personen[2], { kind: 'good', key: 'home.info_saved' }, null),
     switchPage: () => A.switchPage(project, person, project.personen[1], '/theater/druck/t/mit/PUCK', '/theater/mit'),
     backBar: () => A.backBar('tok', 'OBERON', true),
     myDatesPage: () => A.myDatesPage(project, person, datesResult, { kind: 'good', key: 'r.now_fixed', values: { p1: 'P01' } }),
@@ -244,6 +255,46 @@ for (const { code } of LANGUAGES) {
   const ok = ask('198.51.100.7') === '198.51.100.7' && ask('203.0.113.9, 198.51.100.7') === '198.51.100.7' &&
     ask('a, b ,198.51.100.7 ') === '198.51.100.7' && ask(null) === '127.0.0.1';
   console.log((ok ? '  ok    ' : '  FAIL  ') + 'throttle: forged X-Forwarded-For entries are ignored');
+  if (!ok) failures++;
+}
+// the start page: the question, the answer, the director's count and note
+{
+  const A = views('de', '/theater/mit', {});
+  const AD = views('de', '/theater/mit', { regieProject: project.id });
+  const ask = A.memberPage(project, project.personen[0], null, null);
+  const said = A.memberPage(project, project.personen[1], null, null);
+  const dir = AD.memberPage(project, project.personen[2], null, null);
+  const ok = ask.includes('name="action" value="abstimmen"') && ask.includes('value="ja"') && ask.includes('Antwort fehlt') &&
+    ask.includes('Act 2 &lt;by heart&gt;') && !ask.includes('name="text"') &&
+    said.includes('Ja, dabei') && said.includes('value="nein"') && !said.includes('Antwort fehlt') &&
+    dir.includes('name="text"') && dir.includes('1 Ja \u00b7 0 Nein \u00b7 1 ohne Antwort') && !dir.includes('value="abstimmen"');
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'start page: vote, answer, count, note');
+  if (!ok) failures++;
+}
+// an ensemble rehearsal: answers move people in and out, survive a change of time and the day being over
+{
+  const p = { personen: [{ b: 'A' }, { b: 'B' }, { b: 'R', regie: true }], termine: [] };
+  const e = ensembleEntry(p, '2099-01-05', '10:00', '12:00', 'Hall', 'F-x');
+  const steps = [
+    !!e && e.gruppe.length === 0,
+    answerEnsemble(e, 'A', 'ja', '2099-01-01') && e.gruppe.join() === 'A' && e.zeiten.A.bis === '12:00',
+    answerEnsemble(e, 'B', 'nein', '2099-01-01') && e.gruppe.join() === 'A',
+    answerEnsemble(e, 'A', 'nein', '2099-01-01') && e.gruppe.length === 0,
+    answerEnsemble(e, 'A', 'ja', '2099-01-01'),
+    !answerEnsemble(e, 'A', 'vielleicht', '2099-01-01'), !answerEnsemble(e, 'A', 'ja', '2099-01-06'),
+    ensembleCount(p, e).ja.length === 1 && ensembleCount(p, e).nein.length === 1 && ensembleCount(p, e).offen.length === 0,
+  ];
+  const moved = ensembleEntry(p, '2099-01-05', '14:00', '17:00', 'Hall', 'F-x', e);
+  steps.push(moved.antworten.A === 'ja' && moved.zeiten.A.von === '14:00' && moved.antworten.B === 'nein');
+  steps.push(!ensembleEntry(p, '2099-01-05', '17:00', '14:00', '', 'F-y'));
+  p.termine = [moved, { probe_id: 'P1', iso: '2099-01-05', von: '18:00', bis: '19:00', bestaetigt: true, gruppe: ['B'] }];
+  oneDatePerDay(p);
+  steps.push(p.termine.includes(moved) && moved.antworten.A === 'ja');
+  p.termine = [moved];
+  archivePast(p, '2099-02-01');
+  steps.push(p.verlauf[0].ensemble === true && p.verlauf[0].antworten.A === 'ja');
+  const ok = steps.every(Boolean);
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'ensemble rehearsal: answers, change, history' + (ok ? '' : ' ' + JSON.stringify(steps)));
   if (!ok) failures++;
 }
 console.log('  version ' + (ABOUT.version || '(none)'));

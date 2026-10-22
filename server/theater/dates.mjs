@@ -229,7 +229,8 @@ export function archivePast(project, today = isoDate(new Date())) {
     if (project.verlauf.some(v => v.probe_id === t.probe_id && v.iso === t.iso)) continue;
     project.verlauf.push({ probe_id: t.probe_id, iso: t.iso, von: t.von || '', bis: t.bis || '',
       ort: t.ort || '', gruppe: t.gruppe || [], sitzt: null, notiz: '',
-      ...(t.frei ? { frei: true, zeiten: t.zeiten || {} } : {}), ...(t.inhalt ? { inhalt: t.inhalt } : {}) });
+      ...(t.frei ? { frei: true, zeiten: t.zeiten || {} } : {}), ...(t.inhalt ? { inhalt: t.inhalt } : {}),
+      ...(t.ensemble ? { ensemble: true, antworten: t.antworten || {} } : {}) });
   }
   project.termine = project.termine.filter(t => !past.includes(t));
   return true;
@@ -283,6 +284,48 @@ export function freeEntry(project, iso, times, place, id) {
            bestaetigt: true, ort: place || '' };
 }
 
+/* An ensemble rehearsal: a free rehearsal the director sets for one
+   day and time, and everybody of the company is asked whether they
+   come. A yes puts the person into it for the whole time, a no keeps
+   them out; both are noted in antworten: { <person>: 'ja' | 'nein' },
+   so that nobody counts as open any more. The answer can be changed
+   until the day is over. Stored like any free rehearsal, with
+   ensemble: true. An entry that was there before keeps its answers. */
+export const isEnsemble = x => !!(x && x.ensemble);
+export function ensembleEntry(project, iso, von, bis, place, id, before = null) {
+  const a = asMinutes(von), c = asMinutes(bis);
+  if (a == null || c == null || c <= a || !asDate(iso)) return null;
+  const known = new Set((project.personen || []).filter(x => !x.regie).map(x => x.b));
+  const antworten = {};
+  if (isEnsemble(before))
+    for (const [b, v] of Object.entries(before.antworten || {})) if (known.has(b)) antworten[b] = v;
+  const yes = Object.keys(antworten).filter(b => antworten[b] === 'ja');
+  return { probe_id: id, frei: true, ensemble: true, iso, von, bis, bestaetigt: true, ort: place || '',
+           gruppe: yes, zeiten: Object.fromEntries(yes.map(b => [b, { von, bis }])), antworten };
+}
+/* A person answers; false when the date is no ensemble rehearsal, is
+   over, or the answer is neither. */
+export function answerEnsemble(entry, b, answer, today = isoDate(new Date())) {
+  if (!isEnsemble(entry) || !entry.iso || entry.iso < today || !['ja', 'nein'].includes(answer)) return false;
+  entry.antworten = { ...(entry.antworten || {}), [b]: answer };
+  const zeiten = { ...(entry.zeiten || {}) };
+  if (answer === 'ja') zeiten[b] = { von: entry.von, bis: entry.bis }; else delete zeiten[b];
+  entry.zeiten = zeiten;
+  entry.gruppe = Object.keys(zeiten);
+  return true;
+}
+/* Who said what, and who has not answered yet: the whole company, the
+   directors aside. */
+export function ensembleCount(project, entry) {
+  const out = { ja: [], nein: [], offen: [] };
+  for (const x of project.personen || []) {
+    if (x.regie) continue;
+    const v = entry.antworten?.[x.b];
+    (v === 'ja' ? out.ja : v === 'nein' ? out.nein : out.offen).push(x);
+  }
+  return out;
+}
+
 /* Who can be at a free rehearsal, for changing it afterwards: everybody
    (the directors aside) who gave time for its day, from the first to
    the last quarter hour of that time - and the people already in it, at
@@ -326,7 +369,8 @@ export function oneDatePerDay(project) {
   }
   let changed = false;
   for (const [iso, list] of byDay) {
-    if (list.length === 1 && list[0].frei) continue;
+    // an ensemble rehearsal keeps its answers: it is not merged away
+    if ((list.length === 1 && list[0].frei) || list.some(isEnsemble)) continue;
     const zeiten = {}, notes = [];
     const widen = (b, von, bis) => {
       if (asMinutes(von) == null || asMinutes(bis) == null || bis <= von) return;
@@ -415,6 +459,7 @@ export function dayView(project, person, days) {
         ort: list.map(e => e.x.ort).find(Boolean) || '',
         inhalt: [...new Set(list.map(e => e.x.inhalt || (e.x.frei ? '' : e.x.probe_id)).filter(Boolean))].join(', '),
         rows, withMe: isDirector || !!zeiten[person.b],
+        ...(list.some(e => isEnsemble(e.x)) ? { ensemble: true, antwort: list.find(e => isEnsemble(e.x)).x.antworten?.[person.b] || '' } : {}),
         history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
       };
     }
@@ -686,7 +731,8 @@ export function dayStates(project, person, days) {
            mine.some(pr => pr.id === x.probe_id)))
         .map(x => ({ rehearsal: x.probe_id, from: x.von, to: x.bis,
                      place: x.ort || '',
-                     ...(x.frei ? { free: true, names: freeNames(project, x), detail: freeDetail(project, x) } : {}) })),
+                     ...(x.frei ? { free: true, names: freeNames(project, x), detail: freeDetail(project, x) } : {}),
+                     ...(isEnsemble(x) ? { ensemble: true } : {}) })),
     };
   }
   return states;

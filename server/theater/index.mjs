@@ -19,7 +19,7 @@ import * as S from './storage.mjs';
 import { views, h } from './views.mjs';
 import { fromHeader, isLanguage, language } from './texts.mjs';
 import { proposeDates, calendarDays, directorsOf, archivePast, freeEntry, freeNames, freeDetail,
-  oneDatePerDay, displayDays, dayView } from './dates.mjs';
+  oneDatePerDay, displayDays, dayView, ensembleEntry, answerEnsemble, isEnsemble } from './dates.mjs';
 import { peopleOf, summaryOf } from './plan.mjs';
 import { readForm } from './formdata.mjs';
 import * as B from './revise.mjs';
@@ -317,7 +317,9 @@ function dateAction(A, project, pr, fields, opt) {
   const action = String(fields.action || '');
   const current = (project.termine || []).find(t => t.probe_id === id);
   const message = (entry) => ({ text: A.rehearsalMessage(project, entry,
-    entry.frei ? opt.base + '/theater/mit/zeiten' : rehearsalLink(project, id, opt.base)) });
+    // an ensemble rehearsal is answered on the start page
+    isEnsemble(entry) ? opt.base + '/theater/mit'
+    : entry.frei ? opt.base + '/theater/mit/zeiten' : rehearsalLink(project, id, opt.base)) });
   const placeOf = () => String(fields.place || '').trim().slice(0, 120);
   const bad = (key) => ({ m: { kind: 'error', key }, share: null });
   const good = (key) => ({ kind: 'good', key, values: { p1: h(id) } });
@@ -342,10 +344,12 @@ function dateAction(A, project, pr, fields, opt) {
     if (!opt.mayDirect) return bad('r.not_yours');
     if (action === 'loesen') {
       project.termine = project.termine.filter(t => t !== current);
-      return { m: { kind: 'good', key: 'r.released2', values: { p1: h(freeNames(project, current)) } }, share: null };
+      return { m: { kind: 'good', key: 'r.released2', values: { p1: h(A.freeLabel(project, current)) } }, share: null };
     }
     if (action === 'nachricht') return { m: null, share: message(current) };
     if (action === 'frei-aendern') {
+      // the people of an ensemble rehearsal are their own answers
+      if (isEnsemble(current)) return bad('r.date_invalid');
       const times = {};
       for (const x of project.personen || [])
         if (fields['mit_' + x.b] === '1') times[x.b] = { von: time(fields['von_' + x.b]), bis: time(fields['bis_' + x.b]) };
@@ -1248,6 +1252,26 @@ export async function handle(request, response, path) {
 
     if (second === '' && post) {
       const { fields } = await readForm(request);
+      const mayDirect = (ctx.regieProject === project.id || ctx.directorProject === project.id) && !ctx.who?.real;
+      if (String(fields.action) === 'abstimmen') {
+        const entry = (project.termine || []).find(t => t.probe_id === String(fields.probe || '') && isEnsemble(t));
+        const answer = String(fields.antwort || '');
+        if (person.regie || !entry || !answerEnsemble(entry, person.b, answer))
+          return html(response, A.memberPage(project, person, { kind: 'error', key: 'ens.gone' }, realSelf));
+        entry.geaendert = new Date().toISOString();
+        await S.write(project);
+        Reminders.refresh(project);
+        return html(response, A.memberPage(project, person,
+          { kind: 'good', key: answer === 'ja' ? 'ens.thanks_yes' : 'ens.thanks_no' }, realSelf));
+      }
+      if (String(fields.action) === 'info') {
+        if (!mayDirect) return html(response, A.memberPage(project, person, { kind: 'error', key: 'r.not_yours' }, realSelf));
+        const text = String(fields.text || '').replace(/\r\n/g, '\n').trim().slice(0, 2000);
+        project.regie_info = text ? { text, zeit: new Date().toISOString(), von: person.b } : null;
+        if (!text) delete project.regie_info;
+        await S.write(project);
+        return html(response, A.memberPage(project, person, { kind: 'good', key: 'home.info_saved' }, realSelf));
+      }
       if (String(fields.action) !== 'wechseln')
         return html(response, A.memberPage(project, person, {
           kind: 'error', key: 'r.unknown_action' }, realSelf));
@@ -1421,7 +1445,9 @@ export async function handle(request, response, path) {
           id = 'F-' + crypto.randomBytes(3).toString('hex');
         const place = 'place' in fields ? String(fields.place || '').trim().slice(0, 120)
                                         : (there?.ort ?? project.einstellungen?.ort ?? '');
-        const entry = freeEntry(project, iso, times, place, id);
+        const entry = fields.ensemble === '1'
+          ? ensembleEntry(project, iso, time(fields.von), time(fields.bis), place, id, there)
+          : freeEntry(project, iso, times, place, id);
         if (!entry) return answer(400, { ok: false, reason: 'invalid' });
         const inhalt = 'inhalt' in fields ? String(fields.inhalt || '').trim().slice(0, 300) : (there?.inhalt || '');
         if (inhalt) entry.inhalt = inhalt;
@@ -1430,7 +1456,7 @@ export async function handle(request, response, path) {
         project.termine = (project.termine || []).filter(t => !(t.bestaetigt && t.iso === iso)).concat(entry);
         await S.write(project);
         Reminders.refresh(project);
-        return answer(200, { ok: true, id, names: freeNames(project, entry), detail: freeDetail(project, entry),
+        return answer(200, { ok: true, id, names: A.freeLabel(project, entry), detail: freeDetail(project, entry),
                              von: entry.von, bis: entry.bis, ort: entry.ort });
       }
       const historyAction = ['sitzt', 'verlauf-loeschen'].includes(String(fields.action || ''));
@@ -1448,7 +1474,7 @@ export async function handle(request, response, path) {
         if (!old) m = { kind: 'error', key: 'r.no_date' };
         else {
           old.ort = String(fields.place || '').trim().slice(0, 120);
-          m = placeNotice(old.frei ? freeNames(project, old) : rehearsal, old.ort);
+          m = placeNotice(old.frei ? A.freeLabel(project, old) : rehearsal, old.ort);
         }
         await S.write(project);
         return html(response, A.myDatesPage(project, person, proposeDates(project), m, { ...view, mayDirect }));
@@ -2169,7 +2195,7 @@ export async function handle(request, response, path) {
       if (!before) m = { kind: 'error', key: 'r.no_date2' };
       else {
         before.ort = String(fields.place || '').trim().slice(0, 120);
-        m = placeNotice(before.frei ? freeNames(project, before) : rehearsal, before.ort);
+        m = placeNotice(before.frei ? A.freeLabel(project, before) : rehearsal, before.ort);
       }
       await S.write(project);
       return html(response, A.datesPage(project, proposeDates(project), m));

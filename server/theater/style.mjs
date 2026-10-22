@@ -17,6 +17,7 @@ export const STYLE = uprightMedia(`
     --rule:#e6e1da; --accent:#b3272d; --good:#166b34;
     --field:#fff; --field-ink:#1c1a18; --field-edge:#a9a29a;
     --chip:#eceae5; --chip-ink:#2a2622;
+    --in:#e3f1e8; --in-ink:#1d5a3a; --ask:#fdf3e6; --ask-edge:#e9c99a; --ask-ink:#7a4100;
   }
   * { box-sizing:border-box }
   [hidden] { display:none !important }
@@ -537,6 +538,38 @@ export const STYLE = uprightMedia(`
   .box.callout { text-align:center; padding:1.4rem 1.4rem 1.6rem }
   .box.callout p { margin:0 0 .5rem }
   .btn.big { font-size:1.15rem; padding:.9rem 1.8rem; margin-top:.6rem; width:100%; text-align:center }
+  /* the start page of a member */
+  .home-h { font-size:.8rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 }
+  .home-h.vote { color:var(--ask-ink) }
+  .home-row { display:flex; justify-content:space-between; align-items:center; gap:.6rem; flex-wrap:wrap; margin:0 }
+  .home-row.left { justify-content:flex-start; margin-top:.6rem }
+  .home-row h2 { margin:0 }
+  .home-info textarea { width:100%; margin:.4rem 0; font:inherit }
+  .home-infotext { margin:.4rem 0 0; white-space:pre-line }
+  .home-vote.ask { background:var(--ask); border-color:var(--ask-edge) }
+  .home-when { margin:.4rem 0 }
+  .home-yesno { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.6rem }
+  .home-yesno form, .home-yesno button { width:100%; margin:0 }
+  .home-yesno button { font-size:1.1rem; font-weight:700; padding:.8rem 1rem }
+  .home-yesno button.yes { background:var(--good); border-color:var(--good) }
+  .home-bar { display:flex; height:.7rem; border-radius:.35rem; overflow:hidden; background:var(--chip); margin:.6rem 0 .3rem }
+  .home-bar i { display:block } .home-bar .ja { background:var(--good) } .home-bar .nein { background:var(--muted) }
+  .home-dates { margin:1.4rem 0 }
+  .home-list { background:var(--card); border:1px solid var(--rule); border-radius:4px; margin-top:.4rem }
+  .home-date { display:flex; gap:.8rem; align-items:center; padding:.6rem .8rem; border-bottom:1px solid var(--rule);
+               color:inherit; text-decoration:none; min-height:2.75rem }
+  .home-date:last-child { border-bottom:0 }
+  .home-date.out .home-day b, .home-date.out .home-what b { color:var(--muted) }
+  .home-day { flex:0 0 3.2rem; display:flex; flex-direction:column; text-align:center; line-height:1.25 }
+  .home-what { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; line-height:1.35 }
+  .tag { font-size:.75rem; font-weight:700; padding:.15rem .45rem; border-radius:3px; white-space:nowrap;
+         background:var(--chip); color:var(--chip-ink) }
+  .tag.in { background:var(--in); color:var(--in-ink) }
+  .tag.open { background:var(--ask); color:var(--ask-ink) }
+  .home-times { margin:1.4rem 0 1rem; text-align:center }
+  .home-times p { margin:.4rem 0 }
+  fieldset.art { border:0; padding:0; margin:.4rem 0 .6rem; display:flex; flex-direction:column; gap:.2rem }
+  fieldset.art legend { padding:0; margin-bottom:.2rem }
   .box.cmt .answer { margin:.4rem 0 .2rem .8rem; padding-left:.7rem; border-left:3px solid var(--good) }
   .box.cmt form.inline input[type=text] { max-width:28rem }
   .acts label.inline { font-size:.9rem }
@@ -597,6 +630,7 @@ export const STYLE = uprightMedia(`
     --rule:#33333d; --accent:#ef6b70; --good:#5ec27f;
     --field:#23232c; --field-ink:#f2f0eb; --field-edge:#4e4e5a;
     --chip:#2e2e38; --chip-ink:#eceae5;
+    --in:#183626; --in-ink:#8fdcab; --ask:#33270f; --ask-edge:#7a5a22; --ask-ink:#f0c27a;
   }
   html[data-theme="dark"] .notice.foreign { background:#3a2c16; border-left-color:#d59b4a }
   html[data-theme="dark"] .notice.error { background:#3a1d1f }
