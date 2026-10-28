@@ -37,7 +37,7 @@ function windowOn(entry, date) {
 
   if (entry.tage) {
     const t = entry.tage[iso];
-    if (!t) return null;
+    if (!t || t.nein) return null;
     const a = asMinutes(t.von), b = asMinutes(t.bis);
     return (a == null || b == null || b <= a) ? null : { from: a, to: b };
   }
@@ -346,7 +346,8 @@ export function freeChoices(project, entry) {
     }
     let ohne = false;
     if (lo == null || hi - lo < 15) { ohne = true; lo = 6 * 60; hi = 23 * 60 + 45; }
-    out.push({ b: x.b, name: x.name || x.b, lo, hi, in: !!z, ohne,
+    const nein = !!(d && project.verfuegbar?.[x.id]?.tage?.[entry.iso]?.nein);
+    out.push({ b: x.b, name: x.name || x.b, lo, hi, in: !!z, ohne, nein,
                von: z ? z.von : ohne ? entry.von : clock(lo), bis: z ? z.bis : ohne ? entry.bis : clock(hi) });
   }
   return out.sort((a, c) => (a.ohne ? 1 : 0) - (c.ohne ? 1 : 0) || a.lo - c.lo || a.name.localeCompare(c.name));
@@ -463,7 +464,9 @@ export function dayView(project, person, days) {
         history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
       };
     }
-    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, date };
+    // who said they cannot that day - the rest without a window gave nothing
+    const nein = people.filter(x => !directors.includes(x.b) && project.verfuegbar?.[x.id]?.tage?.[t.iso]?.nein).map(x => x.b);
+    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, nein, date };
   }
   return out;
 }

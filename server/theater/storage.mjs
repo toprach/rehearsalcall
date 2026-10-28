@@ -324,13 +324,10 @@ export const storageWhere = () => S.kind + ' (' + S.where + ')';
    11.10.2026: rehearsals are dates with what is rehearsed. A plan a
    record still carries is moved aside as plan_archiv - kept, written
    back with the next save, read by nothing. */
-/* The same for a day a member struck for themselves (tage[iso].nein):
-   only the director strikes days now (14.10.2026); such a day reads as
-   no entry and is gone from the record with the next save. */
+/* A day a member says they cannot (tage[iso].nein) is kept as such
+   again since 28.10.2026; it was dropped on read between 14. and 28.10. */
 const retire = p => {
   if (p && p.plan) { p.plan_archiv = p.plan; delete p.plan; }
-  for (const v of Object.values(p?.verfuegbar || {}))
-    for (const [iso, d] of Object.entries(v?.tage || {})) if (d?.nein) delete v.tage[iso];
   return p;
 };
 const search = async test => retire(await S.search(test));

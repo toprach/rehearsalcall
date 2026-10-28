@@ -312,13 +312,13 @@ for (const b of cast) {
   if (b === cast[0]) check('the struck day shows as struck', new RegExp('class="day [^"]*blocked[^"]*" data-iso="' + days[0] + '"').test(e.text));
   else check('a member sees the struck day but cannot strike', new RegExp('blocked[^"]*" data-iso="' + days[0] + '"').test(e.text) && !/name="g_/.test(e.text));
   if (b === cast[1]) {
-    // only the director strikes days: a member's "struck for me" is no more
-    const nf = {}; days.forEach((d, i) => { nf['t_' + d] = i ? '1' : ''; nf['v_' + d] = '18:00'; nf['b_' + d] = '23:00'; }); nf['n_' + days[0]] = '1';
+    // "I cannot" for a day is a decided no and stays one (a day the director did not strike)
+    const nf = {}; days.forEach((d, i) => { nf['t_' + d] = i === 1 ? '' : '1'; nf['v_' + d] = '18:00'; nf['b_' + d] = '23:00'; }); nf['n_' + days[1]] = '1';
     const ne = await post('/theater/mit/zeiten', nf);
-    check('a member cannot strike a day for themselves', good(ne) && !/name="n_/.test(ne.text) &&
-          !/id="neint"/.test(ne.text) && !/class="dot nein"/.test(ne.text), say(ne));
+    check('a member says they cannot on a day', good(ne) && new RegExp('class="day [^"]*\\bnein\\b[^"]*" data-iso="' + days[1] + '"').test(ne.text) &&
+          new RegExp('name="n_' + days[1] + '" value="1"').test(ne.text) && /id="neint"/.test(ne.text) && /class="dot nein"/.test(ne.text), say(ne));
     const back = await post('/theater/mit/zeiten', fields);
-    check('and enters again as before', good(back), say(back));
+    check('and can enter the day again', good(back) && !new RegExp('\\bnein\\b[^"]*" data-iso="' + days[1] + '"').test(back.text), say(back));
   }
   const me = await call('GET', '/theater/mit');
   // The director enters nothing that counts: their page says so instead of a number.

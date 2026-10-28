@@ -37,7 +37,7 @@ const project = {
             { id: 'P02', gruppe: ['OBERON', 'PUCK', 'TITANIA'], minuten: 30, ersatz_anteil: 0,
               szenen: [{ szene: 2 }, { szene: 3 }], nachlese: true },
           ] },
-  verfuegbar: { p1: { tage: { '2026-10-01': { von: '19:00', bis: '22:00' } }, stand: '2026-09-01T10:00:00Z' } },
+  verfuegbar: { p1: { tage: { '2026-10-01': { von: '19:00', bis: '22:00' }, '2026-10-02': { nein: true } }, stand: '2026-09-01T10:00:00Z' } },
   termine: [{ probe_id: 'P01', iso: '2026-10-01', von: '19:00', bis: '20:00', bestaetigt: true, ort: 'Stage' },
             { probe_id: 'F-a1b2c3', frei: true, iso: '2099-10-01', von: '14:00', bis: '18:00', bestaetigt: true, ort: 'Barn <x>',
               gruppe: ['OBERON', 'PUCK'], zeiten: { OBERON: { von: '14:00', bis: '17:00' }, PUCK: { von: '15:30', bis: '18:00' } } }],

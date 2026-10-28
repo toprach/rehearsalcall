@@ -1392,6 +1392,8 @@ export async function handle(request, response, path) {
         if (!editable.has(iso) || locked.has(iso)) entered[iso] = e;
       for (const t of days) {
         if (locked.has(t.iso)) continue;
+        // "I cannot" for a day is a decided no, kept as such
+        if (fields['n_' + t.iso] === '1') { entered[t.iso] = { nein: true }; continue; }
         if (fields['t_' + t.iso] !== '1') continue;
         const from = time(fields['v_' + t.iso]) || '19:00';
         const to = time(fields['b_' + t.iso]) || '22:00';
