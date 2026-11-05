@@ -735,6 +735,8 @@ export const en = {
   'ics.passages':     'Passages: {url}',
   'ics.free':         '{me} available for a rehearsal',
   'ics.free_what':    'Entered in the rehearsal planner \u201c{title}\u201d.',
+  'ics.change':       'Change: {url}',
+  'ics.open':         'Open in the rehearsal planner: {url}',
   'my.nobody':      'nobody',
   'my.can_n':    '{n} can',
   'my.best':        '{rehearsal}: {here} of {total} can',

@@ -734,6 +734,8 @@ export const de = {
   'ics.passages':     'Passagen: {url}',
   'ics.free':         '{me} verf\u00fcgbar f\u00fcr Probe',
   'ics.free_what':    'Eingetragen in der Probenplanung \u201e{title}\u201c.',
+  'ics.change':       '\u00c4ndern: {url}',
+  'ics.open':         'In der Probenplanung \u00f6ffnen: {url}',
   'my.nobody':      'niemand',
   'my.can_n':    '{n} können',
   'my.best':        '{rehearsal}: {here} von {total} können',

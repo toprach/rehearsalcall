@@ -47,6 +47,8 @@ export function feedFor(project, person, base) {
   // the own name, never "me": a calendar shown around has to say whose it is
   const myName = person.name || person.b;
   const link = (id) => base + '/theater/ich/' + (person.token || '') + '/plan/' + encodeURIComponent(id);
+  // the day in the calendar, open: one tap from the event to changing it, signed in by the token
+  const dayLink = (iso) => base + '/theater/ich/' + (person.token || '') + '/zeiten?tag=' + iso;
   const now = utcNow();
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//rehearsalcall//' + esc(project.id) + '//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
@@ -75,8 +77,9 @@ export function feedFor(project, person, base) {
         DTEND: x.bis ? stamp(x.iso, x.bis) : null,
         SUMMARY: esc(x.ensemble ? t('ens.title') : t('free.title', { who: freeNames(project, x) })),
         DESCRIPTION: esc([freeDetail(project, x, '\n'), x.inhalt ? t('free.what_line', { text: x.inhalt }) : '',
-          x.ort ? t('ics.place', { place: x.ort }) : ''].filter(Boolean).join('\n')),
+          x.ort ? t('ics.place', { place: x.ort }) : '', t('ics.open', { url: dayLink(x.iso) })].filter(Boolean).join('\n')),
         LOCATION: x.ort ? esc(x.ort) : null,
+        URL: dayLink(x.iso),
         STATUS: 'CONFIRMED',
       }));
       continue;
@@ -87,9 +90,9 @@ export function feedFor(project, person, base) {
       DTSTART: stamp(x.iso, x.von),
       DTEND: x.bis ? stamp(x.iso, x.bis) : null,
       SUMMARY: esc(titleFor(x.probe_id, group)),
-      DESCRIPTION: esc(describe(x.probe_id, group, x.ort)),
+      DESCRIPTION: esc(describe(x.probe_id, group, x.ort) + '\n' + t('ics.open', { url: dayLink(x.iso) })),
       LOCATION: x.ort ? esc(x.ort) : null,
-      URL: link(x.probe_id),
+      URL: dayLink(x.iso),
       STATUS: 'CONFIRMED',
     }));
   }
@@ -104,8 +107,8 @@ export function feedFor(project, person, base) {
       DTSTART: stamp(iso, e.von),
       DTEND: stamp(iso, e.bis),
       SUMMARY: esc(t('ics.free', { me: myName })),
-      DESCRIPTION: esc(t('ics.free_what', { title: project.titel })),
-      URL: base + '/theater/ich/' + (person.token || '') + '/zeiten',
+      DESCRIPTION: esc(t('ics.free_what', { title: project.titel }) + '\n' + t('ics.change', { url: dayLink(iso) })),
+      URL: dayLink(iso),
       TRANSP: 'TRANSPARENT',
     }));
   }

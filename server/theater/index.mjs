@@ -999,6 +999,9 @@ export async function handle(request, response, path) {
        on a phone - and then that is where the link leads. */
     if (parts[2] === 'plan' && parts[3]) return redirect(response, '/theater/mit/plan/' + encodeURIComponent(parts[3]));
     const target = ['heft', 'zeiten', 'termine', 'kommentare', 'mit'].includes(parts[2]) ? parts[2] : '';
+    // a day named in the link (from the calendar feed) is opened there
+    const day = date(new URLSearchParams((request.url || '').split('?')[1] || '').get('tag'));
+    if (day && (target === 'zeiten' || target === 'termine')) return redirect(response, '/theater/mit/zeiten?tag=' + day);
     // the old dates page is the calendar now
     if (target) return redirect(response, target === 'mit' ? '/theater/mit' : '/theater/mit/' + (target === 'termine' ? 'zeiten' : target));
     return redirect(response, hit.person.regie || hit.person.assistenz ? '/theater/projekt' : '/theater/mit/zeiten');

@@ -346,6 +346,14 @@ for (const b of cast) {
           /text\/calendar/.test(ics.res.headers.get('content-type') || '') && /BEGIN:VEVENT/.test(ics.text) &&
           /\/theater\/ich\/[a-z0-9]+\//.test(ics.text),
           'status ' + ics.status + ' type ' + ics.res.headers.get('content-type') + ' events ' + (ics.text.match(/BEGIN:VEVENT/g) || []).length);
+    {
+      // every event carries the link to its day, which signs in and opens that day
+      const day = (/\/theater\/ich\/[a-z0-9]+\/zeiten\?tag=(\d{4}-\d{2}-\d{2})/.exec(ics.text.replace(/\r\n /g, '')) || [])[1];
+      check('a calendar event links to its day', !!day && /(Change|\u00c4ndern): /.test(ics.text.replace(/\r\n /g, '')), ics.text.slice(0, 300));
+      const go = await call('GET', ich + '/zeiten?tag=' + day);
+      check('and the link opens that day', go.status === 303 && (go.res.headers.get('location') || '').endsWith('/theater/mit/zeiten?tag=' + day),
+            'status ' + go.status + ' ' + go.res.headers.get('location'));
+    }
     const pl2 = await call('GET', ich + '/plan/P01');
     check('the personal link opens the passages of a rehearsal', pl2.status === 303 &&
           /\/theater\/mit\/plan\//.test(pl2.res.headers.get('location') || ''), 'status ' + pl2.status);
