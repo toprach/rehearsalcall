@@ -641,6 +641,9 @@ for (const b of cast) {
         const dlg = (new RegExp('<dialog id="[^"]*"[^>]*>(?:(?!</dialog>)[\\s\\S])*?value="' + j.id + '"[\\s\\S]*?</dialog>').exec(dp.text) || [''])[0];
         const without = [...dlg.matchAll(/name="mit_([^"]+)" value="1"> [^<]*<span class="small muted">/g)].map(m => m[1]);
         check('people without an entry are offered too, marked so', without.length > 0, without.join(', '));
+        // and somebody with an entry can be set outside it, at any time of day
+        const own = (new RegExp('<select name="von_' + who[0] + '"[^>]*>([\\s\\S]*?)</select>').exec(dlg) || ['', ''])[1];
+        check('the whole day is offered for somebody with an entry', /<option[^>]*>06:00</.test(own) && /<option[^>]*>23:30</.test(own), own.slice(0, 120));
         if (without[0]) {
           const x = without[0];
           const add = await post('/theater/termine', { action: 'frei-aendern', rehearsal: j.id,

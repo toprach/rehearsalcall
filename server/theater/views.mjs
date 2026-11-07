@@ -374,8 +374,10 @@ function dateDialog(target, pr, e, project) {
 
 /* The same for a free rehearsal (frei: true): no plan behind it, so no
    cast or scene tools - instead who comes when, the same rows the day
-   panel offered (only the time a person gave for that day, the present
-   participants always), then place, message, cancel. */
+   panel offered (everybody, at any time of day, what a person gave for
+   the day chosen at first), then place, message, cancel. */
+// any time of day can be chosen for a person; their own window is only the first choice
+const DAY_FROM = 6 * 60, DAY_TO = 23 * 60 + 45;
 function freeDialog(target, e, project) {
   const id = 'chg-' + String(e.probe_id).replace(/[^A-Za-z0-9_-]/g, '');
   const title = freeTitle(project, e);
@@ -390,9 +392,9 @@ function freeDialog(target, e, project) {
   const rows = freeChoices(project, e).map(c => `<div class="frei-zeile${c.in ? ' an' : ''}">
       <label><input type="checkbox" name="mit_${h(c.b)}" value="1"${c.in ? ' checked' : ''}> ${h(c.name)}${c.ohne
         ? ` <span class="small muted">(${t(c.nein ? 'my.bars_no' : 'free.said_nothing')})</span>` : ''}</label>
-      <span class="frei-zeit"><select name="von_${h(c.b)}" aria-label="${h(t('my.from'))}">${opts(c.lo, c.hi - 15, c.von)}</select>
+      <span class="frei-zeit"><select name="von_${h(c.b)}" aria-label="${h(t('my.from'))}">${opts(DAY_FROM, DAY_TO - 15, c.von)}</select>
         <span>–</span>
-        <select name="bis_${h(c.b)}" aria-label="${h(t('my.to'))}">${opts(c.lo + 15, c.hi, c.bis)}</select></span></div>`).join('');
+        <select name="bis_${h(c.b)}" aria-label="${h(t('my.to'))}">${opts(DAY_FROM + 15, DAY_TO, c.bis)}</select></span></div>`).join('');
   // an ensemble rehearsal is changed in the day panel: everybody answers for themselves
   const people = isEnsemble(e) ? '' : `<form method="post" action="${h(target)}" class="frei-form">
         <input type="hidden" name="action" value="frei-aendern">
@@ -2819,7 +2821,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             zeige(tab || 'probe');
             return;
           }
-          // who can be in it: whoever gave time that day, and whoever is in it already
+          // who can be in it: whoever gave time that day, and whoever is in it already;
+          // their window is what is chosen at first, any time of day can be chosen
           var cand = {};
           Object.keys(f).forEach(function (b) {
             cand[b] = { lo: Math.ceil(f[b][0] / 15) * 15, hi: Math.floor(Math.min(f[b][1], 23 * 60 + 45) / 15) * 15 };
@@ -2868,8 +2871,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
               return '<div class="frei-zeile' + (r ? ' an' : '') + '" data-b="' + esc(b) + '">' +
                 '<label><input type="checkbox"' + (r ? ' checked' : '') + '> ' + esc(b === ME ? MYNAME : (names[b] || b)) +
                 (ohne[b] && !r ? ' <span class="small muted">(' + esc(nein.indexOf(b) >= 0 ? W.bars_no : W.frei_leer) + ')</span>' : '') + '</label>' +
-                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(c.lo, c.hi - 15, r ? r.von : ohne[b] ? sonst.von : hm(c.lo)) + '</select>' +
-                '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(c.lo + 15, c.hi, r ? r.bis : ohne[b] ? sonst.bis : hm(c.hi)) + '</select></span></div>';
+                '<span class="frei-zeit"><select class="fv" aria-label="' + esc(W.von) + '">' + opts(6 * 60, 23 * 60 + 30, r ? r.von : ohne[b] ? sonst.von : hm(c.lo)) + '</select>' +
+                '<span>–</span><select class="fb" aria-label="' + esc(W.bis) + '">' + opts(6 * 60 + 15, 23 * 60 + 45, r ? r.bis : ohne[b] ? sonst.bis : hm(c.hi)) + '</select></span></div>';
             }).join('') : '<p class="small muted">' + esc(W.frei_nobody) + '</p>') + '</div>' +
             '<label for="fr-ort">' + esc(W.ort) + '</label><input type="text" id="fr-ort" maxlength="120" value="' + esc(D ? D.ort : ortStandard) + '">' +
             '<label for="fr-inhalt">' + esc(W.frei_what) + '</label><textarea id="fr-inhalt" class="fr-inhalt" maxlength="300" rows="2">' + esc(D ? D.inhalt : '') + '</textarea>' +
