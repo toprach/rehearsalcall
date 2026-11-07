@@ -2599,7 +2599,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 tab_probe: ${js('my.tab_probe')}, tab_avail: ${js('my.tab_avail')},
                 locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
-                frei_leer: ${js('free.said_nothing')},
+                frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
                 ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')}, ens_go: ${js('ens.go')},
@@ -2866,6 +2866,11 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
               '<span>–</span><select id="fr-eb" aria-label="' + esc(W.bis) + '">' + opts(6 * 60 + 15, 23 * 60 + 45, ensBis) + '</select></span></div>' +
             '<div id="fr-personen"' + (ens ? ' hidden' : '') + '>' +
             '<p class="small" style="margin:.4rem 0"><b>' + esc(W.frei_title) + '</b></p>' +
+            // one time for everybody ticked, instead of row by row
+            (list.length > 1 ? '<div class="frei-alle"><span class="small">' + esc(W.frei_all) + '</span>' +
+              '<span class="frei-zeit"><select id="fr-av" aria-label="' + esc(W.von) + '">' + opts(6 * 60, 23 * 60 + 30, sonst.von) + '</select>' +
+              '<span>–</span><select id="fr-ab" aria-label="' + esc(W.bis) + '">' + opts(6 * 60 + 15, 23 * 60 + 45, sonst.bis) + '</select>' +
+              '<button type="button" class="quiet mini" id="fr-alle">' + esc(W.frei_all_go) + '</button></span></div>' : '') +
             (list.length ? list.map(function (b) {
               var c = cand[b], r = inIt[b];
               return '<div class="frei-zeile' + (r ? ' an' : '') + '" data-b="' + esc(b) + '">' +
@@ -2905,6 +2910,14 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
             post(data).then(function (r) { return r.json().catch(function () { return {}; }); })
               .then(function (j) { if (j.ok) back(iso); else { go.disabled = false; alert(W.failed); } })
               .catch(function () { go.disabled = false; alert(W.failed); });
+          };
+          var alle = document.getElementById('fr-alle');
+          if (alle) alle.onclick = function () {
+            var a = document.getElementById('fr-av').value, e = document.getElementById('fr-ab').value;
+            if (e <= a) { alert(W.falsch); return; }
+            var ticked = zeilen.filter(function (z) { return z.querySelector('input').checked; });
+            if (!ticked.length) { alert(W.frei_pick); return; }
+            ticked.forEach(function (z) { z.querySelector('.fv').value = a; z.querySelector('.fb').value = e; });
           };
           var go = document.getElementById('fr-go');
           if (go) go.onclick = function () {

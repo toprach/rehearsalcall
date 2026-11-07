@@ -788,6 +788,8 @@ export const en = {
   'free.nobody': 'Nobody has entered time for this day yet.',
   'free.go': 'Set the rehearsal',
   'free.pick': 'Please choose at least one person.',
+  'free.all': 'The same time for everybody ticked:',
+  'free.all_go': 'apply',
   'free.done': 'set.',
   'free.span': 'Date: {von}\u2013{bis}',
   'free.you': '{me} {von}\u2013{bis}',

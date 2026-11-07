@@ -787,6 +787,8 @@ export const de = {
   'free.nobody': 'F\u00fcr diesen Tag hat noch niemand Zeit eingetragen.',
   'free.go': 'Probe eintragen',
   'free.pick': 'Bitte mindestens eine Person ausw\u00e4hlen.',
+  'free.all': 'Gleiche Zeit f\u00fcr alle Angehakten:',
+  'free.all_go': '\u00fcbernehmen',
   'free.done': 'eingetragen.',
   'free.span': 'Termin: {von}\u2013{bis}',
   'free.you': '{me} {von}\u2013{bis}',

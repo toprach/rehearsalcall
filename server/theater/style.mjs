@@ -332,6 +332,10 @@ export const STYLE = uprightMedia(`
   .frei-zeile label { flex:1 1 9rem; margin:0; font-weight:400; display:flex; align-items:center; gap:.4rem; min-width:0 }
   .frei-zeile label input { margin:0; width:auto }
   .frei-zeile select { width:auto; margin:0; padding:.3rem .4rem; font-variant-numeric:tabular-nums }
+  .frei-alle { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.25rem 0 .5rem; padding:.4rem .5rem;
+               background:var(--chip); border-radius:3px }
+  .frei-alle select { width:auto; margin:0; padding:.3rem .4rem; font-variant-numeric:tabular-nums }
+  .frei-alle button { margin:0 }
   .frei-zeit { display:flex; align-items:center; gap:.4rem; white-space:nowrap; margin-left:auto }
   .frei-zeile:not(.an) select { opacity:.45 }
   .frei-vorschau { margin:.6rem 0; padding:.5rem .7rem; background:var(--rule); border-radius:3px }
