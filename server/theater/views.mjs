@@ -2599,7 +2599,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 tab_probe: ${js('my.tab_probe')}, tab_avail: ${js('my.tab_avail')},
                 locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
-                frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')},
+                frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')}, frei_discard: ${js('free.discard_confirm')},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
                 ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')}, ens_go: ${js('ens.go')},
@@ -2683,8 +2683,18 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
       }
       var tafel = document.getElementById('tafel');
       var schleier = document.getElementById('schleier');
-      schleier.addEventListener('click', function (e) { if (e.target === schleier) schleier.hidden = true; });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') schleier.hidden = true; });
+      /* A rehearsal being set or changed in the panel is not thrown away by
+         a click beside it or Escape without asking. */
+      var probeDirty = false;
+      tafel.addEventListener('input', function (e) { if (e.target.closest('#pane-probe')) probeDirty = true; });
+      tafel.addEventListener('change', function (e) { if (e.target.closest('#pane-probe')) probeDirty = true; });
+      var zu = function () {
+        if (schleier.hidden) return;
+        if (probeDirty && !confirm(W.frei_discard)) return;
+        schleier.hidden = true;
+      };
+      schleier.addEventListener('click', function (e) { if (e.target === schleier) zu(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') zu(); });
       var post = function (data) {
         return fetch('/theater/mit/termine', { method: 'POST', credentials: 'same-origin',
           headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
@@ -2715,7 +2725,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         var von0 = vI ? (vI.value || (struck ? '' : preset.von)) : (mine[0] || '');
         var bis0 = bI ? (bI.value || (struck ? '' : preset.bis)) : (mine[1] || '');
         var why = past ? W.past : D ? W.locked : outside ? W.outside : '';
-        schleier.hidden = false;
+        schleier.hidden = false; probeDirty = false;
         tafel.innerHTML =
           '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) + '</b>' +
           (withProbe ? '<div class="tafeltabs" role="tablist">' +

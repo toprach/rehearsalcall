@@ -790,6 +790,7 @@ export const en = {
   'free.pick': 'Please choose at least one person.',
   'free.all': 'The same time for everybody ticked:',
   'free.all_go': 'apply',
+  'free.discard_confirm': 'The rehearsal is not saved yet. Really discard it?',
   'free.done': 'set.',
   'free.span': 'Date: {von}\u2013{bis}',
   'free.you': '{me} {von}\u2013{bis}',

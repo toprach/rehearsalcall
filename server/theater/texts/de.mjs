@@ -789,6 +789,7 @@ export const de = {
   'free.pick': 'Bitte mindestens eine Person ausw\u00e4hlen.',
   'free.all': 'Gleiche Zeit f\u00fcr alle Angehakten:',
   'free.all_go': '\u00fcbernehmen',
+  'free.discard_confirm': 'Die Probe ist noch nicht gespeichert. Wirklich abbrechen?',
   'free.done': 'eingetragen.',
   'free.span': 'Termin: {von}\u2013{bis}',
   'free.you': '{me} {von}\u2013{bis}',
