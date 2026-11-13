@@ -332,6 +332,7 @@ export const STYLE = uprightMedia(`
   .frei-zeile label { flex:1 1 9rem; margin:0; font-weight:400; display:flex; align-items:center; gap:.4rem; min-width:0 }
   .frei-zeile label input { margin:0; width:auto }
   .frei-zeile select { width:auto; margin:0; padding:.3rem .4rem; font-variant-numeric:tabular-nums }
+  .ens-antworten { margin:.2rem 0 .6rem } .ens-antworten p { margin:.15rem 0 }
   .frei-alle { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.25rem 0 .5rem; padding:.4rem .5rem;
                background:var(--chip); border-radius:3px }
   .frei-alle select { width:auto; margin:0; padding:.3rem .4rem; font-variant-numeric:tabular-nums }

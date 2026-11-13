@@ -13,7 +13,7 @@
    and does the two things that matter: escaping and line folding.
    --------------------------------------------------------------------- */
 
-import { freeNames, freeDetail } from './dates.mjs';
+import { freeNames, freeDetail, ensembleCount } from './dates.mjs';
 import { language, isLanguage } from './texts.mjs';
 
 const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -65,6 +65,13 @@ export function feedFor(project, person, base) {
     t('ics.cast', { who: group.join(', ') }), place ? t('ics.place', { place }) : '', t('ics.passages', { url: link(id) }),
   ].filter(Boolean).join('\n');
 
+  // an ensemble rehearsal: who comes, who does not, who has not answered - fresh at every fetch
+  const answers = (x) => {
+    const c = ensembleCount(project, x), names = list => list.map(p => p.name || p.b).join(', ');
+    return [['ja', 'ens.yes_list'], ['nein', 'ens.no_list'], ['offen', 'ens.open_list']]
+      .map(([k, key]) => t(key, { n: c[k].length }) + (c[k].length ? ': ' + names(c[k]) : '')).join('\n');
+  };
+
   // fixed rehearsals
   for (const x of project.termine || []) {
     if (!x.bestaetigt || !x.iso || !x.von) continue;
@@ -76,7 +83,7 @@ export function feedFor(project, person, base) {
         DTSTART: stamp(x.iso, x.von),
         DTEND: x.bis ? stamp(x.iso, x.bis) : null,
         SUMMARY: esc(x.ensemble ? t('ens.title') : t('free.title', { who: freeNames(project, x) })),
-        DESCRIPTION: esc([freeDetail(project, x, '\n'), x.inhalt ? t('free.what_line', { text: x.inhalt }) : '',
+        DESCRIPTION: esc([x.ensemble ? answers(x) : freeDetail(project, x, '\n'), x.inhalt ? t('free.what_line', { text: x.inhalt }) : '',
           x.ort ? t('ics.place', { place: x.ort }) : '', t('ics.open', { url: dayLink(x.iso) })].filter(Boolean).join('\n')),
         LOCATION: x.ort ? esc(x.ort) : null,
         URL: dayLink(x.iso),

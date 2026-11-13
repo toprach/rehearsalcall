@@ -2600,6 +2600,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
                 frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')}, frei_discard: ${js('free.discard_confirm')},
+                ens_yes: ${js('ens.yes_list', { n: '#' })}, ens_no: ${js('ens.no_list', { n: '#' })}, ens_open: ${js('ens.open_list', { n: '#' })},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
                 ens_all: ${js('ens.kind_all')}, ens_what: ${js('ens.kind_what')}, ens_go: ${js('ens.go')},
@@ -2810,6 +2811,12 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
           if (!withProbe) return;
           var head = D ? '<p style="margin:.6rem 0 .4rem;overflow-wrap:anywhere"><b>' + esc(D.ensemble ? W.ens_title : W.frei_name.replace('#', D.names)) + '</b><br><span class="small muted">' +
             esc(D.von + '–' + D.bis) + (D.ort ? ' · ' + esc(D.ort) : '') + '</span></p>' : '';
+          // an ensemble rehearsal: who comes, who does not, who has not answered
+          if (D && D.ensemble && D.antworten) head += '<div class="ens-antworten small">' +
+            [['ja', W.ens_yes], ['nein', W.ens_no], ['offen', W.ens_open]].map(function (k) {
+              var l = D.antworten[k[0]] || [];
+              return '<p><b>' + esc(k[1].replace('#', l.length)) + '</b>' + (l.length ? ' ' + esc(l.join(', ')) : '') + '</p>';
+            }).join('') + '</div>';
           var what = D && D.inhalt ? '<div class="frei-inhalt small">' + esc(W.frei_what_line.replace('#', D.inhalt)) + '</div>' : '';
           if (!regie || past) {
             pane.innerHTML = head +

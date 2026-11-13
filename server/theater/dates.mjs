@@ -314,6 +314,13 @@ export function answerEnsemble(entry, b, answer, today = isoDate(new Date())) {
   entry.gruppe = Object.keys(zeiten);
   return true;
 }
+/* For the day panel: one's own answer, and the names of who said yes,
+   who said no and who has not answered. */
+const ensembleView = (project, entry, person) => {
+  const c = ensembleCount(project, entry), names = list => list.map(x => x.name || x.b);
+  return { ensemble: true, antwort: entry.antworten?.[person.b] || '',
+           antworten: { ja: names(c.ja), nein: names(c.nein), offen: names(c.offen) } };
+};
 /* Who said what, and who has not answered yet: the whole company, the
    directors aside. */
 export function ensembleCount(project, entry) {
@@ -460,7 +467,7 @@ export function dayView(project, person, days) {
         ort: list.map(e => e.x.ort).find(Boolean) || '',
         inhalt: [...new Set(list.map(e => e.x.inhalt || (e.x.frei ? '' : e.x.probe_id)).filter(Boolean))].join(', '),
         rows, withMe: isDirector || !!zeiten[person.b],
-        ...(list.some(e => isEnsemble(e.x)) ? { ensemble: true, antwort: list.find(e => isEnsemble(e.x)).x.antworten?.[person.b] || '' } : {}),
+        ...(list.some(e => isEnsemble(e.x)) ? ensembleView(project, list.find(e => isEnsemble(e.x)).x, person) : {}),
         history: list.filter(e => e.past).map(e => ({ id: e.x.probe_id, sitzt: e.x.sitzt ?? null, notiz: e.x.notiz || '' })),
       };
     }

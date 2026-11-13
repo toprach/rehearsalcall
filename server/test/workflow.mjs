@@ -697,6 +697,12 @@ for (const b of cast) {
       const no = await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'nein' });
       check('and may change the answer', good(no) && /value="ja"/.test(no.text) && /without you|ohne Sie/.test(no.text), say(no));
       await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'ja' });
+      check('the day panel lists who comes, who does not, who has not answered', /"antworten":\{"ja":\["[^"]+"\],"nein":\[\],"offen":\[/.test(tz.text));
+      {
+        const feed = (await call('GET', ich + '/kalender.ics')).text.replace(/\r\n /g, '');
+        check('and the calendar event says so too', /(Coming|Zugesagt) \(1\): /.test(feed) && /(Not coming|Abgesagt) \(0\)/.test(feed) &&
+              /(No answer yet|Ausst\\u00e4ndig|Ausständig) \(\d+\): /.test(feed), feed.slice(feed.indexOf('Ensemble'), feed.indexOf('Ensemble') + 300));
+      }
       cookies = asDirector;
       home = await call('GET', '/theater/mit');
       check('the director sees who said yes', /1 (yes|Ja) \u00b7 0 (no|Nein) \u00b7 \d+ (without an answer|ohne Antwort)/.test(home.text), (/\d+ (yes|Ja) [^<]*/.exec(home.text) || [''])[0]);
