@@ -99,6 +99,12 @@ an **ensemble rehearsal** the director sets only day and time; every
 member is asked on the start page "will you be there? yes | no", a yes
 puts them into it, and the answer can be changed until the day is over.
 
+The **performances** can come from the company's own tickets page: the
+director gives its address on the project page, the server reads it
+every hour (day, month abbreviation and time in list entries, the year
+worked out from their order), and every date stands as a performance in
+everybody's calendar and calendar feed.
+
 Separate polls per combination would be many times the work and still could
 not do the arithmetic; that is where the ready-made tools fail (Rallly,
 Framadate, Nuudel): there, one poll is always one date.

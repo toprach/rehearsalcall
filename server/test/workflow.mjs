@@ -574,6 +574,13 @@ for (const b of cast) {
   cookies = director;
   let d = await post('/theater/projekt', { action: 'ort', ort: 'Steinbach <hall>' });
   check('the director sets the usual rehearsal place', good(d) && /value="Steinbach &lt;hall&gt;"/.test(d.text), say(d));
+  // the performances from a page: a wrong address is refused, a page without dates gives none, empty takes it away
+  d = await post('/theater/projekt', { action: 'auffuehrungen', url: 'no address' });
+  check('a wrong address for the performances is refused', errorNotice(d), say(d));
+  d = await post('/theater/projekt', { action: 'auffuehrungen', url: BASE + '/theater/ueber' });
+  check('a page is read for performances', good(d) && new RegExp('value="' + BASE + '/theater/ueber"').test(d.text) && /\b0\b/.test(say(d)), say(d));
+  d = await post('/theater/projekt', { action: 'auffuehrungen', url: '' });
+  check('and the address can be taken away', good(d) && !/name="url" maxlength="2000" value="http/.test(d.text), say(d));
   cookies = member;
   // Still signed in as the last cast member.
   d = await call('GET', '/theater/mit/termine');

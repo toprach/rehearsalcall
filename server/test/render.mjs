@@ -15,6 +15,8 @@ import { views, ABOUT } from '../theater/views.mjs';
 import { LANGUAGES } from '../theater/texts.mjs';
 import { uprightMedia } from '../theater/upright.mjs';
 import { origin } from '../theater/throttle.mjs';
+import { parseShows } from '../theater/shows.mjs';
+import { feedFor } from '../theater/ics.mjs';
 import { ensembleEntry, answerEnsemble, ensembleCount, archivePast, oneDatePerDay } from '../theater/dates.mjs';
 
 const project = {
@@ -58,6 +60,8 @@ project.plan.proben[0].szenen[0].umgebaut = true;
 project.termine.push({ probe_id: 'F-e1e2e3', frei: true, ensemble: true, iso: '2099-10-03', von: '10:00', bis: '13:00',
   bestaetigt: true, ort: 'Hall <y>', inhalt: 'Run <1+2>', gruppe: ['PUCK'], zeiten: { PUCK: { von: '10:00', bis: '13:00' } },
   antworten: { PUCK: 'ja' } });
+project.auffuehrungen = { url: 'https://x.example/tickets?a=1&b=<2>', abgerufen: '2099-09-01T10:00:00Z',
+  liste: [{ iso: '2099-12-31', von: '19:30', notiz: 'Premiere <b>' }, { iso: '2100-01-09', von: '17:00' }] };
 project.regie_info = { text: 'Act 2 <by heart>\nbring costumes', zeit: '2099-09-20T10:00:00Z', von: 'TITANIA' };
 const diff = { equal: 100, changed: 1, added: 1, removed: 1, hunks: [{ items: [
   { kind: 'changed', old: { nr: 12, who: 'OBERON', text: 'Ill met by moonlight' },
@@ -91,7 +95,7 @@ days.slice(0, 3).forEach(t => { t.outside = true; });
 // the shape of dates.mjs dayView: windows, a date with its rows, the past
 const rowsOf = (von) => [{ b: 'OBERON', name: 'O. Berg', von, bis: '20:00' }, { b: 'PUCK', name: 'PUCK', von: '19:30', bis: '21:00' }];
 const states = Object.fromEntries(days.map((t, i) => [t.iso, {
-  past: i < 2, outside: i < 3, blocked: i === 5,
+  past: i < 2, outside: i < 3, blocked: i === 5, ...(i === 9 || i === 8 ? { show: { von: '19:30', notiz: i === 9 ? 'Premiere <b>' : '' } } : {}),
   windows: i % 2 ? { PUCK: [1140, 1320], TITANIA: [1080, 1260], OBERON: [1200, 1380] } : {},
   date: i === 1 || i === 8 ? { id: i === 8 ? 'F-a1b2c3' : '', past: i === 1, names: 'O.+PUCK', detail: 'O. 19\u201320 \u00b7 PUCK 19:30\u201321',
     von: '19:00', bis: '21:00', ort: 'Barn <x>', inhalt: 'Act <II>', rows: rowsOf('19:00'), withMe: true,
@@ -272,6 +276,26 @@ for (const { code } of LANGUAGES) {
     dir.includes('name="text"') && dir.includes('1 Ja \u00b7 0 Nein \u00b7 1 ohne Antwort') && !dir.includes('value="abstimmen"') &&
     assist.includes('name="text"') && assist.includes('value="abstimmen"') && assist.includes('1 Ja \u00b7 0 Nein');
   console.log((ok ? '  ok    ' : '  FAIL  ') + 'start page: vote, answer, count, note, the assistant asked too');
+  if (!ok) failures++;
+}
+// performances from a tickets page: day, month, time, marks; the year from the presale start and the order
+{
+  const page = '<script type="application/json">{"start":"2026-11-02"}</script><ol class="termine">' +
+    '<li class="premiere"><span class="wann"><b>31</b><small>Dez</small></span><span class="was">Donnerstag, 19:30 Uhr ' +
+    '<span class="marke-premiere">Premiere</span> <span class="notiz">Silvester &amp; mehr</span></span>' +
+    '<span class="karte"><a href="x">Tickets</a></span></li>' +
+    '<li><span class="wann"><b>9</b><small>J\u00e4n</small></span><span class="was">Samstag, 19:30 Uhr</span></li>' +
+    '<li><span class="wann"><b>24</b><small>Jan</small></span><span class="was">Sonntag, 17:00 Uhr <span class="marke">Derniere</span></span></li>' +
+    '<li>Kein Termin hier</li></ol>';
+  const got = parseShows(page);
+  const noStart = parseShows(page.replace('"start":"2026-11-02"', ''), new Date(2026, 10, 18));
+  const feed = feedFor(project, project.personen[0], 'https://x.example').replace(/\r\n /g, '');
+  const ok = JSON.stringify(got) === JSON.stringify([{ iso: '2026-12-31', von: '19:30', notiz: 'Premiere \u00b7 Silvester & mehr' },
+      { iso: '2027-01-09', von: '19:30' }, { iso: '2027-01-24', von: '17:00', notiz: 'Derniere' }]) &&
+    noStart.map(x => x.iso).join() === '2026-12-31,2027-01-09,2027-01-24' &&
+    /SUMMARY:AUFF\u00dcHRUNG \u2013 Premiere <b> \u2013 Test <Play>/.test(feed) && /DTSTART:20991231T193000/.test(feed) &&
+    /DTEND:20991231T223000/.test(feed) && /UID:abcd1234-auff-2100-01-09@rehearsalcall/.test(feed);
+  console.log((ok ? '  ok    ' : '  FAIL  ') + 'performances: read from a page, in the calendar feed' + (ok ? '' : ' ' + JSON.stringify(got)));
   if (!ok) failures++;
 }
 // an ensemble rehearsal: answers move people in and out, survive a change of time and the day being over

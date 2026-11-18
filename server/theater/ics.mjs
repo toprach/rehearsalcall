@@ -104,6 +104,23 @@ export function feedFor(project, person, base) {
     }));
   }
 
+  // the performances, read from the company's page - for everybody. The page
+  // gives the start only; three hours stand for the evening.
+  for (const x of project.auffuehrungen?.liste || []) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(x?.iso || '') || !/^\d{2}:\d{2}$/.test(x?.von || '')) continue;
+    const end = Math.min(Number(x.von.slice(0, 2)) * 60 + Number(x.von.slice(3)) + 180, 23 * 60 + 59);
+    lines.push(...event({
+      UID: project.id + '-auff-' + x.iso + '@rehearsalcall',
+      DTSTAMP: now,
+      DTSTART: stamp(x.iso, x.von),
+      DTEND: stamp(x.iso, String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0')),
+      SUMMARY: esc(t('show.title') + (x.notiz ? ' \u2013 ' + x.notiz : '') + ' \u2013 ' + project.titel),
+      DESCRIPTION: esc(t('ics.show_what', { title: project.titel }) + (project.auffuehrungen.url ? '\n' + project.auffuehrungen.url : '')),
+      URL: project.auffuehrungen.url || null,
+      STATUS: 'CONFIRMED',
+    }));
+  }
+
   // the own evenings
   const v = project.verfuegbar?.[person.id] || {};
   for (const [iso, e] of Object.entries(v.tage || {})) {

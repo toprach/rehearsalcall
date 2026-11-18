@@ -1010,6 +1010,26 @@ function projectPage(p, m) {
       <button type="submit" class="quiet mini">${h(t('common.save'))}</button>
     </form>` : ''}
 
+    <h2>${t('show.source')}</h2>
+    <p class="small muted">${t('show.source_what')}</p>
+    <form method="post" action="/theater/projekt">
+      <input type="hidden" name="action" value="auffuehrungen">
+      <div class="row">
+        <div><label for="auff-url">${t('show.source_label')}</label>
+          <input type="url" id="auff-url" name="url" maxlength="2000" value="${h(p.auffuehrungen?.url || '')}"
+                 placeholder="https://"></div>
+        <div><button type="submit" class="quiet" style="margin-top:0">${h(t('common.save'))}</button></div>
+      </div>
+    </form>
+    ${p.auffuehrungen?.url ? `<p class="small muted">${t('show.state', {
+      n: (p.auffuehrungen.liste || []).length,
+      when: h(p.auffuehrungen.abgerufen ? L.date(p.auffuehrungen.abgerufen, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '\u2014') })}${
+      p.auffuehrungen.fehler ? ' <span class="open">' + t(p.auffuehrungen.fehler) + '</span>' : ''}${
+      (p.auffuehrungen.liste || []).length ? '<br>' + p.auffuehrungen.liste.map(x => {
+        const d = new Date(x.iso + 'T00:00:00Z');
+        return h(L.weekday(d.getUTCDay(), 'short') + ' ' + L.date(d, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) + ' ' + x.von + (x.notiz ? ' (' + x.notiz + ')' : ''));
+      }).join(' \u00b7 ') : ''}</p>` : ''}
+
     <h2>${t('proj.place')}</h2>
     <p class="small muted">${t('proj.place_what')}</p>
     <form method="post" action="/theater/projekt">
@@ -2440,16 +2460,22 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
     else if (e?.nein) cls.push('nein');
     else if (others.length) cls.push('others');
     if (!date && e?.von) cls.push('me');
+    // a performance, read from the company's page: for everybody
+    const show = vw.show;
+    if (show) cls.push('auff');
     const who = !date && others.length ? `<span class="who">${others.map((b, i) =>
       `<i${i >= 2 ? ' class="x"' : ''}>${h(label(b))}</i>`).join('')}${
       others.length > 2 ? `<i class="more">+${others.length - 2}</i>` : ''}</span>` : '';
-    const tip = date ? (date.ensemble ? t('ens.title') : t('free.title', { who: date.names })) + ' ' + date.von + '–' + date.bis
-      : others.map(b => names.get(b) || b).join(', ');
+    const tip = (show ? t('show.title') + ' ' + show.von + (show.notiz ? ' ' + show.notiz : '') + (date || others.length ? ' \u00b7 ' : '') : '') +
+      (date ? (date.ensemble ? t('ens.title') : t('free.title', { who: date.names })) + ' ' + date.von + '–' + date.bis
+      : others.map(b => names.get(b) || b).join(', '));
     return `<td class="${cls.join(' ')}" data-iso="${tg.iso}" data-edit="${editable ? 1 : 0}"
         data-past="${vw.past ? 1 : 0}" data-outside="${tg.outside ? 1 : 0}"
         data-mine="${e?.von ? h(e.von + '-' + e.bis) : ''}"
-        data-fenster="${h(JSON.stringify(vw.windows || {}))}" data-nein="${h((vw.nein || []).join(','))}" title="${h(tip)}">
+        data-fenster="${h(JSON.stringify(vw.windows || {}))}" data-nein="${h((vw.nein || []).join(','))}"${
+        show ? ` data-auff="${h(show.von + (show.notiz ? ' \u00b7 ' + show.notiz : ''))}"` : ''} title="${h(tip)}">
       <span class="num">${tg.day}</span>
+      ${show ? `<span class="auffz"><span class="fl">${t('show.title')} </span>${h(show.von)}</span>` : ''}
       ${date ? `<span class="fix"><span class="fl">${t('kd.rehearsal')} </span>${h(date.von)}</span>` : who}
       <span class="time">${!date && e?.von ? h(e.von + '–' + e.bis) : ''}</span>
       ${editable ? `<input type="hidden" name="t_${tg.iso}" value="${e?.von ? '1' : ''}">
@@ -2489,7 +2515,8 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
   const dates = {};
   for (const [iso, x] of Object.entries(views)) if (x.date) dates[iso] = { ...x.date, message: opt.messages?.[iso] || '' };
   const legend = [['fixed withme', 'my.lg_fixed_me'], ['fixed', 'my.lg_fixed'], ['me', 'my.lg_mine'],
-    ['others', 'my.lg_others'], ['nein', 'my.lg_nein'], ['blocked', 'my.legend_blocked'], ['allfree', 'my.lg_allfree']];
+    ['others', 'my.lg_others'], ['nein', 'my.lg_nein'], ['blocked', 'my.legend_blocked'], ['allfree', 'my.lg_allfree'],
+    ...(project.auffuehrungen?.liste?.length ? [['auff', 'show.legend']] : [])];
 
   return page({ title: t('my.title'), nav: navMember(project, person), tabbar: memberTabbar(project, person), body: `
     <p class="eyebrow">${h(project.titel)}</p>
@@ -2599,7 +2626,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
                 tab_probe: ${js('my.tab_probe')}, tab_avail: ${js('my.tab_avail')},
                 locked: ${js('my.locked')}, past: ${js('my.past_day')}, outside: ${js('my.outside')},
                 frei_title: ${js('free.panel_title')}, frei_nobody: ${js('free.nobody')}, frei_pick: ${js('free.pick')},
-                frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')}, frei_discard: ${js('free.discard_confirm')},
+                frei_leer: ${js('free.said_nothing')}, frei_all: ${js('free.all')}, frei_all_go: ${js('free.all_go')}, frei_discard: ${js('free.discard_confirm')}, show: ${js('show.title')},
                 ens_yes: ${js('ens.yes_list', { n: '#' })}, ens_no: ${js('ens.no_list', { n: '#' })}, ens_open: ${js('ens.open_list', { n: '#' })},
                 frei_name: ${js('free.title', { who: '#' })}, frei_what: ${js('free.what_label')},
                 ens_title: ${js('ens.title')}, ens_kind: ${js('ens.kind')}, ens_pick: ${js('ens.kind_pick')},
@@ -2729,6 +2756,7 @@ function myTimesPage(project, person, m, days, views, ics = '', opt = {}) {
         schleier.hidden = false; probeDirty = false;
         tafel.innerHTML =
           '<b>' + d.toLocaleDateString(place, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) + '</b>' +
+          (td.dataset.auff ? '<div class="auff-zeile">' + esc(W.show) + ' ' + esc(td.dataset.auff) + '</div>' : '') +
           (withProbe ? '<div class="tafeltabs" role="tablist">' +
             '<button type="button" role="tab" data-tab="probe">' + esc(W.tab_probe) + '</button>' +
             '<button type="button" role="tab" data-tab="zeit">' + esc(W.tab_avail) + '</button></div>' : '') +

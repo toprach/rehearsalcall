@@ -87,8 +87,16 @@ export function period(project) {
   return { start, end };
 }
 
+/* The performances read from the company's page (shows.mjs), by day. */
+export const showsOf = project => new Map((project?.auffuehrungen?.liste || [])
+  .filter(x => x && /^\d{4}-\d{2}-\d{2}$/.test(x.iso)).map(x => [x.iso, x]));
+
 export function calendarDays(project) {
   const { start, end } = period(project);
+  // the calendar reaches the last performance, at most a year ahead
+  const last = asDate([...showsOf(project).keys()].sort().pop());
+  const limit = new Date(start); limit.setMonth(limit.getMonth() + 12);
+  if (last && last > end && last <= limit) end.setTime(last.getTime());
   const out = [];
   for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     out.push({ iso: isoDate(d), day: d.getDate(), month: d.getMonth(),
@@ -421,6 +429,7 @@ export function oneDatePerDay(project) {
    day if there is one, as rows of who comes when. A day that is over
    takes its date from the history, where it may still be several. */
 export function dayView(project, person, days) {
+  const shows = showsOf(project);
   const people = project.personen || [];
   const directors = directorsOf(project);
   const isDirector = directors.includes(person.b);
@@ -473,7 +482,9 @@ export function dayView(project, person, days) {
     }
     // who said they cannot that day - the rest without a window gave nothing
     const nein = people.filter(x => !directors.includes(x.b) && project.verfuegbar?.[x.id]?.tage?.[t.iso]?.nein).map(x => x.b);
-    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, nein, date };
+    const show = shows.get(t.iso);
+    out[t.iso] = { past: t.iso < today, outside: !!t.outside, blocked: blocked.has(t.iso), windows, nein, date,
+                   ...(show ? { show: { von: show.von, notiz: show.notiz || '' } } : {}) };
   }
   return out;
 }

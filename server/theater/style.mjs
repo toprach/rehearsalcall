@@ -225,6 +225,13 @@ export const STYLE = uprightMedia(`
   table.cal td.fixed, table.cal td.day.fixed.me, table.cal td.day.level3.fixed.me, .dot.fixed { background:#1f5e36; border-color:#1f5e36; color:#fff }
   table.cal td.fixed .num, table.cal td.fixed .time { color:#fff }
   /* the fixed rehearsal named in the cell, not only by colour */
+  table.cal td.auff { box-shadow:inset 0 0 0 2px #5b2a86 }
+  table.cal td .auffz { display:block; font-size:.58rem; line-height:1.2; font-weight:700; letter-spacing:.04em;
+                        color:#fff; background:#5b2a86; border-radius:2px; padding:0 .2rem; margin:.1rem 0; overflow:hidden;
+                        white-space:nowrap; text-overflow:ellipsis }
+  .dot.auff { background:#5b2a86; border-color:#5b2a86 }
+  .auff-zeile { margin:.3rem 0 .2rem; font-weight:700; color:#5b2a86 }
+  html[data-theme="dark"] .auff-zeile { color:#c9a4ea }
   table.cal td.fixed .fix { display:block; font-size:.62rem; line-height:1.2; font-weight:700; color:#fff;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.1rem 0 }
   table.cal td:hover { border-color:var(--accent) }
@@ -246,7 +253,7 @@ export const STYLE = uprightMedia(`
   table.cal td .who i.more { display:none }
   /* a phone has room for two names, the start of a date, and no own time (the red frame says it) */
   @media (max-width:640px) { table.cal td .who i.x { display:none } table.cal td .who i.more { display:block }
-    table.cal td .fix .fl { display:none } table.cal td.day .time { display:none } }
+    table.cal td .fix .fl, table.cal td .auffz .fl { display:none } table.cal td.day .time { display:none } }
   .calegend { display:grid; grid-template-columns:repeat(auto-fill, minmax(11rem, 1fr)); gap:.3rem .8rem; margin:.6rem 0 1rem; color:var(--muted) }
   .calegend > div { display:flex; align-items:center; gap:.5rem }
   .zeigen { margin:.4rem 0 .6rem }

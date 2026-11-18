@@ -119,6 +119,20 @@ export const en = {
   'mem.docs':        'All scripts and part books in one place: <a href="{url}">Scripts</a> \u2013 '
                     + 'open one and print it in the browser.',
 
+  /* ---------- performances, from the company's page ---------- */
+  'show.title':     'PERFORMANCE',
+  'show.legend':    'performance',
+  'show.source':    'Performances',
+  'show.source_what': 'The address of the page that lists the performances (the tickets page). It is read every hour; '
+                  + 'each date is in everybody\u2019s calendar and calendar feed. Leave empty for none.',
+  'show.source_label': 'Address of the tickets page',
+  'show.state':     '{n} performances, last read {when}.',
+  'show.saved':     'Saved \u2013 {n} performances found.',
+  'show.removed':   'No page of performances any more.',
+  'show.bad_address': 'That is no address (it begins with https://).',
+  'show.unreachable': 'The page could not be read \u2013 the performances found last stay.',
+  'ics.show_what':  'Performance of \u201c{title}\u201d.',
+
   /* ---------- the start page: note, ensemble rehearsals, next dates ---------- */
   'home.info_title': 'From the director',
   'home.info_who':   'Everybody sees it · the director and the assistant change it. Leave empty for none.',

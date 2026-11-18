@@ -117,6 +117,20 @@ export const de = {
   'mem.docs':        'Alle Skripte und Rollenhefte an einer Stelle: <a href="{url}">Skripte</a> \u2013 '
                     + '\u00f6ffnen und im Browser drucken.',
 
+  /* ---------- performances, from the company's page ---------- */
+  'show.title':     'AUFF\u00dcHRUNG',
+  'show.legend':    'Auff\u00fchrung',
+  'show.source':    'Auff\u00fchrungen',
+  'show.source_what': 'Die Adresse der Seite, auf der die Auff\u00fchrungen stehen (die Ticketseite). Sie wird st\u00fcndlich gelesen; '
+                  + 'jeder Termin steht f\u00fcr alle im Kalender und im Kalender-Abo. Leer lassen = keine.',
+  'show.source_label': 'Adresse der Ticketseite',
+  'show.state':     '{n} Auff\u00fchrungen, zuletzt gelesen {when}.',
+  'show.saved':     'Gespeichert \u2013 {n} Auff\u00fchrungen gefunden.',
+  'show.removed':   'Keine Auff\u00fchrungsseite mehr.',
+  'show.bad_address': 'Das ist keine Adresse (sie beginnt mit https://).',
+  'show.unreachable': 'Die Seite lie\u00df sich nicht lesen \u2013 die zuletzt gefundenen Auff\u00fchrungen bleiben.',
+  'ics.show_what':  'Auff\u00fchrung von \u201e{title}\u201c.',
+
   /* ---------- the start page: note, ensemble rehearsals, next dates ---------- */
   'home.info_title': 'Info von der Regie',
   'home.info_who':   'Sehen alle · ändern Regie und Assistenz. Leer lassen = keine Info.',

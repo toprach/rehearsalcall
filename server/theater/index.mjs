@@ -41,6 +41,7 @@ import { feedFor } from './ics.mjs';
 import * as Push from './push.mjs';
 import * as Reminders from './reminders.mjs';
 import * as Source from './source.mjs';
+import { fetchShows } from './shows.mjs';
 import * as Acts from './acts.mjs';
 
 const MEMBER = 'mitglied';
@@ -651,6 +652,31 @@ async function refreshDue() {
     try { await refreshFromSource(p.id); }
     catch (e) { console.error('[Quelle] ' + p.id + ': ' + (e && e.stack || e)); }
   }
+  // the performances, from the company's page: once an hour
+  for (const p of all) {
+    const a = p.auffuehrungen;
+    if (p.demo || !a?.url) continue;
+    if (a.abgerufen && Date.now() - Date.parse(a.abgerufen) < SHOWS_EVERY - 60 * 1000) continue;
+    try { await refreshShows(p.id); }
+    catch (e) { console.error('[Aufführungen] ' + p.id + ': ' + (e && e.stack || e)); }
+  }
+}
+const SHOWS_EVERY = 60 * 60 * 1000;
+/* Fetch the performances of one project and keep them; what was there
+   stays when the page cannot be read. Returns the record's entry. */
+async function refreshShows(id) {
+  const project = await S.read(id);
+  const a = project?.auffuehrungen;
+  if (!a?.url) return null;
+  let liste = null, fehler = '';
+  try { liste = await fetchShows(a.url); } catch (e) { fehler = e.key || 'show.unreachable'; }
+  const fresh = await S.read(id);           // read again: the fetch took a while
+  if (!fresh?.auffuehrungen || fresh.auffuehrungen.url !== a.url) return null;
+  fresh.auffuehrungen = { ...fresh.auffuehrungen, abgerufen: new Date().toISOString(),
+                          ...(liste ? { liste } : {}), fehler };
+  if (!fehler) delete fresh.auffuehrungen.fehler;
+  await S.write(fresh);
+  return fresh.auffuehrungen;
 }
 let looking = false;
 export function startSourceRefresh() {
@@ -1788,6 +1814,21 @@ export async function handle(request, response, path) {
       project.einstellungen.ort = String(fields.ort || '').trim().slice(0, 120);
       await S.write(project);
       return html(response, A.projectPage(project, { kind: 'good', key: 'r.place_saved' }));
+    }
+    if (String(fields.action) === 'auffuehrungen') {
+      const url = Source.checkAddress(fields.url);
+      if (url === null) return html(response, A.projectPage(project, { kind: 'error', key: 'show.bad_address' }));
+      if (!url) {
+        delete project.auffuehrungen;
+        await S.write(project);
+        return html(response, A.projectPage(project, { kind: 'good', key: 'show.removed' }));
+      }
+      project.auffuehrungen = { url, liste: project.auffuehrungen?.url === url ? project.auffuehrungen.liste || [] : [] };
+      await S.write(project);
+      const a = await refreshShows(project.id);
+      const fresh = await S.read(project.id);
+      return html(response, A.projectPage(fresh, a?.fehler ? { kind: 'error', key: a.fehler }
+        : { kind: 'good', key: 'show.saved', values: { n: (a?.liste || []).length } }));
     }
     if (String(fields.action) === 'akte') {
       const v = releaseActs(project, fields);
