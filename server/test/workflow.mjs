@@ -704,7 +704,7 @@ for (const b of cast) {
       const no = await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'nein' });
       check('and may change the answer', good(no) && /value="ja"/.test(no.text) && /without you|ohne Sie/.test(no.text), say(no));
       await post('/theater/mit', { action: 'abstimmen', probe: e.id, antwort: 'ja' });
-      check('the day panel lists who comes, who does not, who has not answered', /"antworten":\{"ja":\["[^"]+"\],"nein":\[\],"offen":\[/.test(tz.text));
+      check('the day panel lists who comes, who does not, who has not answered', /"count":\{"ja":1,"nein":0,"offen":\d+\},"antworten":\[\{"b":"[^"]+","name":"[^"]+","a":"ja"\}/.test(tz.text));
       {
         const feed = (await call('GET', ich + '/kalender.ics')).text.replace(/\r\n /g, '');
         check('and the calendar event says so too', /(Coming|Zugesagt) \(1\): /.test(feed) && /(Not coming|Abgesagt) \(0\)/.test(feed) &&

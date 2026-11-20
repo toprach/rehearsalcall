@@ -162,6 +162,8 @@ export const en = {
   'ens.open_list':   'No answer yet ({n})',
   'ens.no_list':     'Not coming ({n})',
   'ens.yes_list':    'Coming ({n})',
+  'ens.row_no':      'not coming',
+  'ens.row_open':    'no answer yet',
   'ens.edit':        'Change the rehearsal',
   'ens.go':          'Create',
   'ens.create':      'Set an ensemble rehearsal',

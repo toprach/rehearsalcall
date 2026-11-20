@@ -160,6 +160,8 @@ export const de = {
   'ens.open_list':   'Ausst\u00e4ndig ({n})',
   'ens.no_list':     'Abgesagt ({n})',
   'ens.yes_list':    'Zugesagt ({n})',
+  'ens.row_no':      'abgesagt',
+  'ens.row_open':    'ausst\u00e4ndig',
   'ens.edit':        'Probe bearbeiten',
   'ens.go':          'Anlegen',
   'ens.create':      'Ensemble-Probe anlegen',

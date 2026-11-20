@@ -322,12 +322,14 @@ export function answerEnsemble(entry, b, answer, today = isoDate(new Date())) {
   entry.gruppe = Object.keys(zeiten);
   return true;
 }
-/* For the day panel: one's own answer, and the names of who said yes,
-   who said no and who has not answered. */
+/* For the day panel: one's own answer, and everybody as a row - who
+   said yes, who has not answered, who said no, in that order. */
 const ensembleView = (project, entry, person) => {
-  const c = ensembleCount(project, entry), names = list => list.map(x => x.name || x.b);
+  const c = ensembleCount(project, entry);
+  const row = a => x => ({ b: x.b, name: x.name || x.b, a });
   return { ensemble: true, antwort: entry.antworten?.[person.b] || '',
-           antworten: { ja: names(c.ja), nein: names(c.nein), offen: names(c.offen) } };
+           count: { ja: c.ja.length, nein: c.nein.length, offen: c.offen.length },
+           antworten: [...c.ja.map(row('ja')), ...c.offen.map(row('')), ...c.nein.map(row('nein'))] };
 };
 /* Who said what, and who has not answered yet: the whole company, the
    directors aside. */
